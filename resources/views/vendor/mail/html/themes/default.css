@@ -1,0 +1,66 @@
+/* resources/views/vendor/mail/html/themes/default.css */
+/* PrimeGest mail theme — fond beige + bleu                */
+
+/* ── Fond général de la page ──────────────────────────── */
+body,
+.wrapper {
+    background-color: #F5F0E8;   /* beige clair */
+}
+
+/* ── En-tête ──────────────────────────────────────────── */
+.header {
+    background-color: #d8c2a3;   /* beige moyen (votre valeur) */
+    padding: 24px 0;
+    text-align: center;
+    border-bottom: 1px solid #C8B090;
+}
+
+.header a {
+    color: #1A56A0;              /* bleu PrimeGest */
+    font-size: 20px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.logo {
+    height: 64px;
+    max-height: 64px;
+    width: 64px;
+    border-radius: 10px;          /* coins arrondis sur le logo */
+}
+
+/* ── Corps du message ────────────────────────────────── */
+.body-content,
+.inner-body {
+    background-color: #ffffff;
+}
+
+/* ── Bouton principal ────────────────────────────────── */
+.button-primary {
+    background-color: #1A56A0;
+    border-color: #1A56A0;
+    color: #ffffff;
+    border-radius: 8px;
+}
+
+.button-primary:hover {
+    background-color: #154880;
+    border-color: #154880;
+}
+
+/* ── Pied de page ────────────────────────────────────── */
+.footer,
+.footer td {
+    background-color: #d8c2a3;   /* même couleur que le header */
+    border-top: 1px solid #C8B090;
+}
+
+.footer .content-cell {
+    padding: 20px 40px;
+    text-align: center;
+}
+
+/* ── Liens ───────────────────────────────────────────── */
+a {
+    color: #1A56A0;
+}
