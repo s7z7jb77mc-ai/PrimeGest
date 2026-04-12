@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,5 +26,11 @@ class Stock extends Model
     public function produit()
     {
         return $this->belongsTo(Produit::class);
+    }
+
+    // ✅ Relation manquante — nécessaire pour les alertes stock au dashboard central
+    public function succursale()
+    {
+        return $this->belongsTo(Succursale::class);
     }
 }

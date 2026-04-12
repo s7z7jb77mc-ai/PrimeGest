@@ -81,9 +81,9 @@
             <!-- Rôle -->
             <select v-model="form.role" class="w-full border p-2 rounded">
               <option disabled value="">Choisir un rôle</option>
-              <option value="super_admin">super_admin</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
+              <option v-for="role in availableRoles" :key="role.value" :value="role.value">
+                 {{ role.label }}
+              </option>
 
             </select>
             <p v-if="form.errors.role" class="text-red-600 text-sm">{{ form.errors.role }}</p>
@@ -145,7 +145,9 @@ import { useLang } from '@/composables/useLang'
 
 const props = defineProps({
   users: { type: Array, default: () => [] },
-  employes: { type: Array, default: () => [] }
+  
+  employes: { type: Array, default: () => [] },
+  availableRoles: { type: Array, default: () => [] }
 })
 const page = usePage()
 const isSuperAdmin = computed(() => {

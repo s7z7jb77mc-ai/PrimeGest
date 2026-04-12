@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Journal;
+use App\Models\Succursale;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -13,134 +14,182 @@ use App\Services\CaisseService;
 
 class JournalController extends Controller
 {
-    // Afficher toutes les opérations du journal DU JOUR uniquement
+    // ----------------------------------------------------------------
+    // Liste des opérations du jour
+    // ----------------------------------------------------------------
+
     public function index()
     {
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
-        $today = now()->toDateString();
+        $today        = now()->toDateString();
 
         $journals = Journal::where('entreprise_id', $entrepriseId)
-            ->when(Schema::hasColumn('journals', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when(
+                Schema::hasColumn('journals', 'succursale_id') && $succursaleId,
+                fn($q) => $q->where('succursale_id', $succursaleId)
+            )
             ->whereDate('dateHeure_operation', $today)
             ->orderBy('dateHeure_operation', 'desc')
             ->get();
 
+        // ✅ Au dashboard central (pas de succursale active), préfixer
+        // chaque description par le nom de la succursale concernée.
+        if (!$succursaleId && Schema::hasColumn('journals', 'succursale_id')) {
+            // Charger les noms de succursales en une seule requête
+            $succursaleIds = $journals->pluck('succursale_id')->filter()->unique()->values();
+            $succursales   = Succursale::whereIn('id', $succursaleIds)
+                ->where('entreprise_id', $entrepriseId)
+                ->pluck('nom', 'id'); // [id => nom]
+
+            $journals = $journals->map(function ($j) use ($succursales) {
+                if ($j->succursale_id && isset($succursales[$j->succursale_id])) {
+                    $j->description = '[' . $succursales[$j->succursale_id] . '] ' . ($j->description ?? '');
+                }
+                return $j;
+            });
+        }
+
         return Inertia::render('Journal/Index', [
-            'journals' => $journals,
+            'journals' => $journals->values(),
         ]);
     }
 
-    /**
-     * Store a newly created journal entry (pour le formulaire /journals POST).
-     */
-   public function store(Request $request)
-{
-    $entrepriseId = auth()->user()->entreprise_id;
-    $succursaleId = session('succursale_id');
+    // ----------------------------------------------------------------
+    // Créer une entrée de journal
+    // ----------------------------------------------------------------
 
-    $data = $request->validate([
-        'dateHeure_operation' => 'nullable|string',
-        'type' => 'required|in:entree,sortie',
-        'description' => 'nullable|string|max:500',
-        'montant' => 'required|numeric',
-        'produit_id' => 'nullable|integer',
-    ]);
+    public function store(Request $request)
+    {
+        $entrepriseId = auth()->user()->entreprise_id;
+        $succursaleId = session('succursale_id');
 
-    try {
-        DB::beginTransaction();
+        $data = $request->validate([
+            'dateHeure_operation' => 'nullable|string',
+            'type'                => 'required|in:entree,sortie',
+            'description'         => 'nullable|string|max:500',
+            'montant'             => 'required|numeric',
+            'produit_id'          => 'nullable|integer',
+        ]);
 
-        $dt = $data['dateHeure_operation'] ?? now()->toDateTimeString();
-        $dt = trim((string) $dt);
-        $dtForDb = null;
-        $formats = [
-            'Y-m-d H:i:s',
-            'Y-m-d H:i',
-            'Y-m-d\TH:i:s',
-            'Y-m-d\TH:i',
-            'd/m/Y H:i:s',
-            'd/m/Y H:i',
-        ];
-        foreach ($formats as $fmt) {
-            $tmp = \DateTime::createFromFormat($fmt, $dt);
-            if ($tmp) {
-                $errors = \DateTime::getLastErrors();
-                if (($errors['warning_count'] ?? 0) === 0 && ($errors['error_count'] ?? 0) === 0) {
-                    $dtForDb = \Carbon\Carbon::instance($tmp)->toDateTimeString();
-                    break;
+        try {
+            DB::beginTransaction();
+
+            // Normalisation de la date
+            $dt      = trim((string) ($data['dateHeure_operation'] ?? now()->toDateTimeString()));
+            $dtForDb = null;
+            $formats = [
+                'Y-m-d H:i:s', 'Y-m-d H:i',
+                'Y-m-d\TH:i:s', 'Y-m-d\TH:i',
+                'd/m/Y H:i:s', 'd/m/Y H:i',
+            ];
+            foreach ($formats as $fmt) {
+                $tmp = \DateTime::createFromFormat($fmt, $dt);
+                if ($tmp) {
+                    $errors = \DateTime::getLastErrors();
+                    if (($errors['warning_count'] ?? 0) === 0 && ($errors['error_count'] ?? 0) === 0) {
+                        $dtForDb = \Carbon\Carbon::instance($tmp)->toDateTimeString();
+                        break;
+                    }
                 }
             }
-        }
-        if (!$dtForDb) {
-            try {
-                $dtForDb = \Carbon\Carbon::parse($dt)->toDateTimeString();
-            } catch (\Throwable $e) {
-                $dtForDb = now()->toDateTimeString();
+            if (!$dtForDb) {
+                try {
+                    $dtForDb = \Carbon\Carbon::parse($dt)->toDateTimeString();
+                } catch (\Throwable $e) {
+                    $dtForDb = now()->toDateTimeString();
+                }
             }
-        }
 
-        $payload = [
-            'entreprise_id'       => $entrepriseId,
-            'produit_id'          => $data['produit_id'] ?? null,
-            'dateHeure_operation' => $dtForDb,
-            'type'                => $data['type'],
-            'description'         => $data['description'] ?? null,
-            'montant'             => $data['montant'],
-        ];
-        if (Schema::hasColumn('journals', 'succursale_id')) {
-            $payload['succursale_id'] = $succursaleId;
-        }
-        if (Schema::hasColumn('journals', 'user_id')) {
-            $payload['user_id'] = auth()->id();
-        }
+            // ✅ Préfixer la description par le nom de la succursale
+            // pour que les opérations soient identifiables depuis le central
+            $description = $data['description'] ?? null;
+            if ($succursaleId && Schema::hasColumn('journals', 'succursale_id')) {
+                $nomSucc = Succursale::where('id', $succursaleId)
+                    ->where('entreprise_id', $entrepriseId)
+                    ->value('nom');
+                if ($nomSucc && $description) {
+                    $description = '[' . $nomSucc . '] ' . $description;
+                } elseif ($nomSucc && !$description) {
+                    $description = '[' . $nomSucc . '] ' . ucfirst($data['type']);
+                }
+            }
 
-        $journal = Journal::create($payload);
-
-        // Impacter la caisse si entrée/sortie
-        if (in_array($data['type'], ['entree', 'sortie'], true)) {
-            $entree = $data['type'] === 'entree' ? (float) $data['montant'] : 0;
-            $sortie = $data['type'] === 'sortie' ? (float) $data['montant'] : 0;
-            $caisseData = [
-                'entreprise_id' => $entrepriseId,
-                'description' => 'Journal: ' . ($data['description'] ?? $data['type']),
-                'date_operation' => $dtForDb,
-                'entree' => $entree,
-                'sortie' => $sortie,
+            $payload = [
+                'entreprise_id'       => $entrepriseId,
+                'produit_id'          => $data['produit_id'] ?? null,
+                'dateHeure_operation' => $dtForDb,
+                'type'                => $data['type'],
+                'description'         => $description,
+                'montant'             => $data['montant'],
             ];
-            if (Schema::hasColumn('caisses', 'succursale_id')) {
-                $caisseData['succursale_id'] = $succursaleId;
+            if (Schema::hasColumn('journals', 'succursale_id')) {
+                $payload['succursale_id'] = $succursaleId;
             }
-            if (Schema::hasColumn('caisses', 'type_operation')) {
-                $caisseData['type_operation'] = 'journal';
+            if (Schema::hasColumn('journals', 'user_id')) {
+                $payload['user_id'] = auth()->id();
             }
-            CaisseService::createOperation($caisseData);
+
+            $journal = Journal::create($payload);
+
+            // Impacter la caisse
+            if (in_array($data['type'], ['entree', 'sortie'], true)) {
+                $entree    = $data['type'] === 'entree' ? (float) $data['montant'] : 0;
+                $sortie    = $data['type'] === 'sortie' ? (float) $data['montant'] : 0;
+                $caisseData = [
+                    'entreprise_id'  => $entrepriseId,
+                    'description'    => 'Journal: ' . ($description ?? $data['type']),
+                    'date_operation' => $dtForDb,
+                    'entree'         => $entree,
+                    'sortie'         => $sortie,
+                ];
+                if (Schema::hasColumn('caisses', 'succursale_id')) {
+                    $caisseData['succursale_id'] = $succursaleId;
+                }
+                if (Schema::hasColumn('caisses', 'type_operation')) {
+                    $caisseData['type_operation'] = 'journal';
+                }
+                CaisseService::createOperation($caisseData);
+            }
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Opération ajoutée.');
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Erreur création journal: ' . $e->getMessage());
+            return back()->withErrors([
+                'server' => 'Erreur serveur lors de la création de l\'opération : ' . $e->getMessage()
+            ])->withInput();
         }
-
-        DB::commit();
-
-        return redirect()->back()->with('success', 'Opération ajoutée.');
-    } catch (\Throwable $e) {
-        DB::rollBack();
-        Log::error('Erreur création journal: '.$e->getMessage());
-        return back()->withErrors([
-            'server' => 'Erreur serveur lors de la création de l\'opération : '.$e->getMessage()
-        ])->withInput();
     }
-}
 
-    // Méthode statique pour ajouter une entrée au journal depuis n'importe où dans l'application
+    // ----------------------------------------------------------------
+    // Méthode statique utilitaire
+    // ----------------------------------------------------------------
+
     public static function add($type, $description, $montant, $produit_id = null)
     {
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
 
+        // ✅ Préfixer par le nom de la succursale si applicable
+        if ($succursaleId && Schema::hasColumn('journals', 'succursale_id')) {
+            $nomSucc = Succursale::where('id', $succursaleId)
+                ->where('entreprise_id', $entrepriseId)
+                ->value('nom');
+            if ($nomSucc && $description) {
+                $description = '[' . $nomSucc . '] ' . $description;
+            }
+        }
+
         $payload = [
-            'entreprise_id'      => $entrepriseId,
-            'produit_id'         => $produit_id,
-            'dateHeure_operation'=> now()->toDateTimeString(),
-            'type'               => $type,
-            'description'        => $description,
-            'montant'            => $montant,
+            'entreprise_id'       => $entrepriseId,
+            'produit_id'          => $produit_id,
+            'dateHeure_operation' => now()->toDateTimeString(),
+            'type'                => $type,
+            'description'         => $description,
+            'montant'             => $montant,
         ];
         if (Schema::hasColumn('journals', 'succursale_id')) {
             $payload['succursale_id'] = $succursaleId;

@@ -14,6 +14,7 @@ use App\Models\BonEntreeLigne;
 use App\Models\Client;
 use App\Models\Fournisseur;
 use App\Models\ReductionUsage;
+use App\Models\Succursale;
 use App\Services\CaisseService;
 use App\Services\MouvementStockService;
 use Illuminate\Http\Request;
@@ -34,20 +35,80 @@ class MouvementStockController extends Controller
 
     public function index(Request $request)
     {
-        $entrepriseId = auth()->user()->entreprise_id;
-        $succursaleId = session('succursale_id');
-        $hasStocks     = Schema::hasColumn('stocks', 'succursale_id');
-        $hasMouvements = Schema::hasColumn('mouvement_stocks', 'succursale_id');
-        $hasClients    = Schema::hasColumn('clients', 'succursale_id');
+        $entrepriseId    = auth()->user()->entreprise_id;
+        $succursaleId    = session('succursale_id');
+        $hasStocks       = Schema::hasColumn('stocks', 'succursale_id');
+        $hasMouvements   = Schema::hasColumn('mouvement_stocks', 'succursale_id');
+        $hasClients      = Schema::hasColumn('clients', 'succursale_id');
         $hasFournisseurs = Schema::hasColumn('fournisseurs', 'succursale_id');
 
-        $stocks = Stock::with('produit')
-            ->where('stocks.entreprise_id', $entrepriseId)
-            ->when($succursaleId && $hasStocks, fn($q) => $q->where('stocks.succursale_id', $succursaleId))
-            ->join('produits', 'stocks.produit_id', '=', 'produits.id')
-            ->orderBy('produits.nom')
-            ->select('stocks.*')
-            ->get();
+        // ── Aperçu stock ─────────────────────────────────────────────────
+        // ✅ Dashboard central (pas de succursale active) :
+        //    On consolide les quantités par produit (somme de toutes les succursales)
+        //    pour éviter les doublons dans le tableau.
+        // ✅ Dashboard succursale : on filtre sur la succursale active uniquement.
+        if (!$succursaleId && $hasStocks) {
+            // Central : regrouper par produit_id, sommer les quantités
+            $stocksRaw = Stock::with('produit')
+                ->where('stocks.entreprise_id', $entrepriseId)
+                ->join('produits', 'stocks.produit_id', '=', 'produits.id')
+                ->orderBy('produits.nom')
+                ->select(
+                    'stocks.produit_id',
+                    DB::raw('SUM(stocks.quantite) as quantite'),
+                    DB::raw('MAX(stocks.prix_achat) as prix_achat'),
+                    DB::raw('MAX(stocks.prix_vente) as prix_vente'),
+                    DB::raw('SUM(stocks.total_achat) as total_achat'),
+                    DB::raw('SUM(stocks.total_vente) as total_vente'),
+                    DB::raw('MIN(stocks.seuil_stock) as seuil_stock')
+                )
+                ->groupBy('stocks.produit_id', 'produits.nom')
+                ->get();
+
+            // Charger les noms de succursales pour les alertes
+            $succursaleMap = Succursale::where('entreprise_id', $entrepriseId)
+                ->pluck('nom', 'id')->toArray();
+
+            // Alertes stock avec nom de la succursale
+            $alertesStock = Stock::with(['produit', 'succursale'])
+                ->where('stocks.entreprise_id', $entrepriseId)
+                ->where('seuil_stock', '>', 0)
+                ->whereColumn('quantite', '<=', 'seuil_stock')
+                ->get()
+                ->map(fn($s) => [
+                    'produit'    => $s->produit?->nom ?? 'Produit',
+                    'succursale' => $s->succursale?->nom ?? 'Central',
+                    'quantite'   => $s->quantite,
+                    'seuil'      => $s->seuil_stock,
+                ])
+                ->values();
+
+            $stocks = $stocksRaw;
+        } else {
+            // Succursale active : vue filtrée
+            $stocks = Stock::with('produit')
+                ->where('stocks.entreprise_id', $entrepriseId)
+                ->when($succursaleId && $hasStocks, fn($q) => $q->where('stocks.succursale_id', $succursaleId))
+                ->join('produits', 'stocks.produit_id', '=', 'produits.id')
+                ->orderBy('produits.nom')
+                ->select('stocks.*')
+                ->get();
+
+            // Alertes stock filtrées sur la succursale
+            $alertesStock = Stock::with('produit')
+                ->where('stocks.entreprise_id', $entrepriseId)
+                ->when($succursaleId && $hasStocks, fn($q) => $q->where('stocks.succursale_id', $succursaleId))
+                ->where('seuil_stock', '>', 0)
+                ->whereColumn('quantite', '<=', 'seuil_stock')
+                ->get()
+                ->map(fn($s) => [
+                    'produit'    => $s->produit?->nom ?? 'Produit',
+                    'succursale' => null,
+                    'quantite'   => $s->quantite,
+                    'seuil'      => $s->seuil_stock,
+                ])
+                ->values();
+        }
 
         $today = now()->toDateString();
         $mouvements = MouvementStock::with('produit', 'user')
@@ -71,6 +132,7 @@ class MouvementStockController extends Controller
 
         return Inertia::render('MouvementStock/Index', [
             'stocks'       => $stocks,
+            'alertesStock' => $alertesStock,
             'mouvements'   => $mouvements,
             'produits'     => $produits,
             'clients'      => $clients,
@@ -97,23 +159,23 @@ class MouvementStockController extends Controller
             'fournisseur_id' => 'nullable|exists:fournisseurs,id',
         ]);
 
-        $entrepriseId  = auth()->user()->entreprise_id;
-        $succursaleId  = session('succursale_id');
-        $parametres    = Parametre::where('entreprise_id', $entrepriseId)->first();
-        $tauxReduction = (float) ($parametres?->reduction_accordee ?? 0);
-        $hasClients    = Schema::hasColumn('clients', 'succursale_id');
+        $entrepriseId    = auth()->user()->entreprise_id;
+        $succursaleId    = session('succursale_id');
+        $parametres      = Parametre::where('entreprise_id', $entrepriseId)->first();
+        $tauxReduction   = (float) ($parametres?->reduction_accordee ?? 0);
+        $hasClients      = Schema::hasColumn('clients', 'succursale_id');
         $hasFournisseurs = Schema::hasColumn('fournisseurs', 'succursale_id');
 
         $produit = Produit::where('entreprise_id', $entrepriseId)->findOrFail($validated['produit_id']);
 
         DB::transaction(function () use ($validated, $entrepriseId, $produit, $tauxReduction, $succursaleId, $hasClients, $hasFournisseurs) {
-            $useReduction        = (bool) ($validated['use_reduction'] ?? false);
-            $paymentType         = $useReduction ? 'reduction' : ($validated['payment_type'] ?? 'cash');
-            $prixUnitaireFinal   = $validated['prix_unitaire'] ?? ($validated['type'] === 'entree' ? $produit->prix_achat : $produit->prix_vente);
-            $total               = (int) $validated['quantite'] * (float) $prixUnitaireFinal;
-            $clientUpdated       = false;
-            $fournisseurUpdated  = false;
-            $commentaire         = $validated['commentaire'] ?? null;
+            $useReduction       = (bool) ($validated['use_reduction'] ?? false);
+            $paymentType        = $useReduction ? 'reduction' : ($validated['payment_type'] ?? 'cash');
+            $prixUnitaireFinal  = $validated['prix_unitaire'] ?? ($validated['type'] === 'entree' ? $produit->prix_achat : $produit->prix_vente);
+            $total              = (int) $validated['quantite'] * (float) $prixUnitaireFinal;
+            $clientUpdated      = false;
+            $fournisseurUpdated = false;
+            $commentaire        = $validated['commentaire'] ?? null;
 
             if ($validated['type'] === 'sortie' && trim((string) $commentaire) === '') {
                 $commentaire = 'Vente - ' . $produit->nom;
@@ -123,18 +185,13 @@ class MouvementStockController extends Controller
                 throw ValidationException::withMessages(['payment_type' => 'La réduction ne peut pas être combinée au crédit.']);
             }
 
-            // Réduction client (sortie)
             if ($useReduction && $validated['type'] === 'sortie') {
                 $clientPhone = trim((string) ($validated['client_phone'] ?? ''));
-                if ($clientPhone === '') {
-                    throw ValidationException::withMessages(['client_phone' => 'Numéro du client requis pour utiliser la réduction.']);
-                }
+                if ($clientPhone === '') throw ValidationException::withMessages(['client_phone' => 'Numéro du client requis pour utiliser la réduction.']);
                 $client = Client::where('entreprise_id', $entrepriseId)
                     ->when($succursaleId && $hasClients, fn($q) => $q->where('succursale_id', $succursaleId))
                     ->where('numero_telephone', $clientPhone)->first();
-                if (!$client) {
-                    throw ValidationException::withMessages(['client_phone' => 'Client introuvable pour ce numéro.']);
-                }
+                if (!$client) throw ValidationException::withMessages(['client_phone' => 'Client introuvable pour ce numéro.']);
                 $reductionDisponible = (float) $client->reduction_accordee;
                 $reductionUtilisee   = min($total, $reductionDisponible);
                 $resteAPayer         = $total - $reductionUtilisee;
@@ -150,7 +207,6 @@ class MouvementStockController extends Controller
                 }
             }
 
-            // Réduction fournisseur (entrée)
             if ($useReduction && $validated['type'] === 'entree') {
                 $fournisseurId = $validated['fournisseur_id'] ?? null;
                 if (!$fournisseurId) throw ValidationException::withMessages(['fournisseur_id' => 'Fournisseur requis pour utiliser la réduction.']);
@@ -172,7 +228,6 @@ class MouvementStockController extends Controller
                 }
             }
 
-            // Crédit client (sortie)
             if ($paymentType === 'credit' && $validated['type'] === 'sortie') {
                 $clientPhone = trim((string) ($validated['client_phone'] ?? ''));
                 if ($clientPhone === '') throw ValidationException::withMessages(['client_phone' => 'Numéro du client requis pour une vente à crédit.']);
@@ -186,7 +241,6 @@ class MouvementStockController extends Controller
                 $clientUpdated = true;
             }
 
-            // Crédit fournisseur (entrée)
             if ($paymentType === 'credit' && $validated['type'] === 'entree') {
                 $fournisseurId = $validated['fournisseur_id'] ?? null;
                 if (!$fournisseurId) throw ValidationException::withMessages(['fournisseur_id' => 'Fournisseur requis pour un achat à crédit.']);
@@ -199,7 +253,6 @@ class MouvementStockController extends Controller
                 $fournisseurUpdated = true;
             }
 
-            // Stats client cash (sortie)
             if ($validated['type'] === 'sortie' && !empty($validated['client_phone']) && !$clientUpdated) {
                 $client = Client::where('entreprise_id', $entrepriseId)
                     ->when($succursaleId && $hasClients, fn($q) => $q->where('succursale_id', $succursaleId))
@@ -210,7 +263,6 @@ class MouvementStockController extends Controller
                 }
             }
 
-            // Stats fournisseur cash (entrée)
             if ($validated['type'] === 'entree' && !empty($validated['fournisseur_id']) && !$fournisseurUpdated) {
                 $fournisseur = Fournisseur::where('entreprise_id', $entrepriseId)
                     ->when($succursaleId && $hasFournisseurs, fn($q) => $q->where('succursale_id', $succursaleId))
@@ -234,13 +286,13 @@ class MouvementStockController extends Controller
     public function genererFactureVente(Request $request)
     {
         $validated = $request->validate([
-            'lignes'                  => 'required|array|min:1',
-            'lignes.*.produit_id'     => 'required|exists:produits,id',
-            'lignes.*.quantite'       => 'required|integer|min:1',
-            'lignes.*.prix_unitaire'  => 'nullable|numeric|min:0',
-            'payment_type'            => 'nullable|in:cash,credit,reduction',
-            'use_reduction'           => 'nullable|boolean',
-            'client_phone'            => 'nullable|string|max:30',
+            'lignes'                 => 'required|array|min:1',
+            'lignes.*.produit_id'    => 'required|exists:produits,id',
+            'lignes.*.quantite'      => 'required|integer|min:1',
+            'lignes.*.prix_unitaire' => 'nullable|numeric|min:0',
+            'payment_type'           => 'nullable|in:cash,credit,reduction',
+            'use_reduction'          => 'nullable|boolean',
+            'client_phone'           => 'nullable|string|max:30',
         ]);
 
         $entrepriseId  = auth()->user()->entreprise_id;
@@ -263,12 +315,8 @@ class MouvementStockController extends Controller
             if ($useReduction && ($validated['payment_type'] ?? null) === 'credit') {
                 throw ValidationException::withMessages(['payment_type' => 'La réduction ne peut pas être combinée au crédit.']);
             }
-            if ($useReduction && $clientPhone === '') {
-                throw ValidationException::withMessages(['client_phone' => 'Numéro du client requis pour utiliser la réduction.']);
-            }
-            if ($paymentType === 'credit' && $clientPhone === '') {
-                throw ValidationException::withMessages(['client_phone' => 'Numéro du client requis pour une vente à crédit.']);
-            }
+            if ($useReduction && $clientPhone === '') throw ValidationException::withMessages(['client_phone' => 'Numéro du client requis pour utiliser la réduction.']);
+            if ($paymentType === 'credit' && $clientPhone === '') throw ValidationException::withMessages(['client_phone' => 'Numéro du client requis pour une vente à crédit.']);
             if ($clientPhone !== '') {
                 $client = Client::where('entreprise_id', $entrepriseId)
                     ->when($succursaleId && $hasClients, fn($q) => $q->where('succursale_id', $succursaleId))
@@ -276,7 +324,6 @@ class MouvementStockController extends Controller
                 if (!$client) throw ValidationException::withMessages(['client_phone' => 'Client introuvable pour ce numéro.']);
             }
 
-            // ✅ Numéro unique généré avec verrou dans la transaction
             $numero = Facture::genererNumero($entrepriseId);
 
             $facturePayload = [
@@ -293,24 +340,23 @@ class MouvementStockController extends Controller
                 'date_facture'  => now(),
             ];
 
-            if (Schema::hasColumn('factures', 'succursale_id'))    $facturePayload['succursale_id']      = $succursaleId;
-            if ($client && Schema::hasColumn('factures', 'client_id'))        $facturePayload['client_id']          = $client->id;
-            if ($client && Schema::hasColumn('factures', 'client_nom'))       $facturePayload['client_nom']         = $client->nom_client;
-            if ($client && Schema::hasColumn('factures', 'client_telephone')) $facturePayload['client_telephone']   = $client->numero_telephone;
-
-            if (!Schema::hasColumn('factures', 'user_id'))        unset($facturePayload['user_id']);
-            else                                                    $facturePayload['user_id'] = $userId;
-            if (!Schema::hasColumn('factures', 'total_montant'))  unset($facturePayload['total_montant']);
-            if (!Schema::hasColumn('factures', 'prix_hors_tva'))  unset($facturePayload['prix_hors_tva']);
-            if (!Schema::hasColumn('factures', 'montant_paye'))   unset($facturePayload['montant_paye']);
-            if (!Schema::hasColumn('factures', 'date_facture'))   unset($facturePayload['date_facture']);
+            if (Schema::hasColumn('factures', 'succursale_id'))              $facturePayload['succursale_id']    = $succursaleId;
+            if ($client && Schema::hasColumn('factures', 'client_id'))       $facturePayload['client_id']        = $client->id;
+            if ($client && Schema::hasColumn('factures', 'client_nom'))      $facturePayload['client_nom']       = $client->nom_client;
+            if ($client && Schema::hasColumn('factures', 'client_telephone')) $facturePayload['client_telephone'] = $client->numero_telephone;
+            if (!Schema::hasColumn('factures', 'user_id'))  unset($facturePayload['user_id']);
+            else                                             $facturePayload['user_id'] = $userId;
+            if (!Schema::hasColumn('factures', 'total_montant')) unset($facturePayload['total_montant']);
+            if (!Schema::hasColumn('factures', 'prix_hors_tva')) unset($facturePayload['prix_hors_tva']);
+            if (!Schema::hasColumn('factures', 'montant_paye'))  unset($facturePayload['montant_paye']);
+            if (!Schema::hasColumn('factures', 'date_facture'))  unset($facturePayload['date_facture']);
 
             $facture = Facture::create($facturePayload);
 
             foreach ($validated['lignes'] as $ligne) {
-                $produit      = Produit::where('entreprise_id', $entrepriseId)->findOrFail($ligne['produit_id']);
-                $prixTtc      = $ligne['prix_unitaire'] ?? $produit->prix_vente;
-                $quantite     = (int) $ligne['quantite'];
+                $produit       = Produit::where('entreprise_id', $entrepriseId)->findOrFail($ligne['produit_id']);
+                $prixTtc       = $ligne['prix_unitaire'] ?? $produit->prix_vente;
+                $quantite      = (int) $ligne['quantite'];
                 $ligneTotalTtc = $quantite * $prixTtc;
                 $ligneTotalHt  = $tva > 0 ? $ligneTotalTtc / (1 + ($tva / 100)) : $ligneTotalTtc;
                 $ligneTva      = $ligneTotalTtc - $ligneTotalHt;
@@ -323,12 +369,10 @@ class MouvementStockController extends Controller
                     'prix_ttc'    => $prixTtc,
                     'total'       => $ligneTotalTtc,
                 ];
-                if (Schema::hasColumn('facture_lignes', 'succursale_id')) {
-                    $lignePayload['succursale_id'] = $succursaleId;
-                }
+                if (Schema::hasColumn('facture_lignes', 'succursale_id')) $lignePayload['succursale_id'] = $succursaleId;
                 FactureLigne::create($lignePayload);
 
-                $this->appliquerMouvementStock($entrepriseId, $produit, 'sortie', $quantite, $prixTtc, 'Vente - ' . ($produit->nom ?? $produit->designation ?? 'Produit'), $userId, $paymentType);
+                $this->appliquerMouvementStock($entrepriseId, $produit, 'sortie', $quantite, $prixTtc, 'Vente - ' . ($produit->nom ?? 'Produit'), $userId, $paymentType);
 
                 $totalTtc += $ligneTotalTtc;
                 $totalHt  += $ligneTotalHt;
@@ -366,7 +410,6 @@ class MouvementStockController extends Controller
         });
 
         $this->archiverFacture($facture);
-
         return redirect()->route('factures.show', $facture->id);
     }
 
@@ -377,13 +420,13 @@ class MouvementStockController extends Controller
     public function genererBonEntree(Request $request)
     {
         $validated = $request->validate([
-            'fournisseur_id'          => 'required|exists:fournisseurs,id',
-            'lignes'                  => 'required|array|min:1',
-            'lignes.*.produit_id'     => 'required|exists:produits,id',
-            'lignes.*.quantite'       => 'required|integer|min:1',
-            'lignes.*.prix_unitaire'  => 'nullable|numeric|min:0',
-            'payment_type'            => 'nullable|in:cash,credit,reduction',
-            'use_reduction'           => 'nullable|boolean',
+            'fournisseur_id'         => 'required|exists:fournisseurs,id',
+            'lignes'                 => 'required|array|min:1',
+            'lignes.*.produit_id'    => 'required|exists:produits,id',
+            'lignes.*.quantite'      => 'required|integer|min:1',
+            'lignes.*.prix_unitaire' => 'nullable|numeric|min:0',
+            'payment_type'           => 'nullable|in:cash,credit,reduction',
+            'use_reduction'          => 'nullable|boolean',
         ]);
 
         $entrepriseId    = auth()->user()->entreprise_id;
@@ -401,16 +444,8 @@ class MouvementStockController extends Controller
                 ->when($succursaleId && $hasFournisseurs, fn($q) => $q->where('succursale_id', $succursaleId))
                 ->findOrFail($validated['fournisseur_id']);
 
-            $bonPayload = [
-                'entreprise_id'  => $entrepriseId,
-                'fournisseur_id' => $fournisseur->id,
-                'total_montant'  => 0,
-                'date_bon'       => now(),
-                'payment_type'   => $paymentType,
-            ];
-            if (Schema::hasColumn('bon_entrees', 'succursale_id')) {
-                $bonPayload['succursale_id'] = $succursaleId;
-            }
+            $bonPayload = ['entreprise_id' => $entrepriseId, 'fournisseur_id' => $fournisseur->id, 'total_montant' => 0, 'date_bon' => now(), 'payment_type' => $paymentType];
+            if (Schema::hasColumn('bon_entrees', 'succursale_id')) $bonPayload['succursale_id'] = $succursaleId;
             $bon   = BonEntree::create($bonPayload);
             $total = 0;
 
@@ -425,7 +460,6 @@ class MouvementStockController extends Controller
                 BonEntreeLigne::create($lignePayload);
 
                 $this->appliquerMouvementStock($entrepriseId, $produit, 'entree', $quantite, $prixUnitaire, "Bon d'entrée " . $bon->numero, null, $paymentType);
-
                 $total += $ligneTotal;
             }
 
@@ -450,12 +484,10 @@ class MouvementStockController extends Controller
                 $this->updateFournisseurStats($fournisseur, $total);
             }
             $fournisseur->save();
-
             return $bon;
         });
 
         $this->archiverBonEntree($bon);
-
         return redirect()->route('mouvement-stocks.index')->with('success', "Bon d'entrée " . $bon->numero . ' enregistré.');
     }
 
@@ -470,19 +502,15 @@ class MouvementStockController extends Controller
 
     private function updateClientStats(Client $client, float $montantVente, float $tauxReduction): void
     {
-        $client->achat_mensuel    = (float) $client->achat_mensuel + $montantVente;
-        $client->reduction_accordee = $tauxReduction > 0
-            ? round($client->achat_mensuel * ($tauxReduction / 100), 2)
-            : 0;
+        $client->achat_mensuel      = (float) $client->achat_mensuel + $montantVente;
+        $client->reduction_accordee = $tauxReduction > 0 ? round($client->achat_mensuel * ($tauxReduction / 100), 2) : 0;
     }
 
     private function updateFournisseurStats(Fournisseur $fournisseur, float $montantAchat): void
     {
-        $fournisseur->achat_mensuel    = (float) $fournisseur->achat_mensuel + $montantAchat;
-        $taux                          = (float) $fournisseur->reduction_pourcentage;
-        $fournisseur->reduction_obtenue = $taux > 0
-            ? round($fournisseur->achat_mensuel * ($taux / 100), 2)
-            : 0;
+        $fournisseur->achat_mensuel     = (float) $fournisseur->achat_mensuel + $montantAchat;
+        $taux                           = (float) $fournisseur->reduction_pourcentage;
+        $fournisseur->reduction_obtenue = $taux > 0 ? round($fournisseur->achat_mensuel * ($taux / 100), 2) : 0;
     }
 
     private function recordReductionUsage(int $entrepriseId, string $entityType, int $entityId, float $utilise, float $reste): void
@@ -501,40 +529,25 @@ class MouvementStockController extends Controller
             ->whereDate('date_archive', $facture->date_facture ?? now())
             ->where('reference_id', (string) $facture->id)
             ->exists();
-
         if ($exists) return;
 
         $facture->loadMissing('lignes', 'client');
-        $clientNom   = $facture->client_nom   ?? $facture->client?->nom_client       ?? null;
-        $clientPhone = $facture->client_telephone ?? $facture->client?->numero_telephone ?? null;
-
         $archiveData = [
             'entreprise_id' => $facture->entreprise_id,
             'type'          => 'facture',
             'date_archive'  => ($facture->date_facture ?? now())->toDateString(),
             'reference_id'  => (string) $facture->id,
             'payload'       => [
-                'id'           => $facture->id,
-                'numero'       => $facture->numero,
-                'date_facture' => $facture->date_facture,
-                'client'       => $clientNom,
-                'client_phone' => $clientPhone,
-                'total_ht'     => $facture->total_ht,
-                'total_tva'    => $facture->total_tva,
-                'total_ttc'    => $facture->total_ttc ?? $facture->total_montant,
-                'tva'          => $facture->tva,
-                'statut'       => $facture->statut,
-                'lignes'       => $facture->lignes->map(fn($l) => [
-                    'designation' => $l->designation,
-                    'quantite'    => $l->quantite,
-                    'prix_ttc'    => $l->prix_ttc,
-                    'total'       => $l->total,
-                ])->toArray(),
+                'id' => $facture->id, 'numero' => $facture->numero, 'date_facture' => $facture->date_facture,
+                'client' => $facture->client_nom ?? $facture->client?->nom_client ?? null,
+                'client_phone' => $facture->client_telephone ?? $facture->client?->numero_telephone ?? null,
+                'total_ht' => $facture->total_ht, 'total_tva' => $facture->total_tva,
+                'total_ttc' => $facture->total_ttc ?? $facture->total_montant,
+                'tva' => $facture->tva, 'statut' => $facture->statut,
+                'lignes' => $facture->lignes->map(fn($l) => ['designation' => $l->designation, 'quantite' => $l->quantite, 'prix_ttc' => $l->prix_ttc, 'total' => $l->total])->toArray(),
             ],
         ];
-        if (Schema::hasColumn('archives', 'succursale_id')) {
-            $archiveData['succursale_id'] = $facture->succursale_id;
-        }
+        if (Schema::hasColumn('archives', 'succursale_id')) $archiveData['succursale_id'] = $facture->succursale_id;
         Archive::create($archiveData);
     }
 
@@ -546,33 +559,22 @@ class MouvementStockController extends Controller
             ->whereDate('date_archive', $bon->date_bon ?? now())
             ->where('reference_id', (string) $bon->id)
             ->exists();
-
         if ($exists) return;
 
         $bon->loadMissing('lignes', 'lignes.produit', 'fournisseur');
-
         $archiveData = [
             'entreprise_id' => $bon->entreprise_id,
             'type'          => 'bon_entree',
             'date_archive'  => ($bon->date_bon ?? now())->toDateString(),
             'reference_id'  => (string) $bon->id,
             'payload'       => [
-                'id'          => $bon->id,
-                'numero'      => $bon->numero,
-                'date_bon'    => $bon->date_bon,
+                'id' => $bon->id, 'numero' => $bon->numero, 'date_bon' => $bon->date_bon,
                 'fournisseur' => $bon->fournisseur?->nom_entreprise_fournisseur,
-                'total'       => $bon->total_montant,
-                'lignes'      => $bon->lignes->map(fn($l) => [
-                    'designation'  => $l->produit?->nom ?? 'Produit',
-                    'quantite'     => $l->quantite,
-                    'prix_unitaire' => $l->prix_unitaire,
-                    'total'        => $l->total,
-                ])->toArray(),
+                'total' => $bon->total_montant,
+                'lignes' => $bon->lignes->map(fn($l) => ['designation' => $l->produit?->nom ?? 'Produit', 'quantite' => $l->quantite, 'prix_unitaire' => $l->prix_unitaire, 'total' => $l->total])->toArray(),
             ],
         ];
-        if (Schema::hasColumn('archives', 'succursale_id')) {
-            $archiveData['succursale_id'] = $bon->succursale_id;
-        }
+        if (Schema::hasColumn('archives', 'succursale_id')) $archiveData['succursale_id'] = $bon->succursale_id;
         Archive::create($archiveData);
     }
 }

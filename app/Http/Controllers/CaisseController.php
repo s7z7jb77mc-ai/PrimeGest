@@ -1,8 +1,10 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Caisse;
 use App\Models\Parametre;
+use App\Models\Succursale;
 use App\Services\CaisseService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,9 +19,32 @@ class CaisseController extends Controller
         $succursaleId = session('succursale_id');
 
         $caissesAsc = Caisse::where('entreprise_id', $entrepriseId)
-            ->when(Schema::hasColumn('caisses', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when(
+                Schema::hasColumn('caisses', 'succursale_id') && $succursaleId,
+                fn($q) => $q->where('succursale_id', $succursaleId)
+            )
             ->orderByRaw('COALESCE(date_operation, created_at) ASC')
             ->get();
+
+        // ✅ Au dashboard central, préfixer chaque description par le nom
+        // de la succursale pour identifier l'origine de chaque opération.
+        if (!$succursaleId && Schema::hasColumn('caisses', 'succursale_id')) {
+            $succursaleIds = $caissesAsc->pluck('succursale_id')->filter()->unique()->values();
+            $succursales   = Succursale::whereIn('id', $succursaleIds)
+                ->where('entreprise_id', $entrepriseId)
+                ->pluck('nom', 'id'); // [id => nom]
+
+            $caissesAsc = $caissesAsc->map(function ($c) use ($succursales) {
+                if ($c->succursale_id && isset($succursales[$c->succursale_id])) {
+                    $prefix = '[' . $succursales[$c->succursale_id] . '] ';
+                    // Éviter de doubler le préfixe si déjà présent
+                    if (!str_starts_with((string) $c->description, $prefix)) {
+                        $c->description = $prefix . ($c->description ?? '');
+                    }
+                }
+                return $c;
+            });
+        }
 
         // Calculer le solde cumulé dans l'ordre chronologique
         $solde = 0;
@@ -34,22 +59,24 @@ class CaisseController extends Controller
         $caisseInitiale = null;
         if (Schema::hasColumn('caisses', 'type_operation')) {
             $caisseInitiale = Caisse::where('entreprise_id', $entrepriseId)
-                ->when(Schema::hasColumn('caisses', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
+                ->when(
+                    Schema::hasColumn('caisses', 'succursale_id') && $succursaleId,
+                    fn($q) => $q->where('succursale_id', $succursaleId)
+                )
                 ->where('type_operation', 'initial')
                 ->orderBy('created_at')
                 ->first();
         }
 
-        // Récupérer la devise depuis les paramètres
         $parametres = Parametre::where('entreprise_id', $entrepriseId)->first();
-        $devise = $parametres?->devise ?? 'CDF';
+        $devise     = $parametres?->devise ?? 'CDF';
 
         return Inertia::render('Caisse/Index', [
-            'caisses' => $caisses,
-            'devise' => $devise,
-            'hasInitial' => (bool) $caisseInitiale,
+            'caisses'        => $caisses,
+            'devise'         => $devise,
+            'hasInitial'     => (bool) $caisseInitiale,
             'caisseInitiale' => $caisseInitiale,
-            'succursale_id' => $succursaleId,
+            'succursale_id'  => $succursaleId,
         ]);
     }
 
@@ -71,7 +98,10 @@ class CaisseController extends Controller
         }
 
         $initialExiste = Caisse::where('entreprise_id', $entrepriseId)
-            ->when(Schema::hasColumn('caisses', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when(
+                Schema::hasColumn('caisses', 'succursale_id') && $succursaleId,
+                fn($q) => $q->where('succursale_id', $succursaleId)
+            )
             ->where('type_operation', 'initial')
             ->exists();
 
@@ -82,21 +112,17 @@ class CaisseController extends Controller
         }
 
         $validated = $request->validate([
-            'montant' => 'required|numeric|min:0',
-            'description' => 'nullable|string|max:255',
+            'montant'        => 'required|numeric|min:0',
+            'description'    => 'nullable|string|max:255',
             'date_operation' => 'nullable|date',
         ]);
 
-        $montant = $validated['montant'];
-        $description = $validated['description'] ?? 'Solde initial (manuel)';
-        $dateOperation = $validated['date_operation'] ?? now();
-
         $payload = [
-            'entreprise_id' => $entrepriseId,
-            'date_operation' => $dateOperation,
-            'description' => $description,
-            'entree' => $montant,
-            'sortie' => 0,
+            'entreprise_id'  => $entrepriseId,
+            'date_operation' => $validated['date_operation'] ?? now(),
+            'description'    => $validated['description'] ?? 'Solde initial (manuel)',
+            'entree'         => $validated['montant'],
+            'sortie'         => 0,
             'type_operation' => 'initial',
         ];
         if (Schema::hasColumn('caisses', 'succursale_id')) {
@@ -104,8 +130,6 @@ class CaisseController extends Controller
         }
         CaisseService::createOperation($payload);
 
-        return response()->json([
-            'message' => 'Solde initial enregistré avec succès.',
-        ]);
+        return response()->json(['message' => 'Solde initial enregistré avec succès.']);
     }
 }
