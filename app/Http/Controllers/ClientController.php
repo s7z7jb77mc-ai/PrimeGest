@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
+use App\Models\Succursale;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -16,18 +17,27 @@ class ClientController extends Controller
     public function index(Request $request)
     {
         $entrepriseId = auth()->user()->entreprise_id;
-        $succursaleId = session('succursale_id');
-        $search = trim((string) $request->get('search', ''));
+        $search       = trim((string) $request->get('search', ''));
 
-        $query = Client::query()->where('entreprise_id', $entrepriseId);
-        if ($succursaleId && Schema::hasColumn('clients', 'succursale_id')) {
-            $query->where('succursale_id', $succursaleId);
-        }
-        if ($search !== '') {
-            $query->where('numero_telephone', 'like', "%{$search}%");
-        }
+        dd([
+            'sql' => Client::withoutGlobalScopes()
+                ->where('entreprise_id', $entrepriseId)
+                ->toSql(),
+            'session_succursale' => session('succursale_id'),
+            'count_without_scope' => Client::withoutGlobalScopes()
+                ->where('entreprise_id', $entrepriseId)
+                ->count(),
+            'count_with_scope' => Client::where('entreprise_id', $entrepriseId)
+                ->count(),
+        ]);
 
-        $clients = $query->orderBy('nom_client')->get();
+        // ✅ withoutGlobalScopes() contourne HasSuccursaleScope
+        // Clients visibles par toute l'entreprise — pas de filtre succursale
+        $clients = Client::withoutGlobalScopes()
+            ->where('entreprise_id', $entrepriseId)
+            ->when($search !== '', fn($q) => $q->where('numero_telephone', 'like', "%{$search}%"))
+            ->orderBy('nom_client')
+            ->get();
 
         return Inertia::render('Clients/Index', [
             'clients' => $clients,
@@ -41,7 +51,7 @@ class ClientController extends Controller
         $succursaleId = session('succursale_id');
 
         $validated = $request->validate([
-            'nom_client' => 'required|string|max:255',
+            'nom_client'       => 'required|string|max:255',
             'numero_telephone' => [
                 'required',
                 'string',
@@ -53,16 +63,19 @@ class ClientController extends Controller
         ]);
 
         $validated['entreprise_id'] = $entrepriseId;
+
+        // Succursale_id gardée pour traçabilité uniquement
         if ($succursaleId && Schema::hasColumn('clients', 'succursale_id')) {
             $validated['succursale_id'] = $succursaleId;
         }
+
         $client = Client::create($validated);
 
         $returnTo = $request->input('return_to');
         if (is_string($returnTo) && Str::startsWith($returnTo, '/')) {
             $separator = str_contains($returnTo, '?') ? '&' : '?';
-            $url = $returnTo . $separator . 'client_phone=' . urlencode($client->numero_telephone);
-            return redirect($url)->with('success', 'Client ajouté avec succès.');
+            return redirect($returnTo . $separator . 'client_phone=' . urlencode($client->numero_telephone))
+                ->with('success', 'Client ajouté avec succès.');
         }
 
         return redirect()->route('clients.index')->with('success', 'Client ajouté avec succès.');
@@ -72,12 +85,12 @@ class ClientController extends Controller
     {
         $this->authorizeClient($client);
         $this->authorize('update', $client);
-        $this->assertSuperAdmin($request);
+        $this->assertManagerOrSuperAdmin($request);
+
         $entrepriseId = auth()->user()->entreprise_id;
-        $succursaleId = session('succursale_id');
 
         $validated = $request->validate([
-            'nom_client' => 'required|string|max:255',
+            'nom_client'       => 'required|string|max:255',
             'numero_telephone' => [
                 'required',
                 'string',
@@ -89,9 +102,6 @@ class ClientController extends Controller
             'adresse' => 'nullable|string|max:255',
         ]);
 
-        if ($succursaleId && $client->succursale_id && (int) $client->succursale_id !== (int) $succursaleId) {
-            abort(403);
-        }
         $client->update($validated);
 
         return redirect()->route('clients.index')->with('success', 'Client mis à jour avec succès.');
@@ -101,11 +111,8 @@ class ClientController extends Controller
     {
         $this->authorizeClient($client);
         $this->authorize('delete', $client);
-        $this->assertSuperAdmin(request());
-        $succursaleId = session('succursale_id');
-        if ($succursaleId && $client->succursale_id && (int) $client->succursale_id !== (int) $succursaleId) {
-            abort(403);
-        }
+        $this->assertManagerOrSuperAdmin(request());
+
         $client->delete();
 
         return redirect()->route('clients.index')->with('success', 'Client supprimé avec succès.');
@@ -118,17 +125,28 @@ class ClientController extends Controller
         }
     }
 
-    protected function assertSuperAdmin(Request $request): void
+    protected function assertManagerOrSuperAdmin(Request $request): void
     {
-        $user = $request->user();
-        if (!$user || !$user->isSuperAdmin()) {
-            abort(403, 'Accès réservé au Super Admin.');
+        $user         = $request->user();
+        $succursaleId = session('succursale_id');
+        $isSuperAdmin = $user->isSuperAdmin();
+        $isManager    = false;
+
+        if (!$isSuperAdmin && $succursaleId) {
+            $succursale = Succursale::where('id', $succursaleId)
+                ->where('entreprise_id', $user->entreprise_id)
+                ->first();
+            $isManager = $succursale && (int) $succursale->manager_user_id === (int) $user->id;
+        }
+
+        if (!$isSuperAdmin && !$isManager) {
+            abort(403, 'Accès réservé au Super Admin ou au manager de la succursale.');
         }
 
         $password = (string) $request->input('admin_password', '');
         if ($password === '' || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
-                'admin_password' => 'Mot de passe Super Admin incorrect.',
+                'admin_password' => 'Mot de passe incorrect.',
             ]);
         }
     }

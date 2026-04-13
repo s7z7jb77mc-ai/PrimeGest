@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
+//use App\Support\SuccursaleContext;
 
 class ArchiveController extends Controller
 {
@@ -37,6 +38,19 @@ class ArchiveController extends Controller
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
         $hasSuccCol   = Schema::hasColumn('archives', 'succursale_id');
+
+    //   dd([
+    //'succursale_id_session' => session('succursale_id'),
+    //'sql_complet' => Archive::withoutGlobalScopes()
+      //  ->where('entreprise_id', auth()->user()->entreprise_id)
+        //->when(
+          //  Schema::hasColumn('archives', 'succursale_id') && session('succursale_id'),
+            //fn($q) => $q->where('succursale_id', session('succursale_id'))
+        //)
+        //->where('type', 'journal')
+        //->toSql(),
+    //'has_succursale_col' => Schema::hasColumn('archives', 'succursale_id'),
+//]);
 
         return Archive::withoutGlobalScopes()
             ->where('entreprise_id', $entrepriseId)

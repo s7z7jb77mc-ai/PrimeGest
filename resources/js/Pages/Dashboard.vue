@@ -282,32 +282,38 @@
 
   <!-- 🔸 ALERTES STOCK (GRANDE PARTIE) -->
   <div :class="cardClass" class="rounded-xl p-5 flex-1">
-    <h2 :class="headingClass" class="mb-4 text-center">
-      {{ t('stock_alerts_low') }}
-    </h2>
+  <h2 :class="headingClass" class="mb-4 text-center">
+    {{ t('stock_alerts_low') }}
+  </h2>
 
-    <div v-if="(alertesStock || []).length" class="space-y-2 flex flex-col items-center">
-      <div
-        v-for="(a, idx) in alertesStock"
-        :key="idx"
-        :class="[
-          'flex items-center justify-between text-sm px-3 py-2 rounded-lg w-full max-w-md',
-          theme === 'dark' ? 'bg-amber-900/20' : 'bg-amber-50'
-        ]"
-      >
+  <div v-if="(alertesStock || []).length" class="space-y-2 flex flex-col items-center">
+    <div
+      v-for="(a, idx) in alertesStock"
+      :key="idx"
+      :class="[
+        'flex items-center justify-between text-sm px-3 py-2 rounded-lg w-full max-w-md',
+        theme === 'dark' ? 'bg-amber-900/20' : 'bg-amber-50'
+      ]"
+    >
+      <!-- ✅ Nom produit + nom succursale si dashboard central -->
+      <div class="flex flex-col">
         <span :class="theme === 'dark' ? 'text-amber-300' : 'text-amber-800'" class="font-medium">
           {{ a.produit }}
         </span>
-        <span class="text-gray-500 text-xs">
-          {{ a.quantite }} / seuil {{ a.seuil }}
+        <span v-if="a.succursale" class="text-xs text-gray-400 mt-0.5">
+          📍 {{ a.succursale }}
         </span>
       </div>
-    </div>
-
-    <div v-else class="text-sm text-gray-400 text-center">
-      {{ t('no_alerts') }}
+      <span class="text-gray-500 text-xs shrink-0 ml-2">
+        {{ a.quantite }} / {{ t('threshold') ?? 'seuil' }} {{ a.seuil }}
+      </span>
     </div>
   </div>
+
+  <div v-else class="text-sm text-gray-400 text-center">
+    {{ t('no_alerts') }}
+  </div>
+</div>
 
 
   <!-- 🔸 RAPPORT (PETITE PARTIE) -->
