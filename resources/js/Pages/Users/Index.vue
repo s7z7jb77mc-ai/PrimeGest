@@ -137,7 +137,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
@@ -150,7 +150,7 @@ const props = defineProps({
   availableRoles: { type: Array, default: () => [] }
 })
 const page = usePage()
-const isSuperAdmin = computed(() => {
+const _isSuperAdmin = computed(() => {
   const propsObj = page.props?.value ?? page.props ?? {}
   const user = propsObj.auth?.user
   if (user?.is_super_admin !== undefined) return user.is_super_admin === true

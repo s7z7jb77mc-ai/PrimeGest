@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import InputLabel from '@/components/InputLabel.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';

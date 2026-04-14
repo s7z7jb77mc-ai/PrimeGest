@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 
-const showingNavigationDropdown = ref(false);
+const _showingNavigationDropdown = ref(false);
 </script>
 
 <template>

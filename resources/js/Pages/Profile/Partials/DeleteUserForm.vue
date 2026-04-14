@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import DangerButton from '@/components/DangerButton.vue';
 import InputError from '@/components/InputError.vue';
 import InputLabel from '@/components/InputLabel.vue';

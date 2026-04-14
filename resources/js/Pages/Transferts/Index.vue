@@ -144,7 +144,7 @@ function formatDateTime(value?: string | null): string {
         minute: '2-digit',
       }).format(d)
     }
-  } catch (e) {}
+  } catch (_e) {}
   return String(value).replace('T', ' ').substring(0, 16)
 }
 

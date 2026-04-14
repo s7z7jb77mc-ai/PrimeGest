@@ -198,7 +198,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { setLang, t as _t } from "@/lang";
 import { useLang } from '@/composables/useLang'
@@ -299,7 +299,7 @@ onMounted(() => {
 });
 
 // Définir le mot de passe Super Admin
-const definirMotDePasseSuperAdmin = () => {
+const _definirMotDePasseSuperAdmin = () => {
   if (!nouveauMotDePasse.value) {
     alert("❌ Veuillez entrer un mot de passe.");
     return;
@@ -311,7 +311,7 @@ const definirMotDePasseSuperAdmin = () => {
 };
 
 // Réinitialiser le mot de passe Super Admin (nécessite confirmation)
-const resetSuperAdminPassword = () => {
+const _resetSuperAdminPassword = () => {
   const answer = prompt("Pour réinitialiser le mot de passe Super Admin, tapez RESET et cliquez sur OK.");
   if (answer === "RESET") {
     localStorage.removeItem("superAdminPassword");
@@ -383,7 +383,7 @@ const enregistrer = async () => {
     let result;
     try {
       result = JSON.parse(data);
-    } catch (e) {
+    } catch (_e) {
       console.error("Réponse non JSON:", data);
       if (response.status === 419) {
         alert("❌ Session expirée. Recharge la page puis réessaie.");
@@ -469,7 +469,7 @@ const saveSuccursale = async () => {
     let data = {};
     try {
       data = JSON.parse(text);
-    } catch (e) {
+    } catch (_e) {
       data = {};
     }
     if (!response.ok) {
@@ -483,7 +483,7 @@ const saveSuccursale = async () => {
 
     succursales.value.push(data.succursale);
     succursaleModalOpen.value = false;
-  } catch (e) {
+  } catch (_e) {
     alert("❌ Erreur: " + e.message);
   }
 };

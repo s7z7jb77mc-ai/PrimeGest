@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'

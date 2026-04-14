@@ -133,7 +133,7 @@ function formatDateTime(value?: string | null): string {
       })
       return fmt.format(d)
     }
-  } catch (e) {}
+  } catch (_e) {}
   return String(value).replace('T', ' ').substring(0, 19)
 }
 </script>

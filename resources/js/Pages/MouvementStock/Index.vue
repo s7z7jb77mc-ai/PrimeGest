@@ -224,7 +224,7 @@ function restoreFactureDraft() {
     const payload = JSON.parse(raw)
     if (Array.isArray(payload.factureLines)) factureLines.value = payload.factureLines
     if (payload.clientPhone) clientPhone.value = payload.clientPhone
-  } catch (e) { /* ignore */ }
+  } catch (_e) { /* ignore */ }
   localStorage.removeItem(draftKey)
   return true
 }

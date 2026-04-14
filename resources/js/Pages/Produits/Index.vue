@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'   // ⟵ on utilise router ici (pas Inertia du package core)
 import { t as _t } from '@/lang'
@@ -24,7 +24,7 @@ const deletePassword = ref('')
 const empty = { id: null, nom: '', prix_achat: '', prix_vente: '', seuil_stock: 0, admin_password: '' }
 const form = useForm({ ...empty })
 const page = usePage()
-const isSuperAdmin = computed(() => {
+const _isSuperAdmin = computed(() => {
   const propsObj = page.props?.value ?? page.props ?? {}
   if (propsObj.auth?.user?.is_super_admin !== undefined) return propsObj.auth.user.is_super_admin === true
   if (propsObj.can_manage !== undefined) return propsObj.can_manage === true

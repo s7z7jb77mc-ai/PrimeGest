@@ -223,8 +223,8 @@
   </div>
 </template>
 
-<script setup>
-import { Inertia } from '@inertiajs/inertia'
+<script setup lang="ts">
+
 import { computed, ref } from 'vue'
 
 const props = defineProps({
@@ -317,7 +317,7 @@ function formatDate(dateStr) {
       })
       return fmt.format(d)
     }
-  } catch (e) {}
+  } catch (_e) {}
   return String(dateStr).replace('T', ' ').substring(0, 19)
 }
 
@@ -345,7 +345,7 @@ async function logAction(action) {
       }),
       credentials: 'same-origin',
     })
-  } catch (e) {
+  } catch (_e) {
     // silent
   }
 }

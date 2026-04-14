@@ -151,11 +151,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 
-const props = defineProps({
+const _props = defineProps({
   rapports: Object,
   type_actif: String,
 })

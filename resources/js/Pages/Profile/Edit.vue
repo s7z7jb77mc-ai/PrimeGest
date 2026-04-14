@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout.vue';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';

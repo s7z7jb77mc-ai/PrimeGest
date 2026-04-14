@@ -151,10 +151,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
 
-const props = defineProps({
+const _props = defineProps({
   rapport: Object,
   contenu: Object,
   resume: Object,

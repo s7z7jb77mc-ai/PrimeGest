@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
@@ -69,7 +69,7 @@ function formatDateTimeShort(dateStr) {
       })
       return fmt.format(d)
     }
-  } catch (e) {}
+  } catch (_e) {}
   let s = String(dateStr).trim()
   s = s.replace('T', ' ')
   if (/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/.test(s)) s += ':00'

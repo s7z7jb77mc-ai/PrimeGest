@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'

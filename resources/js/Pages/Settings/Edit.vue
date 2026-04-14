@@ -116,7 +116,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useForm, router } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 import { ref } from 'vue'

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
@@ -13,7 +13,7 @@ const props = defineProps({
 const t = _t
 const lang = useLang()
 const page = usePage()
-const isSuperAdmin = computed(() => {
+const _isSuperAdmin = computed(() => {
   const propsObj = page.props?.value ?? page.props ?? {}
   if (propsObj.auth?.user?.is_super_admin !== undefined) return propsObj.auth.user.is_super_admin === true
   if (propsObj.can_manage !== undefined) return propsObj.can_manage === true

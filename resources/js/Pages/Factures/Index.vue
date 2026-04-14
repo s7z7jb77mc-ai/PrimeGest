@@ -1,5 +1,5 @@
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+// removed unused imports
 import { Inertia } from '@inertiajs/inertia'
 
 // Props reçues depuis Inertia

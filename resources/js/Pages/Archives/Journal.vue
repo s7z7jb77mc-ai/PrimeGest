@@ -57,11 +57,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 
-const props = defineProps({
+const _props = defineProps({
   archiveDates: Array
 })
 
