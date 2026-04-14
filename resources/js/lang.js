@@ -90,7 +90,7 @@ const messages = {
     total: 'Total',
     note: 'Note',
 
-    // ── Messages d'erreur ──────────────────────────────────────────
+    // ── Erreurs ────────────────────────────────────────────────────
     error_password_incorrect: 'Mot de passe incorrect.',
     error_access_denied: 'Accès refusé. Vous n\'avez pas les permissions nécessaires.',
     error_access_restricted: 'Accès restreint à cette page.',
@@ -105,7 +105,7 @@ const messages = {
     error_same_branch: 'La succursale de destination doit être différente.',
     error_transfer_processed: 'Ce transfert est déjà traité.',
 
-    // ── Messages de succès ─────────────────────────────────────────
+    // ── Succès ─────────────────────────────────────────────────────
     success_saved: 'Enregistrement réussi.',
     success_deleted: 'Suppression réussie.',
     success_updated: 'Mise à jour réussie.',
@@ -138,9 +138,9 @@ const messages = {
     payment_reduction: 'Réduction',
     available_stock: 'Stock disponible',
     unit_price: 'Prix unitaire',
-    purchase_price: 'Prix d\'achat',
+    purchase_price: "Prix d'achat",
     sale_price: 'Prix de vente',
-    stock_threshold: 'Seuil d\'alerte',
+    stock_threshold: "Seuil d'alerte",
 
     // ── Transferts ─────────────────────────────────────────────────
     transfer: 'Transfert',
@@ -156,7 +156,7 @@ const messages = {
     employee: 'Employé',
     position: 'Poste',
     salary: 'Salaire',
-    hire_date: 'Date d\'embauche',
+    hire_date: "Date d'embauche",
     payslip: 'Fiche de paie',
 
     // ── Factures ───────────────────────────────────────────────────
@@ -172,16 +172,37 @@ const messages = {
     // ── Connexion ──────────────────────────────────────────────────
     login: 'Connexion',
     logout: 'Déconnexion',
-    company_name: 'Nom de l\'entreprise',
+    company_name: "Nom de l'entreprise",
     remember_me: 'Se souvenir de moi',
     forgot_password: 'Mot de passe oublié ?',
-    error_company_not_found: 'Cette entreprise n\'existe pas.',
+    error_company_not_found: "Cette entreprise n'existe pas.",
     error_invalid_credentials: 'Email ou mot de passe incorrect.',
 
     // ── Inscription ────────────────────────────────────────────────
     register: 'Inscription',
-    register_success: 'Inscription réussie ! Un email de confirmation vous a été envoyé.',
+    register_success: 'Entreprise créée avec succès ! Un email de bienvenue vous a été envoyé.',
     register_welcome: 'Bienvenue sur PrimeGest !',
+    register_company_section: 'Informations entreprise',
+    register_admin_section: 'Compte Super Admin',
+    register_company_name: "Nom de l'entreprise *",
+    register_company_email: 'Email entreprise *',
+    register_company_phone: 'Téléphone',
+    register_company_address: 'Adresse',
+    register_admin_name: 'Nom complet *',
+    register_admin_email: 'Email *',
+    register_admin_password: 'Mot de passe *',
+    register_admin_confirm: 'Confirmer *',
+    register_submit: "Créer l'entreprise",
+    register_submitting: 'Création en cours...',
+    register_already: 'Déjà inscrit ?',
+    register_signin: 'Se connecter',
+
+    // ── Page d'accueil ─────────────────────────────────────────────
+    welcome_title: 'Bienvenue sur',
+    welcome_subtitle: "Un outil numérique moderne et performant conçu pour simplifier la gestion de votre entreprise, améliorer votre productivité et centraliser vos activités.",
+    welcome_secondary: "PrimeGest vous accompagne dans la transformation numérique de vos activités, en vous offrant des outils simples, intuitifs et fiables pour une gestion moderne.",
+    welcome_register: 'Inscription',
+    welcome_login: 'Connexion',
   },
 
   en: {
@@ -273,7 +294,7 @@ const messages = {
     total: 'Total',
     note: 'Note',
 
-    // ── Messages d'erreur ──────────────────────────────────────────
+    // ── Erreurs ────────────────────────────────────────────────────
     error_password_incorrect: 'Incorrect password.',
     error_access_denied: 'Access denied. You do not have the required permissions.',
     error_access_restricted: 'Access to this page is restricted.',
@@ -288,7 +309,7 @@ const messages = {
     error_same_branch: 'The destination branch must be different.',
     error_transfer_processed: 'This transfer has already been processed.',
 
-    // ── Messages de succès ─────────────────────────────────────────
+    // ── Succès ─────────────────────────────────────────────────────
     success_saved: 'Successfully saved.',
     success_deleted: 'Successfully deleted.',
     success_updated: 'Successfully updated.',
@@ -363,8 +384,29 @@ const messages = {
 
     // ── Inscription ────────────────────────────────────────────────
     register: 'Register',
-    register_success: 'Registration successful! A confirmation email has been sent.',
+    register_success: 'Company successfully created! A welcome email has been sent.',
     register_welcome: 'Welcome to PrimeGest!',
+    register_company_section: 'Company information',
+    register_admin_section: 'Super Admin account',
+    register_company_name: 'Company name *',
+    register_company_email: 'Company email *',
+    register_company_phone: 'Phone',
+    register_company_address: 'Address',
+    register_admin_name: 'Full name *',
+    register_admin_email: 'Email *',
+    register_admin_password: 'Password *',
+    register_admin_confirm: 'Confirm *',
+    register_submit: 'Create company',
+    register_submitting: 'Creating...',
+    register_already: 'Already registered?',
+    register_signin: 'Sign in',
+
+    // ── Page d'accueil ─────────────────────────────────────────────
+    welcome_title: 'Welcome to',
+    welcome_subtitle: 'A modern and powerful digital tool designed to simplify your business management, improve productivity and centralize your activities.',
+    welcome_secondary: 'PrimeGest supports your digital transformation by providing simple, intuitive and reliable tools for modern management.',
+    welcome_register: 'Register',
+    welcome_login: 'Login',
   }
 };
 
@@ -396,5 +438,5 @@ export function applyStoredLang() {
 
 export function t(key) {
   const lang = getStoredLang();
-  return messages[lang]?.[key] ?? messages.fr[key] ?? key;
+  return messages[lang]?.[key] ?? messages['fr'][key] ?? key;
 }
