@@ -2,10 +2,12 @@
   <div class="relative min-h-screen flex items-center justify-center px-4">
 
     <!-- Arrière-plan sombre (même que Register) -->
-    <div class="absolute inset-0">
-      <img src="/build/assets/background.jpg" alt="arrière plan" class="w-full h-full object-cover"/>
-      <div class="absolute inset-0 bg-black/60"></div>
-    </div>
+    <div
+      class="absolute inset-0 z-0"
+      style="background-image: url('/images/background.jpg');
+            background-size: cover;
+            background-position: center;"
+    ></div>
 
     <!-- Sélecteur de langue -->
     <div class="absolute top-4 right-4 flex items-center gap-2 z-20">
@@ -25,7 +27,7 @@
     <div class="relative z-10 w-full max-w-md p-8 rounded-2xl border border-white/30 bg-black/40 backdrop-blur-md shadow-xl">
 
       <div class="text-center mb-6">
-        <img src="/build/assets/primegest.png" alt="PrimeGest Logo" class="h-20 w-20 mx-auto mb-3"/>
+        <img src="/images/primegest.png" alt="PrimeGest Logo" class="h-20 w-20 mx-auto mb-3"/>
         <h1 class="text-2xl font-bold text-white">{{ t('forgot_password') }}</h1>
         <p class="text-sm text-gray-300 mt-1">
           {{ currentLang === 'fr' ? 'Lien réservé aux super admins' : 'Link reserved for super admins' }}

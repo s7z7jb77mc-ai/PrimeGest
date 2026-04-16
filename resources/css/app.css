@@ -1,8 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Cormorant+Garamond:wght@300;400;600&display=swap');
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Cormorant+Garamond:wght@300;400;600&display=swap');
 
 @layer components {
   .input {
@@ -209,3 +210,4 @@ input[type="number"] {
   color: white;
   border: 1px solid var(--border-color);
 }
+ 

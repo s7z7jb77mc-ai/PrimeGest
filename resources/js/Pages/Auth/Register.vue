@@ -2,11 +2,12 @@
   <div class="relative min-h-screen flex flex-col">
 
     <!-- Arrière-plan -->
-    <div class="absolute inset-0">
-      <img src="/build/assets/background.jpg" alt="arrière plan" class="w-full h-full object-cover"/>
-      <div class="absolute inset-0 bg-black/60"></div>
-    </div>
-
+     <div
+      class="absolute inset-0 z-0"
+      style="background-image: url('/images/background.jpg');
+            background-size: cover;
+            background-position: center;"
+    ></div>
     <!-- Sélecteur de langue -->
     <div class="absolute top-4 right-4 flex items-center gap-2 z-20">
       <button
@@ -24,7 +25,7 @@
     <!-- En-tête fixe -->
     <header class="fixed top-0 left-0 w-full z-20 bg-black/50 backdrop-blur-md border-b border-white/20 shadow-md p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <img src="/build/assets/primegest.png" alt="PrimeGest Logo" class="h-16 w-16 object-contain"/>
+        <img src="/public/storage/images/primegest.png" alt="PrimeGest Logo" class="h-16 w-16 object-contain">
         <div>
           <h1 class="text-xl font-bold text-white">PrimeGest</h1>
           <p class="text-sm text-gray-300">
