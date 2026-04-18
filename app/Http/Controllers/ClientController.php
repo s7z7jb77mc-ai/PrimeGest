@@ -19,17 +19,8 @@ class ClientController extends Controller
         $entrepriseId = auth()->user()->entreprise_id;
         $search       = trim((string) $request->get('search', ''));
 
-        dd([
-            'sql' => Client::withoutGlobalScopes()
-                ->where('entreprise_id', $entrepriseId)
-                ->toSql(),
-            'session_succursale' => session('succursale_id'),
-            'count_without_scope' => Client::withoutGlobalScopes()
-                ->where('entreprise_id', $entrepriseId)
-                ->count(),
-            'count_with_scope' => Client::where('entreprise_id', $entrepriseId)
-                ->count(),
-        ]);
+    
+            
 
         // ✅ withoutGlobalScopes() contourne HasSuccursaleScope
         // Clients visibles par toute l'entreprise — pas de filtre succursale

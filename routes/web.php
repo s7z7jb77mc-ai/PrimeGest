@@ -39,6 +39,9 @@ Route::get('/register-entreprise', [EntrepriseController::class, 'create'])->nam
 Route::post('/register-entreprise', [EntrepriseController::class, 'store'])->name('entreprise.store');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/upgrade', function () {
+     return Inertia::render('Upgrade');
+     })->name('upgrade');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/caisse', [CaisseController::class, 'index'])->name('caisse.index');
     Route::post('/caisse/initial', [CaisseController::class, 'storeInitial'])->name('caisse.initial');
@@ -46,7 +49,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profil', [ProfileController::class, 'index'])->name('profil.index');
     Route::get('/tiers', [TiersController::class, 'index'])->name('tiers.index');
     Route::post('/sync', [SyncController::class, 'store'])->name('sync.store');
-    Route::post('/succursales', [SuccursaleController::class, 'store'])->name('succursales.store');
+    Route::post('/succursales', [SuccursaleController::class, 'store'])->middleware('plan:succursales')->name('succursales.store');
     Route::get('/succursales', [SuccursaleController::class, 'index'])->name('succursales.index');
     Route::get('/succursales/{succursale}', [SuccursaleController::class, 'show'])->name('succursales.show');
     Route::get('/succursales-exit', [SuccursaleController::class, 'exit'])->name('succursales.exit');
@@ -74,6 +77,7 @@ Route::delete('/employes', function (Request $request, EmployeController $contro
 })->middleware(['auth','can:super_admin-only'])->name('employes.destroy.fallback');
 Route::resource('employes', EmployeController::class)->except(['show', 'update', 'destroy'])->middleware('auth');
 
+
 Route::match(['put', 'patch'], '/produits/{produit}', [ProductController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('produits.update');
 Route::delete('/produits/{produit}', [ProductController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('produits.destroy');
 Route::match(['put', 'patch'], '/produits', function (Request $request, ProductController $controller) {
@@ -86,7 +90,7 @@ Route::delete('/produits', function (Request $request, ProductController $contro
 
     return $controller->destroy($produit);
 })->middleware(['auth','can:super_admin-only'])->name('produits.destroy.fallback');
-Route::resource('produits', ProductController::class)->except(['show', 'update', 'destroy'])->middleware('auth');
+Route::resource('produits', ProductController::class)->except(['show', 'update', 'destroy'])->middleware(['auth', 'plan:produits']);
 
 Route::match(['put', 'patch'], '/clients/{client}', [\App\Http\Controllers\ClientController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('clients.update');
 Route::delete('/clients/{client}', [\App\Http\Controllers\ClientController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('clients.destroy');
@@ -100,7 +104,7 @@ Route::delete('/clients', function (Request $request, \App\Http\Controllers\Clie
 
     return $controller->destroy($client);
 })->middleware(['auth','can:super_admin-only'])->name('clients.destroy.fallback');
-Route::resource('clients', \App\Http\Controllers\ClientController::class)->except(['show', 'update', 'destroy'])->middleware('auth');
+Route::resource('clients', \App\Http\Controllers\ClientController::class)->except(['show', 'update', 'destroy'])->middleware(['auth', 'plan:clients']);
 Route::match(['put', 'patch'], '/fournisseurs/{fournisseur}', [\App\Http\Controllers\FournisseurController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('fournisseurs.update');
 Route::delete('/fournisseurs/{fournisseur}', [\App\Http\Controllers\FournisseurController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('fournisseurs.destroy');
 Route::match(['put', 'patch'], '/fournisseurs', function (Request $request, \App\Http\Controllers\FournisseurController $controller) {
@@ -113,7 +117,7 @@ Route::delete('/fournisseurs', function (Request $request, \App\Http\Controllers
 
     return $controller->destroy($fournisseur);
 })->middleware(['auth','can:super_admin-only'])->name('fournisseurs.destroy.fallback');
-Route::resource('fournisseurs', \App\Http\Controllers\FournisseurController::class)->except(['show', 'update', 'destroy'])->middleware('auth');
+Route::resource('fournisseurs', \App\Http\Controllers\FournisseurController::class)->except(['show', 'update', 'destroy'])->middleware(['auth', 'plan:fournisseurs']);
 
 
 Route::get('/utilisateurs', function () {
@@ -155,9 +159,9 @@ Route::match(['put', 'patch', 'post'], '/fiches/confirmer', function (Request $r
 Route::match(['put', 'patch'], '/users/{user}', [UserController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('users.update');
 Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('users.destroy');
 Route::post('/users/{user}/access', [UserController::class, 'updateAccess'])->middleware(['auth','can:super_admin-only'])->name('users.access');
-Route::resource('users', UserController::class)->except(['show', 'update', 'destroy'])->middleware('auth');
+Route::resource('users', UserController::class)->except(['show', 'update', 'destroy'])->middleware(['auth', 'plan:users']);
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'plan:dette_tracking'])->group(function () {
     Route::get('/creances-dettes', [\App\Http\Controllers\CreancesDettesController::class, 'index'])->name('creances-dettes.index');
     Route::post('/creances-dettes/clients/{client}/paiement', [\App\Http\Controllers\CreancesDettesController::class, 'payerCreance'])->name('creances-dettes.clients.payer');
     Route::post('/creances-dettes/fournisseurs/{fournisseur}/paiement', [\App\Http\Controllers\CreancesDettesController::class, 'payerDette'])->name('creances-dettes.fournisseurs.payer');
@@ -230,6 +234,11 @@ Route::middleware(['auth'])->group(function () {
 
 Route::get('/test-route', function () {
     return 'Test route is working';
+});
+Route::middleware(['auth', 'can:super_admin-only'])->prefix('admin')->group(function () {
+    Route::get('/plans', [\App\Http\Controllers\Admin\PlanController::class, 'index'])->name('admin.plans');
+    Route::post('/plans/{entreprise}/activate', [\App\Http\Controllers\Admin\PlanController::class, 'activate'])->name('admin.plans.activate');
+    Route::post('/plans/{entreprise}/downgrade', [\App\Http\Controllers\Admin\PlanController::class, 'downgrade'])->name('admin.plans.downgrade');
 });
 
 require __DIR__.'/auth.php';

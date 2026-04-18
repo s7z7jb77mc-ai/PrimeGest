@@ -43,10 +43,18 @@ return [
         ],
 
         'local' => [
-            'driver' => 'sqlite',
+            'driver' => 'mysql',
+            'host' => env('DB_HOST','127.0.0.1'),
+	    'port' => env('DB_PORT','3306'),
+	    'database' => env('DB_DATABASE', 'primegest'),
+	    'username' => env('DB_USERNAME', 'primegest'),
+	    'password' => env('DB_PASSWORD', 'Byabuze21.03Darcy'),
             'url' => env('DB_URL'),
-            'database' => env('LOCAL_DB_PATH', storage_path('primegest.sqlite')),
+            'charset' => 'utf8mb4',
+	    'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
+	    'strict' => true,
+	    'engine' => null,
             'foreign_key_constraints' => true,
         ],
 

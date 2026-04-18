@@ -483,7 +483,7 @@ const props = defineProps<{
 // ── State ──────────────────────────────────────────────
 const sidebarOpen = ref(true)
 const page = usePage()
-const primegestLogo = '/build/assets/primegest.png'
+const primegestLogo = '/images/primegest.png'
 
 const pageProps = computed(() => (page.props as any) ?? {})
 const logoUrl    = computed(() => props.logoUrl || pageProps.value.parametres?.logo_url || '')

@@ -29,7 +29,7 @@ return new class extends Migration
         foreach ($tables as $table) {
             if (Schema::hasTable($table) && !Schema::hasColumn($table, 'succursale_id')) {
                 Schema::table($table, function (Blueprint $table) {
-                    $table->unsignedBigInteger('succursale_id')->nullable()->after('entreprise_id');
+                    $table->unsignedBigInteger('succursale_id')->nullable()->after('id');
                     $table->index('succursale_id');
                 });
             }

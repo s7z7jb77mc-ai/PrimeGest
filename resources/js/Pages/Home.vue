@@ -1,7 +1,7 @@
 <template>
   <div
     class="min-h-screen flex flex-col items-center justify-center px-6 bg-cover bg-center bg-no-repeat relative"
-    style="background-image: url('/build/assets/background.jpg');"
+    style="background-image: url('/images/background.jpg');"
   >
     <!-- Overlay sombre pour lisibilité -->
     <div class="absolute inset-0 bg-black/50 pointer-events-none"></div>
@@ -26,7 +26,7 @@
       <!-- Logo -->
       <div class="mb-6 animate-fade-in">
         <img
-          src="/build/assets/primegest.png"
+          src="/images/primegest.png"
           alt="Logo PrimeGest"
           class="w-40 h-40 object-contain mx-auto drop-shadow-md"
         />

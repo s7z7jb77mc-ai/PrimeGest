@@ -2,7 +2,7 @@
   <div class="relative min-h-screen flex flex-col">
     <!-- Arrière-plan principal -->
     <div class="absolute inset-0">
-      <img src="/build/assets/arriere_plan.jpg"
+      <img src="/images/arriere_plan.jpg"
            alt="arrière plan"
            class="w-full h-full object-cover"/>
       <div class="absolute inset-0 bg-black/50"></div>
@@ -12,7 +12,7 @@
     <!-- En-tête fixe -->
     <header class="fixed top-0 left-0 w-full z-20 bg-BLACK backdrop-blur-md border-b border-black shadow-md p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <img src="/build/assets/primegest.png" alt="PrimeGest Logo" class="h-16 w-16 object-contain"/>
+        <img src="/images/primegest.png" alt="PrimeGest Logo" class="h-16 w-16 object-contain"/>
         <div>
           <h1 class="text-xl font-bold text-blue-30">PrimeGest</h1>
           <p class="text-sm text-blue-30">Votre outil idéal pour la gestion de vos entreprises</p>

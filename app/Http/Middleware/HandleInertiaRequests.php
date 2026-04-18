@@ -44,6 +44,8 @@ class HandleInertiaRequests extends Middleware
                     ->where('id', $succursaleId)
                     ->value('nom');
             }
+       	$plan = $user?->entreprise?->plan ?? 'free';
+         $planLimits = config('plans.' . $plan);
         }
         $canManage = $user?->isSuperAdmin() === true;
 
@@ -52,6 +54,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
             ],
+	    'plan' => $plan ?? 'free',
+	    'plan_limits' => $planLimits ?? config('plans.free'),
             'can_manage' => $canManage,
             'parametres' => $parametres,
             'has_succursales' => $hasSuccursales,

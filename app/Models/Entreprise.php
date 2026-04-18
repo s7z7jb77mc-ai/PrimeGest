@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 class Entreprise extends Model
 {
     protected $fillable = [
-        'name', 'uuid', 'slug', 'email', 'phone', 'address', 'user_id'
+        'name', 'uuid', 'slug', 'email', 'phone', 'address', 'user_id','plan','plan_expires_at', 'storage_used_mb',
     ];
 
     public function admin()
