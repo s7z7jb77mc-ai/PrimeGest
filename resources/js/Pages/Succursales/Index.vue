@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
+import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+defineOptions({ layout: AppDashboardLayout })
 
 const props = defineProps({
   succursales: { type: Array, default: () => [] },

@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'   // ⟵ on utilise router ici (pas Inertia du package core)
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
+import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+defineOptions({ layout: AppDashboardLayout })
 
 // Props
 const props = defineProps({
@@ -119,6 +121,7 @@ function goDashboard() {
 
     <!-- Tableau -->
     <div class="overflow-x-auto bg-white shadow rounded">
+     <div class="overflow-x-auto -mx-4 sm:mx-0">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -144,6 +147,7 @@ function goDashboard() {
             </td>
           </tr>
         </tbody>
+	
 
         <tbody v-else>
           <tr>
@@ -151,6 +155,7 @@ function goDashboard() {
           </tr>
         </tbody>
       </table>
+     </div>
     </div>
 
     <!-- Modal -->

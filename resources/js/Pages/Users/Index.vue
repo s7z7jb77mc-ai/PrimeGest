@@ -16,6 +16,7 @@
 
     <!-- Tableau des utilisateurs -->
     <div class="overflow-x-auto bg-white shadow rounded">
+      <div class="overflow-x-auto -mx-4 sm:mx-0">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -58,6 +59,7 @@
           </tr>
         </tbody>
       </table>
+    </div>
     </div>
 
     <!-- Modal -->

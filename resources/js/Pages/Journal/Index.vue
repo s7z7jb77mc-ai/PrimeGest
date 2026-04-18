@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
+import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+defineOptions({ layout: AppDashboardLayout })
 
 // Props envoyés depuis le controller
 const props = defineProps({
@@ -109,6 +111,7 @@ const hasErrors = computed(() => Object.keys(form.errors).length > 0)
     <!-- Table -->
     <div class="bg-white shadow rounded p-4">
       <div class="overflow-x-auto">
+      <div class="overflow-x-auto -mx-4 sm:mx-0">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -132,6 +135,7 @@ const hasErrors = computed(() => Object.keys(form.errors).length > 0)
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>

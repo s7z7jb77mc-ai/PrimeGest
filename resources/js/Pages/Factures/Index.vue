@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // removed unused imports
 import { Inertia } from '@inertiajs/inertia'
+import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+defineOptions({ layout: AppDashboardLayout })
 
 // Props reçues depuis Inertia
 const props = defineProps({
@@ -33,6 +35,7 @@ function goArchives() {
     </div>
 
     <div class="bg-white shadow rounded p-4 overflow-x-auto">
+    <div class="overflow-x-auto -mx-4 sm:mx-0">
       <table class="min-w-full table-auto divide-y divide-gray-200">
         <thead class="bg-gray-100">
           <tr>
@@ -60,6 +63,7 @@ function goArchives() {
           </tr>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </template>

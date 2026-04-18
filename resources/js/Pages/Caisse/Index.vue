@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
+import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+defineOptions({ layout: AppDashboardLayout })
 
 interface CaisseItem {
   id: number
@@ -240,6 +242,7 @@ function formatDateTime(value?: string | null): string {
 
     <!-- Tableau de la caisse -->
     <div class="overflow-x-auto bg-white shadow rounded">
+     <div class="overflow-x-auto -mx-4 sm:mx-0">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -272,6 +275,7 @@ function formatDateTime(value?: string | null): string {
           </tr>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </template>

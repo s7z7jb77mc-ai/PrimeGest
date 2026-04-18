@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
+import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+defineOptions({ layout: AppDashboardLayout })
 
 const props = defineProps({
   clients: { type: Array, default: () => [] },
@@ -52,6 +54,7 @@ function goDashboard() {
     <div class="bg-white shadow rounded p-4">
       <h2 class="text-lg font-semibold mb-2">Créances clients</h2>
       <div class="overflow-x-auto">
+	<div class="overflow-x-auto -mx-4 sm:mx-0">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -85,11 +88,13 @@ function goDashboard() {
           </tbody>
         </table>
       </div>
+     </div>
     </div>
 
     <div class="bg-white shadow rounded p-4">
       <h2 class="text-lg font-semibold mb-2">Dettes fournisseurs</h2>
       <div class="overflow-x-auto">
+	<div class="overflow-x-auto -mx-4 sm:mx-0">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -120,6 +125,7 @@ function goDashboard() {
             </tr>
           </tbody>
         </table>
+	</div>
       </div>
     </div>
   </div>

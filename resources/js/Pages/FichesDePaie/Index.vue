@@ -142,6 +142,7 @@ function formatDateTime(dateStr) {
 
     <!-- Tableau -->
     <div class="overflow-x-auto bg-white shadow rounded">
+    <div class="overflow-x-auto -mx-4 sm:mx-0">
       <table class="min-w-full table-fixed divide-y divide-gray-200">
         <colgroup>
           <col class="w-56" /> <!-- Employé -->
@@ -194,6 +195,7 @@ function formatDateTime(dateStr) {
           </tr>
         </tbody>
       </table>
+     </div>
     </div>
 
     <!-- Modal -->

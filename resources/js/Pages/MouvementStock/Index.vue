@@ -3,6 +3,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
+import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+defineOptions({ layout: AppDashboardLayout })
 
 const props = defineProps({
   stocks: Array,
@@ -299,7 +301,8 @@ onMounted(() => {
     <div class="bg-white shadow rounded p-4">
       <h2 class="text-lg font-semibold mb-2">Aperçu du stock</h2>
       <div class="overflow-x-auto">
-        <table class="min-w-full table-fixed divide-y divide-gray-200">
+	<div class="overflow-x-auto -mx-4 sm:mx-0">
+          <table class="min-w-full table-fixed divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
               <th class="px-3 py-2 text-left w-40">Produit</th>
@@ -322,13 +325,15 @@ onMounted(() => {
           </tbody>
         </table>
       </div>
+      </div>
     </div>
 
     <!-- LISTE DES MOUVEMENTS -->
     <div class="bg-white shadow rounded p-4">
       <h2 class="text-lg font-semibold mb-2">Liste des mouvements</h2>
       <div class="relative overflow-x-auto max-h-[500px]">
-        <table class="min-w-full border-collapse divide-y divide-gray-200">
+	<div class="overflow-x-auto -mx-4 sm:mx-0">
+         <table class="min-w-full border-collapse divide-y divide-gray-200">
           <thead class="bg-blue-800 text-white">
             <tr>
               <th class="px-3 py-2 text-left">Produit</th>
@@ -352,6 +357,7 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+       </div>
       </div>
     </div>
 
@@ -486,6 +492,7 @@ onMounted(() => {
                 <h3 class="font-semibold">Produits ajoutés</h3>
                 <button type="button" @click="clearFacture" class="text-sm text-red-600">Vider</button>
               </div>
+	      <div class="overflow-x-auto -mx-4 sm:mx-0">
               <table class="min-w-full border border-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -508,6 +515,7 @@ onMounted(() => {
                   </tr>
                 </tbody>
               </table>
+	    </div>
             </div>
 
             <!-- Lignes bon d'entrée -->
@@ -516,6 +524,7 @@ onMounted(() => {
                 <h3 class="font-semibold">Produits ajoutés au bon d'entrée</h3>
                 <button type="button" @click="clearBonEntree" class="text-sm text-red-600">Vider</button>
               </div>
+	     <div class="overflow-x-auto -mx-4 sm:mx-0">
               <table class="min-w-full border border-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
@@ -538,6 +547,7 @@ onMounted(() => {
                   </tr>
                 </tbody>
               </table>
+	     </div>
             </div>
 
           </div>
