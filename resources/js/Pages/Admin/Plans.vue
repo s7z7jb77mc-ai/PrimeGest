@@ -1,113 +1,262 @@
-<template>
-    <AppLayout>
-        <div class="max-w-5xl mx-auto py-10 px-4">
-            <h1 class="text-xl font-medium mb-8">Administration — Plans</h1>
-
-            <!-- Paiements en attente -->
-            <div class="mb-10" v-if="subscriptions.length">
-                <h2 class="text-base font-medium mb-4 text-amber-600">Paiements en attente ({{ subscriptions.length }})</h2>
-                <div class="border rounded-xl overflow-hidden">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-500 text-xs">
-                            <tr>
-                                <th class="text-left p-3">Entreprise</th>
-                                <th class="text-left p-3">Plan</th>
-                                <th class="text-left p-3">Montant</th>
-                                <th class="text-left p-3">Référence</th>
-                                <th class="text-left p-3">Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="s in subscriptions" :key="s.id" class="border-t">
-                                <td class="p-3">{{ s.entreprise }}</td>
-                                <td class="p-3"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">{{ s.plan }}</span></td>
-                                <td class="p-3">{{ s.amount }} $</td>
-                                <td class="p-3 font-mono text-xs">{{ s.payment_reference }}</td>
-                                <td class="p-3 text-gray-400">{{ s.created_at }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Toutes les entreprises -->
-            <h2 class="text-base font-medium mb-4">Toutes les entreprises</h2>
-            <div class="border rounded-xl overflow-hidden">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 text-xs">
-                        <tr>
-                            <th class="text-left p-3">Entreprise</th>
-                            <th class="text-left p-3">Plan actuel</th>
-                            <th class="text-left p-3">Expire le</th>
-                            <th class="text-left p-3">Activer</th>
-                            <th class="text-left p-3">Durée</th>
-                            <th class="text-left p-3">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="e in entreprises" :key="e.id" class="border-t">
-                            <td class="p-3">{{ e.name }}</td>
-                            <td class="p-3">
-                                <span :class="{
-                                    'bg-gray-100 text-gray-600': e.plan === 'free',
-                                    'bg-blue-100 text-blue-700': e.plan === 'premium',
-                                    'bg-purple-100 text-purple-700': e.plan === 'pro'
-                                }" class="px-2 py-0.5 rounded text-xs">{{ e.plan }}</span>
-                            </td>
-                            <td class="p-3 text-gray-400 text-xs">{{ e.plan_expires_at ?? '—' }}</td>
-                            <td class="p-3">
-                                <select v-model="forms[e.id].plan" class="border rounded px-2 py-1 text-xs">
-                                    <option value="premium">Premium</option>
-                                    <option value="pro">Pro</option>
-                                    <option value="free">Free</option>
-                                </select>
-                            </td>
-                            <td class="p-3">
-                                <select v-model="forms[e.id].duration" class="border rounded px-2 py-1 text-xs">
-                                    <option value="1">1 mois</option>
-                                    <option value="3">3 mois</option>
-                                    <option value="6">6 mois</option>
-                                    <option value="12">12 mois</option>
-                                </select>
-                            </td>
-                            <td class="p-3 flex gap-2">
-                                <button @click="activate(e)"
-                                    class="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600">
-                                    Activer
-                                </button>
-                                <button @click="downgrade(e)"
-                                    class="border text-xs px-3 py-1 rounded hover:bg-gray-50 text-gray-500">
-                                    Free
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </AppLayout>
-</template>
-
 <script setup>
-import AppLayout from '@/layouts/AppLayout.vue'
-import { useForm } from '@inertiajs/vue3'
 import { reactive } from 'vue'
+import { useForm, router } from '@inertiajs/vue3'
 
-const props = defineProps({ entreprises: Array, subscriptions: Array })
+const props = defineProps({
+    entreprises:   { type: Array, default: () => [] },
+    subscriptions: { type: Array, default: () => [] },
+    historique:    { type: Array, default: () => [] },
+})
 
 const forms = reactive({})
 props.entreprises.forEach(e => {
-    forms[e.id] = { plan: 'premium', duration: '1' }
+    forms[e.id] = { plan: e.plan ?? 'premium', duration: '1', trial_days: '0' }
 })
 
-const activate = (e) => {
+function activate(e) {
+    if (!confirm(`Activer plan ${forms[e.id].plan} pour ${e.name} ?`)) return
     useForm({
-        plan: forms[e.id].plan,
-        duration: forms[e.id].duration,
-    }).post(route('admin.plans.activate', e.id))
+        plan:              forms[e.id].plan,
+        duration:          parseInt(forms[e.id].duration),
+        trial_days:        parseInt(forms[e.id].trial_days ?? 0),
+        payment_method:    'manual',
+        payment_reference: 'admin-manual',
+    }).post(`/owner/plans/${e.id}/activate`, {
+        onSuccess: () => router.reload(),
+        onError:   (err) => alert('Erreur: ' + JSON.stringify(err)),
+    })
 }
 
-const downgrade = (e) => {
-    useForm({}).post(route('admin.plans.downgrade', e.id))
+function downgrade(e) {
+    if (!confirm(`Repasser ${e.name} en Free ?`)) return
+    useForm({}).post(`/owner/plans/${e.id}/downgrade`, {
+        onSuccess: () => router.reload(),
+        onError:   (err) => alert('Erreur: ' + JSON.stringify(err)),
+    })
+}
+
+function logout() {
+    useForm({}).post('/owner/logout')
+}
+
+function formatDate(d) {
+    return d ? new Date(d).toLocaleDateString('fr-FR') : '—'
+}
+
+function planClass(plan) {
+    return {
+        'bg-gray-800 text-gray-400':       plan === 'free',
+        'bg-blue-900/60 text-blue-300':    plan === 'premium',
+        'bg-purple-900/60 text-purple-300': plan === 'pro',
+    }
+}
+
+function statusClass(status) {
+    return {
+        'bg-green-900/50 text-green-300':  status === 'confirmed',
+        'bg-amber-900/50 text-amber-300':  status === 'pending',
+        'bg-red-900/50 text-red-300':      status === 'cancelled',
+        'bg-blue-900/50 text-blue-300':    status === 'trial',
+    }
 }
 </script>
+
+<template>
+  <div class="min-h-screen bg-gray-950 text-white">
+
+    <!-- Header -->
+    <header class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+      <div class="flex items-center gap-3">
+        <span class="text-xl font-bold">
+          <span class="text-yellow-400">Prime</span><span class="text-white">Gest</span>
+        </span>
+        <span class="text-gray-600 text-sm">/</span>
+        <span class="text-gray-400 text-sm">Propriétaire</span>
+      </div>
+      <button
+        @click="logout"
+        class="text-xs text-gray-400 hover:text-white border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+      >
+        vas-y Darcy😎
+      </button>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-10">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <div class="text-2xl font-bold">{{ entreprises.length }}</div>
+          <div class="text-xs text-gray-400 mt-1">Entreprises</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <div class="text-2xl font-bold text-blue-400">{{ entreprises.filter(e => e.plan === 'premium').length }}</div>
+          <div class="text-xs text-gray-400 mt-1">Premium</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <div class="text-2xl font-bold text-purple-400">{{ entreprises.filter(e => e.plan === 'pro').length }}</div>
+          <div class="text-xs text-gray-400 mt-1">Pro</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <div class="text-2xl font-bold text-amber-400">{{ subscriptions.length }}</div>
+          <div class="text-xs text-gray-400 mt-1">En attente</div>
+        </div>
+      </div>
+
+      <!-- Paiements en attente -->
+      <section v-if="subscriptions.length">
+        <h2 class="text-sm font-semibold text-amber-400 mb-3 flex items-center gap-2">
+          <span class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
+          Paiements en attente ({{ subscriptions.length }})
+        </h2>
+        <div class="bg-gray-900 border border-amber-800/40 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-800 text-gray-400 text-xs">
+                <tr>
+                  <th class="text-left px-4 py-3">Entreprise</th>
+                  <th class="text-left px-4 py-3">Plan</th>
+                  <th class="text-left px-4 py-3">Montant</th>
+                  <th class="text-left px-4 py-3">Méthode</th>
+                  <th class="text-left px-4 py-3">Référence</th>
+                  <th class="text-left px-4 py-3">Début</th>
+                  <th class="text-left px-4 py-3">Expire</th>
+                  <th class="text-left px-4 py-3">Date</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800">
+                <tr v-for="s in subscriptions" :key="s.id" class="hover:bg-gray-800/50">
+                  <td class="px-4 py-3 font-medium">{{ s.entreprise }}</td>
+                  <td class="px-4 py-3">
+                    <span :class="planClass(s.plan)" class="px-2 py-0.5 rounded text-xs font-medium">{{ s.plan }}</span>
+                  </td>
+                  <td class="px-4 py-3 text-green-400 font-mono">{{ s.amount }} $</td>
+                  <td class="px-4 py-3 text-gray-400 text-xs">{{ s.payment_method }}</td>
+                  <td class="px-4 py-3 font-mono text-xs text-gray-300">{{ s.payment_reference }}</td>
+                  <td class="px-4 py-3 text-gray-400 text-xs">{{ s.starts_at ?? '—' }}</td>
+                  <td class="px-4 py-3 text-gray-400 text-xs">{{ s.expires_at ?? '—' }}</td>
+                  <td class="px-4 py-3 text-gray-500 text-xs">{{ s.created_at }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Toutes les entreprises -->
+      <section>
+        <h2 class="text-sm font-semibold text-gray-300 mb-3">Toutes les entreprises</h2>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-800 text-gray-400 text-xs">
+                <tr>
+                  <th class="text-left px-4 py-3">Entreprise</th>
+                  <th class="text-left px-4 py-3">Plan actuel</th>
+                  <th class="text-left px-4 py-3">Expire le</th>
+                  <th class="text-left px-4 py-3">Nouveau plan</th>
+                  <th class="text-left px-4 py-3">Durée</th>
+                  <th class="text-left px-4 py-3">Essai (jours)</th>
+                  <th class="text-left px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800">
+                <tr v-for="e in entreprises" :key="e.id" class="hover:bg-gray-800/40 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">{{ e.name }}</td>
+                  <td class="px-4 py-3">
+                    <span :class="planClass(e.plan)" class="px-2 py-0.5 rounded text-xs font-medium">{{ e.plan }}</span>
+                  </td>
+                  <td class="px-4 py-3 text-gray-500 text-xs">{{ e.plan_expires_at ?? '—' }}</td>
+                  <td class="px-4 py-3">
+                    <select v-model="forms[e.id].plan"
+                      class="bg-gray-800 border border-gray-700 text-white rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-yellow-400 outline-none">
+                      <option value="premium">Premium — 7$/mois</option>
+                      <option value="pro">Pro — 10$/mois</option>
+                      <option value="free">Free</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-3">
+                    <select v-model="forms[e.id].duration"
+                      class="bg-gray-800 border border-gray-700 text-white rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-yellow-400 outline-none">
+                      <option value="1">1 mois</option>
+                      <option value="3">3 mois</option>
+                      <option value="6">6 mois</option>
+                      <option value="12">12 mois</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-3">
+                    <input
+                      v-model="forms[e.id].trial_days"
+                      type="number" min="0" max="30" placeholder="0"
+                      class="bg-gray-800 border border-gray-700 text-white rounded-lg px-2 py-1.5 text-xs w-16 focus:ring-1 focus:ring-yellow-400 outline-none"
+                    />
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex gap-2">
+                      <button @click="activate(e)"
+                        class="bg-yellow-500 hover:bg-yellow-400 text-black text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors whitespace-nowrap">
+                        Activer
+                      </button>
+                      <button @click="downgrade(e)"
+                        class="border border-gray-700 hover:bg-gray-800 text-gray-400 hover:text-white text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                        → Free
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Historique abonnements -->
+      <section>
+        <h2 class="text-sm font-semibold text-gray-300 mb-3">
+          Historique des abonnements
+          <span class="text-gray-600 font-normal ml-2">({{ historique.length }})</span>
+        </h2>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div v-if="historique.length === 0" class="px-4 py-10 text-center text-gray-600 text-sm">
+            Aucun abonnement enregistré
+          </div>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-800 text-gray-400 text-xs">
+                <tr>
+                  <th class="text-left px-4 py-3">Entreprise</th>
+                  <th class="text-left px-4 py-3">Plan</th>
+                  <th class="text-left px-4 py-3">Montant</th>
+                  <th class="text-left px-4 py-3">Méthode</th>
+                  <th class="text-left px-4 py-3">Statut</th>
+                  <th class="text-left px-4 py-3">Début</th>
+                  <th class="text-left px-4 py-3">Expire</th>
+                  <th class="text-left px-4 py-3">Date</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800">
+                <tr v-for="s in historique" :key="'hist-' + s.id" class="hover:bg-gray-800/40">
+                  <td class="px-4 py-3 font-medium text-white">{{ s.entreprise }}</td>
+                  <td class="px-4 py-3">
+                    <span :class="planClass(s.plan)" class="px-2 py-0.5 rounded text-xs font-medium">{{ s.plan }}</span>
+                  </td>
+                  <td class="px-4 py-3 text-green-400 font-mono text-xs">{{ s.amount }} $</td>
+                  <td class="px-4 py-3 text-gray-400 text-xs">{{ s.payment_method }}</td>
+                  <td class="px-4 py-3">
+                    <span :class="statusClass(s.status)" class="px-2 py-0.5 rounded text-xs font-medium">
+                      {{ s.status }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-gray-400 text-xs">{{ s.starts_at ?? '—' }}</td>
+                  <td class="px-4 py-3 text-gray-400 text-xs">{{ s.expires_at ?? '—' }}</td>
+                  <td class="px-4 py-3 text-gray-500 text-xs">{{ s.created_at }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</template>

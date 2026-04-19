@@ -1,7 +1,6 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
 import forms from '@tailwindcss/forms';
 
-/** @type {import('tailwindcss').Config} */
 export default {
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
@@ -9,7 +8,15 @@ export default {
         './resources/views/**/*.blade.php',
         './resources/js/**/*.vue',
     ],
-
+    safelist: [
+        '-translate-x-full',
+        'translate-x-0',
+        'w-72', 'w-64', 'w-16',
+        'lg:ml-64', 'lg:ml-16',
+        'lg:w-64', 'lg:w-16',
+        'lg:translate-x-0',
+        'ml-0',
+    ],
     theme: {
         extend: {
             fontFamily: {
@@ -17,6 +24,5 @@ export default {
             },
         },
     },
-
     plugins: [forms],
 };

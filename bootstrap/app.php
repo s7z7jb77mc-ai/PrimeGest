@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
         'plan' => \App\Http\Middleware\CheckPlanLimit::class,
+        'owner' => \App\Http\Middleware\EnsureSiteOwner::class,
     ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

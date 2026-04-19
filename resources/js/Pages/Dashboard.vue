@@ -330,7 +330,7 @@
 
       
           <!-- ── Graphique ventes/achats ── -->
-          <div class="col-span-6">
+          <div class="col-span-12 lg:col-span-6">
             <div :class="cardClass" class="rounded-xl p-5">
               <div class="flex items-center justify-between mb-4">
                 <h2 :class="headingClass">{{ chartTitle }}</h2>

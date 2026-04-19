@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckPlanLimit
@@ -14,41 +15,55 @@ class CheckPlanLimit
         $entreprise = $user?->entreprise;
 
         if (!$entreprise) {
-            return response()->json(['error' => 'entreprise_not_found'], 403);
+            return $this->upgradeResponse($request, 'entreprise_not_found', $feature, 'free');
         }
 
         $plan   = $entreprise->plan ?? 'free';
-        $limits = config("plan_limits.{$plan}");
+        $limits = config("plans.{$plan}");
         $limit  = $limits[$feature] ?? false;
 
-        // Feature booléenne (dette_tracking, reductions, succursales, exports)
+        // Feature booléenne
         if (is_bool($limit)) {
             if (!$limit) {
-                return response()->json([
-                    'error'   => 'upgrade_required',
-                    'feature' => $feature,
-                    'plan'    => $plan,
-                ], 403);
+                return $this->upgradeResponse($request, 'upgrade_required', $feature, $plan);
             }
             return $next($request);
         }
 
-        // Feature numérique (users, produits, clients, fournisseurs)
+        // Feature numérique
         if (is_int($limit)) {
             if ($limit === -1) return $next($request);
 
             $count = $this->getCount($entreprise, $feature);
             if ($count >= $limit) {
-                return response()->json([
-                    'error'   => 'limit_reached',
-                    'feature' => $feature,
-                    'limit'   => $limit,
-                    'current' => $count,
-                ], 403);
+                return $this->upgradeResponse($request, 'limit_reached', $feature, $plan, $limit, $count);
             }
         }
 
         return $next($request);
+    }
+
+    private function upgradeResponse(
+        Request $request,
+        string $error,
+        string $feature,
+        string $plan,
+        ?int $limit = null,
+        ?int $current = null
+    ): Response {
+        // Requête Inertia → page Upgrade
+        if ($request->header('X-Inertia')) {
+            return Inertia::render('Upgrade', [
+                'error'   => $error,
+                'feature' => $feature,
+                'plan'    => $plan,
+                'limit'   => $limit,
+                'current' => $current,
+            ])->toResponse($request);
+        }
+
+        // Requête JSON classique
+        return response()->json(compact('error', 'feature', 'plan', 'limit', 'current'), 403);
     }
 
     private function getCount($entreprise, string $feature): int
