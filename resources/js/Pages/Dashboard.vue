@@ -443,7 +443,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { router, Link, usePage } from '@inertiajs/vue3'
 import { getStoredTheme, setTheme } from '@/theme'
 import { getStoredLang, t as _t } from '@/lang'
-import Chart from 'chart.js/auto'
+import { Chart, BarController, BarElement, LineController, LineElement, PointElement, ArcElement, PieController, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
+Chart.register(BarController, BarElement, LineController, LineElement, PointElement, ArcElement, PieController, CategoryScale, LinearScale, Tooltip, Legend)
 import Icon from '@/components/Icon.vue'
 
 interface Activity {
@@ -754,8 +755,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* ── Google Fonts (Playfair Display pour PrimeGest) ── */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap');
 
 /* ── Sidebar background ── */
 .sidebar-bg {

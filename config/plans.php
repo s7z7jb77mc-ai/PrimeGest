@@ -12,6 +12,8 @@ return [
         'succursales'      => false,
         'exports'          => false,
         'rapports'         => 'basic',
+        'offline_sync'     => true,   // tout le monde sync
+        'sync_quota'       => 500,    // max 500 records cloud
     ],
 
     'premium' => [
@@ -25,6 +27,8 @@ return [
         'succursales'      => false,
         'exports'          => true,
         'rapports'         => 'advanced',
+        'offline_sync'     => true,
+        'sync_quota'       => -1,     // illimité
     ],
 
     'pro' => [
@@ -38,5 +42,7 @@ return [
         'succursales'      => true,
         'exports'          => true,
         'rapports'         => 'advanced',
+        'offline_sync'     => true,
+        'sync_quota'       => -1,
     ],
 ];

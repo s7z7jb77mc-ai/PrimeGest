@@ -56,6 +56,7 @@ class HandleInertiaRequests extends Middleware
             ],
 	    'plan' => $plan ?? 'free',
 	    'plan_limits' => $planLimits ?? config('plans.free'),
+	    'plan_expires_at' => $user?->entreprise?->plan_expires_at,
             'can_manage' => $canManage,
             'parametres' => $parametres,
             'has_succursales' => $hasSuccursales,

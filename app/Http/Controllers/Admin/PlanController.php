@@ -116,33 +116,22 @@ class PlanController extends Controller
             $adminUser = $entreprise->users()->orderBy('id')->first();
         }
 
-        if ($adminUser?->email) {
-            try {
-                $planLabel = match($request->plan) {
-                    'premium' => 'Premium',
-                    'pro'     => 'Pro',
-                    default   => 'Free',
-                };
-                $expireStr = $expiresAt->format('d/m/Y');
-
-                $subject = $isTrial
-                    ? "Votre essai gratuit PrimeGest {$planLabel} est activé !"
-                    : "Votre abonnement PrimeGest {$planLabel} est confirmé ✓";
-
-                $body = $isTrial
-                    ? "Bonjour {$adminUser->name},\n\nBonne nouvelle ! Votre essai gratuit du plan {$planLabel} pour « {$entreprise->name} » a été activé.\n\nDurée : {$trialDays} jours\nExpiration : {$expireStr}\n\nProfitez de toutes les fonctionnalités premium pendant cette période.\n\nBonne découverte !\n\n— L'équipe PrimeGest\nhttps://primegest.app"
-                    : "Bonjour {$adminUser->name},\n\nVotre abonnement au plan {$planLabel} pour « {$entreprise->name} » a été confirmé avec succès.\n\nDébut : " . now()->format('d/m/Y') . "\nExpiration : {$expireStr}\nMontant : {$amount} \$/mois\n\nMerci pour votre confiance.\n\n— L'équipe PrimeGest\nhttps://primegest.app";
-
-                Mail::raw($body, function ($message) use ($adminUser, $subject) {
-                    $message
-                        ->to($adminUser->email, $adminUser->name)
-                        ->subject($subject)
-                        ->replyTo(config('mail.from.address'));
-                });
-            } catch (\Exception $e) {
-                Log::warning('Email confirmation abonnement échoué: ' . $e->getMessage());
-            }
-        }
+	if ($adminUser?->email) {
+    try {
+        Mail::to($adminUser->email, $adminUser->name)
+            ->send(new SubscriptionConfirmed(
+                userName:      $adminUser->name,
+                entrepriseName: $entreprise->name,
+                plan:          $request->plan,
+                expireDate:    $expiresAt->format('d/m/Y'),
+                amount:        $amount,
+                isTrial:       $isTrial,
+                trialDays:     $trialDays,
+            ));
+    } catch (\Exception $e) {
+        Log::warning('Email abonnement échoué: ' . $e->getMessage());
+	}
+	}
 
         $msg = $isTrial
             ? "✅ Essai {$trialDays} jours activé pour {$entreprise->name}"
