@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -79,13 +80,17 @@ class UserController extends Controller
         $succursaleId = session('succursale_id');
 
         $this->assertManagerOrSuperAdmin($request, $currentUser, $succursaleId);
+        $employe = $this->prepareEmployeRequestData($request, $currentUser);
 
         $request->validate([
             'name'           => 'required|string',
-            'email'          => 'required|email|unique:users,email',
-            'role'           => 'required|string',
+            'email'          => ['required', 'email', Rule::unique('users', 'email')],
+            'role'           => ['required', 'string', Rule::in(array_column($this->availableRoles($succursaleId), 'value'))],
             'password'       => 'required|string|confirmed|min:6',
-            'employe_id'     => 'nullable|exists:employes,id',
+            'employe_id'     => [
+                $succursaleId ? 'required' : 'nullable',
+                Rule::exists('employes', 'id')->where(fn($query) => $query->where('entreprise_id', $currentUser->entreprise_id)),
+            ],
             'access_pages'   => 'nullable|array',
             'access_pages.*' => 'string',
         ]);
@@ -95,22 +100,7 @@ class UserController extends Controller
             abort(403, 'Un manager ne peut pas créer un Super Admin.');
         }
 
-        // ✅ Manager : l'employé doit appartenir à sa succursale
-        if ($succursaleId && !$currentUser->isSuperAdmin() && $request->employe_id) {
-            $employe = Employe::find($request->employe_id);
-            if ($employe && (int) $employe->succursale_id !== (int) $succursaleId) {
-                throw ValidationException::withMessages([
-                    'employe_id' => 'Cet employé n\'appartient pas à votre succursale.',
-                ]);
-            }
-        }
-
-        if ($request->employe_id) {
-            $employe = Employe::find($request->employe_id);
-            if ($employe && $employe->email) {
-                $request->merge(['email' => $employe->email]);
-            }
-        }
+        $this->syncEmployeToActiveSuccursale($employe, $succursaleId);
 
         User::create([
             'name'          => $request->name,
@@ -146,13 +136,17 @@ class UserController extends Controller
         }
 
         $this->assertManagerOrSuperAdmin($request, $currentUser, $succursaleId);
+        $employe = $this->prepareEmployeRequestData($request, $currentUser);
 
         $request->validate([
             'name'           => 'required|string',
-            'email'          => 'required|email|unique:users,email,' . $user->id,
-            'role'           => 'required|string',
+            'email'          => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
+            'role'           => ['required', 'string', Rule::in(array_column($this->availableRoles($succursaleId), 'value'))],
             'password'       => 'nullable|string|confirmed|min:6',
-            'employe_id'     => 'nullable|exists:employes,id',
+            'employe_id'     => [
+                $succursaleId ? 'required' : 'nullable',
+                Rule::exists('employes', 'id')->where(fn($query) => $query->where('entreprise_id', $currentUser->entreprise_id)),
+            ],
             'access_pages'   => 'nullable|array',
             'access_pages.*' => 'string',
         ]);
@@ -162,12 +156,7 @@ class UserController extends Controller
             abort(403, 'Un manager ne peut pas attribuer le rôle Super Admin.');
         }
 
-        if ($request->employe_id) {
-            $employe = Employe::find($request->employe_id);
-            if ($employe && $employe->email) {
-                $request->merge(['email' => $employe->email]);
-            }
-        }
+        $this->syncEmployeToActiveSuccursale($employe, $succursaleId);
 
         $user->name         = $request->name;
         $user->email        = $request->email;
@@ -250,6 +239,7 @@ class UserController extends Controller
     {
         $isSuperAdmin = $currentUser->isSuperAdmin();
         $isManager    = false;
+        $isCentralAdmin = !$succursaleId && strtolower((string) $currentUser->role) === 'admin';
 
         if (!$isSuperAdmin && $succursaleId) {
             $succursale = Succursale::where('id', $succursaleId)
@@ -258,15 +248,33 @@ class UserController extends Controller
             $isManager = $succursale && (int) $succursale->manager_user_id === (int) $currentUser->id;
         }
 
-        if (!$isSuperAdmin && !$isManager) {
-            abort(403, 'Accès réservé au Super Admin ou au manager de la succursale.');
+        if (!$isSuperAdmin && !$isManager && !$isCentralAdmin) {
+            abort(403, 'Accès réservé au Super Admin, à l’admin central ou au manager de la succursale.');
         }
 
-        // ✅ Vérifier le mot de passe du USER CONNECTÉ (manager ou super admin)
         $request->validate(['admin_password' => 'required|string']);
-        if (!Hash::check($request->admin_password, $currentUser->password)) {
+
+        if ($isSuperAdmin || $isManager) {
+            if (Hash::check($request->admin_password, $currentUser->password)) {
+                return;
+            }
+
             throw ValidationException::withMessages([
                 'admin_password' => 'Mot de passe incorrect.',
+            ]);
+        }
+
+        $superAdmins = User::where('entreprise_id', $currentUser->entreprise_id)
+            ->get()
+            ->filter(fn(User $user) => $user->isSuperAdmin());
+
+        $matchesSuperAdmin = $superAdmins->contains(
+            fn(User $user) => Hash::check($request->admin_password, $user->password)
+        );
+
+        if (!$matchesSuperAdmin) {
+            throw ValidationException::withMessages([
+                'admin_password' => 'Mot de passe Super Admin incorrect.',
             ]);
         }
     }
@@ -279,6 +287,41 @@ class UserController extends Controller
 
         if (!$succursale || (int) $succursale->manager_user_id !== (int) $user->id) {
             abort(403, 'Accès réservé au manager de cette succursale.');
+        }
+    }
+
+    private function prepareEmployeRequestData(Request $request, User $currentUser): ?Employe
+    {
+        if (!$request->filled('employe_id')) {
+            return null;
+        }
+
+        $employe = Employe::withoutGlobalScopes()->where('id', $request->input('employe_id'))
+            ->where('entreprise_id', $currentUser->entreprise_id)
+            ->first();
+
+        if ($employe?->email) {
+            $request->merge(['email' => $employe->email]);
+        }
+
+        return $employe;
+    }
+
+    private function syncEmployeToActiveSuccursale(?Employe $employe, ?int $succursaleId): void
+    {
+        if (!$employe || !$succursaleId || !Schema::hasColumn('employes', 'succursale_id')) {
+            return;
+        }
+
+        if ($employe->succursale_id === null) {
+            $employe->forceFill(['succursale_id' => $succursaleId])->save();
+            return;
+        }
+
+        if ((int) $employe->succursale_id !== (int) $succursaleId) {
+            throw ValidationException::withMessages([
+                'employe_id' => 'Cet employé n\'appartient pas à la succursale active.',
+            ]);
         }
     }
 }

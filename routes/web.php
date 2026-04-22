@@ -173,17 +173,25 @@ Route::match(['put', 'patch', 'post'], '/fiches/confirmer', function (Request $r
 })->middleware('auth')->name('fiches.confirmer.fallback');
 
 
-//Route::resource('users', UserController::class)->except(['create', 'edit', 'show']);
 Route::resource('users', UserController::class)
-    ->except(['show', 'update', 'destroy'])
-    ->middleware(['auth'])
-    ->only(['index', 'create', 'edit']);
+    ->only(['index'])
+    ->middleware(['auth']);
+
 Route::post('/users', [UserController::class, 'store'])
     ->middleware(['auth', 'plan:users'])
     ->name('users.store');
-Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('users.destroy');
-Route::post('/users/{user}/access', [UserController::class, 'updateAccess'])->middleware(['auth','can:super_admin-only'])->name('users.access');
-Route::resource('users', UserController::class)->except(['show', 'update', 'destroy'])->middleware(['auth', 'plan:users']);
+
+Route::match(['put','patch'], '/users/{user}', [UserController::class, 'update'])
+    ->middleware(['auth', 'can:super_admin-only'])
+    ->name('users.update');
+
+Route::delete('/users/{user}', [UserController::class, 'destroy'])
+    ->middleware(['auth', 'can:super_admin-only'])
+    ->name('users.destroy');
+
+Route::post('/users/{user}/access', [UserController::class, 'updateAccess'])
+    ->middleware(['auth', 'can:super_admin-only'])
+    ->name('users.access');
 
 Route::middleware(['auth', 'plan:dette_tracking'])->group(function () {
     Route::get('/creances-dettes', [\App\Http\Controllers\CreancesDettesController::class, 'index'])

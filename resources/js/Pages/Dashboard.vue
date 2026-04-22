@@ -161,32 +161,64 @@
         </div>
       </header>
 
-      <!-- Bannière succursale -->
-      <div v-if="props.succursaleName || isSuperAdmin" class="px-6 pt-4">
-        <div
-          :class="[
-            'rounded-xl px-4 py-3 flex items-center justify-between border',
-            theme === 'dark'
-              ? 'bg-yellow-900/20 border-yellow-700/40 text-yellow-300'
-              : 'bg-yellow-50 border-yellow-200 text-yellow-900'
-          ]"
-        >
-          <div class="flex items-center gap-2">
-            <Icon name="store" class="text-yellow-500" />
-            <span class="font-semibold">
-              {{ entrepriseName }}<span v-if="props.succursaleName"> — {{ props.succursaleName }}</span>
-            </span>
-          </div>
-          <button
-            v-if="props.succursaleName && isSuperAdmin"
-            type="button"
-            @click="router.get('/succursales-exit')"
-            class="text-sm bg-yellow-500 text-black px-3 py-1 rounded-lg hover:bg-yellow-400 font-medium transition-colors"
-          >
-            ← Dashboard central
-          </button>
-        </div>
-      </div>
+	<!-- Bannière plan + succursale -->
+<div class="px-6 pt-4 space-y-2">
+
+  <!-- Badge plan -->
+  <div class="flex items-center gap-2 flex-wrap">
+    <div :class="{
+      'bg-gray-100 border-gray-200 text-gray-500':                                     currentPlan === 'free',
+      'bg-blue-50 border-blue-200 text-blue-700':                                      currentPlan === 'premium',
+      'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 text-purple-700': currentPlan === 'pro',
+    }" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide shadow-sm">
+      <span v-if="currentPlan === 'free'">○</span>
+      <span v-else-if="currentPlan === 'premium'" class="text-yellow-500">★</span>
+      <span v-else class="text-purple-500">✦</span>
+      {{ currentPlan }}
+    </div>
+
+    <span v-if="planExpiresAt && currentPlan !== 'free'" class="text-xs text-gray-400">
+      Expire le {{ planExpiresAt }}
+    </span>
+
+    <span v-if="planExpiringSoon"
+      class="text-xs bg-red-100 text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-medium animate-pulse">
+      ⚠ Expire bientôt !
+    </span>
+
+    <button v-if="currentPlan === 'free'"
+      @click="router.get('/upgrade')"
+      class="text-xs bg-gradient-to-r from-yellow-400 to-yellow-500 text-black px-3 py-1 rounded-full font-semibold hover:from-yellow-300 hover:to-yellow-400 transition-all shadow-sm">
+      Passer Premium →
+    </button>
+  </div>
+
+  <!-- Bannière succursale -->
+  <div v-if="props.succursaleName || isSuperAdmin"
+    :class="[
+      'rounded-xl px-4 py-3 flex items-center justify-between border',
+      theme === 'dark'
+        ? 'bg-yellow-900/20 border-yellow-700/40 text-yellow-300'
+        : 'bg-yellow-50 border-yellow-200 text-yellow-900'
+    ]"
+  >
+    <div class="flex items-center gap-2">
+      <Icon name="store" class="text-yellow-500" />
+      <span class="font-semibold">
+        {{ entrepriseName }}<span v-if="props.succursaleName"> — {{ props.succursaleName }}</span>
+      </span>
+    </div>
+    <button
+      v-if="props.succursaleName && isSuperAdmin"
+      type="button"
+      @click="router.get('/succursales-exit')"
+      class="text-sm bg-yellow-500 text-black px-3 py-1 rounded-lg hover:bg-yellow-400 font-medium transition-colors"
+    >
+      ← Dashboard central
+    </button>
+  </div>
+
+</div>
 
       <!-- ═══ MAIN CONTENT ═══ -->
       <main class="p-6 flex-1 overflow-y-auto">
@@ -500,6 +532,21 @@ const multiSuccursales = computed(() =>
 const isSuperAdmin = computed(() => {
   const role = String((authUser.value as any)?.role || '').toLowerCase()
   return (authUser.value as any)?.is_super_admin === true || role === 'super_admin'
+})
+
+const currentPlan = computed(() => pageProps.value.plan ?? 'free')
+
+const planExpiresAt = computed(() => {
+  const d = pageProps.value.plan_expires_at
+  if (!d) return null
+  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+})
+
+const planExpiringSoon = computed(() => {
+  const d = pageProps.value.plan_expires_at
+  if (!d || currentPlan.value === 'free') return false
+  const diff = (new Date(d).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+  return diff >= 0 && diff <= 7
 })
 
 const userInitials = computed(() => {

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -13,6 +14,12 @@ class CheckPlanLimit
     {
         $user       = $request->user();
         $entreprise = $user?->entreprise;
+
+        // Compatibilité avec les bases plus anciennes: si l'infrastructure
+        // des plans n'est pas encore migrée, on ne doit pas bloquer les écritures.
+        if (!Schema::hasColumn('entreprises', 'plan')) {
+            return $next($request);
+        }
 
         if (!$entreprise) {
             return $this->upgradeResponse($request, 'entreprise_not_found', $feature, 'free');
