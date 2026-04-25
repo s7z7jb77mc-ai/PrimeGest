@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrimeGest — Hors ligne</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111827;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #fff;
+    }
+    .card {
+      text-align: center;
+      padding: 48px 32px;
+      max-width: 360px;
+    }
+    .logo {
+      font-size: 2.5rem;
+      font-weight: 900;
+      margin-bottom: 24px;
+    }
+    .logo span { color: #D4AF37; }
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 8px; }
+    p { color: #9CA3AF; font-size: 0.9rem; line-height: 1.6; margin-bottom: 28px; }
+    button {
+      background: #D4AF37;
+      color: #000;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    button:hover { background: #e6c44a; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo"><span>Prime</span>Gest</div>
+    <div class="icon">📡</div>
+    <h1>Vous êtes hors ligne</h1>
+    <p>Vérifiez votre connexion internet et réessayez. Les données en cache restent disponibles.</p>
+    <button onclick="window.location.reload()">Réessayer</button>
+  </div>
+</body>
+</html>
