@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Mail\SubscriptionConfirmed;
 use Inertia\Inertia;
 
 class PlanController extends Controller
@@ -103,19 +104,17 @@ class PlanController extends Controller
 
         // ── Email au propriétaire de l'entreprise ──────────────
         // On récupère le super_admin de l'entreprise (le vrai propriétaire)
-        $adminUser = $entreprise->users()
-            ->where(function($q) {
-                $q->where('is_super_admin', true)
-                  ->orWhere('role', 'super_admin');
-            })
-            ->orderBy('id')
-            ->first();
+	$adminUser = $entreprise->users()
+    ->where('role', 'super_admin')
+    ->orderBy('id')
+    ->first()
+    ?? $entreprise->users()->orderBy('id')->first();
 
-        // Fallback : premier utilisateur de l'entreprise
-        if (!$adminUser) {
-            $adminUser = $entreprise->users()->orderBy('id')->first();
-        }
-
+	Log::info('Tentative mail abo', [
+    'entreprise' => $entreprise->name,
+    'adminUser'  => $adminUser?->email ?? 'NULL',
+    'plan'       => $request->plan,
+]);
 	if ($adminUser?->email) {
     try {
         Mail::to($adminUser->email, $adminUser->name)
@@ -127,15 +126,17 @@ class PlanController extends Controller
                 amount:        $amount,
                 isTrial:       $isTrial,
                 trialDays:     $trialDays,
+		appUrl:         config('app.url'),
             ));
+	Log::info('Mail abo envoyé à ' . $adminUser->email);
     } catch (\Exception $e) {
         Log::warning('Email abonnement échoué: ' . $e->getMessage());
 	}
 	}
 
         $msg = $isTrial
-            ? "✅ Essai {$trialDays} jours activé pour {$entreprise->name}"
-            : "✅ Plan {$request->plan} activé pour {$entreprise->name}";
+            ? "Votre essai {$trialDays} jours activé pour {$entreprise->name}"
+            : " Plan {$request->plan} activé pour {$entreprise->name}";
 
         return back()->with('success', $msg);
     }

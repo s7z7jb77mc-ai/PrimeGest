@@ -13,12 +13,12 @@
       <div class="flex items-center gap-3">
         <div class="text-right">
           <div class="logo-text leading-none">
-            <span class="text-gold font-display">Prime</span><span class="text-black font-display">Gest</span>
+            <span class="text-blue-600 font-display">Prime</span><span class="text-black font-display">Gest</span>
           </div>
           <div class="text-xs text-gray-400 font-mono tracking-widest text-right">GESTION PME</div>
         </div>
         <img src="/images/primegest.png"
-          class="h-10 w-10 rounded-full object-cover ring-2 ring-gold/40 shadow-md shadow-yellow-200" />
+          class="h-10 w-10 rounded-full object-cover ring-2 ring-blue-500/40 shadow-md shadow-blue-100" />
       </div>
     </header>
 
@@ -30,7 +30,7 @@
         Fonctionnalité « {{ featureLabel }} » — Plan supérieur requis
       </div>
 
-      <h1 class="font-display text-3xl md:text-4xl font-black text-black mb-3 leading-tight">
+      <h1 class="font-display text-2xl md:text-3xl font-black text-black mb-3 leading-tight">
         Évoluez sans <span class="text-blue-600">limites</span>
       </h1>
       <p class="text-gray-400 text-base max-w-md mx-auto font-mono">
@@ -129,8 +129,8 @@
       </div>
 
       <!-- ─ PRO ─ -->
-      <div :class="['plan-card', plan === 'pro' ? 'ring-2 ring-black' : '']">
-        <div class="plan-badge bg-gray-900 text-gold">Pro</div>
+      <div :class="['plan-card', plan === 'pro' ? 'ring-2 ring-white' : '']">
+        <div class="plan-badge bg-gray-900 text-yellow-400">Pro</div>
 
         <div class="mt-6 mb-1">
           <span class="plan-price">{{ billing === '1' ? '10' : billing === '6' ? '55' : '100' }}</span>
@@ -163,23 +163,28 @@
     <!-- ══ INSTRUCTIONS PAIEMENT ══ -->
     <section class="max-w-xl mx-auto px-4 pb-16">
       <div class="rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center">
-        <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gold/10 mb-4">
-          <span class="text-gold text-lg">✦</span>
+        <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-50 mb-4">
+          <span class="text-blue-600 text-lg">✦</span>
         </div>
         <h3 class="font-display text-lg font-black text-black mb-2">Comment upgrader ?</h3>
         <p class="text-sm text-gray-500 leading-relaxed mb-5">
           Effectuez votre paiement par <strong class="text-black">Mobile Money</strong> ou <strong class="text-black">virement bancaire</strong>, puis contactez-nous avec votre référence de paiement. L'activation est manuelle sous <strong class="text-black">24h</strong>.
         </p>
-        <a href="mailto:support@primegest.app"
-          class="inline-flex items-center gap-2 text-sm font-mono font-bold text-gold border border-gold/40 px-5 py-2 rounded-full hover:bg-gold hover:text-black transition-all">
+        <a href="mailto:darcybuze@gmail.com"
+          class="inline-flex items-center gap-2 text-sm font-mono font-bold text-blue-600 border border-blue-400/40 px-5 py-2 rounded-full hover:bg-blue-600 hover:text-white transition-all">
           support@primegest.app ↗
         </a>
       </div>
     </section>
 
     <!-- ══ FOOTER ══ -->
-    <footer class="border-t border-gray-100 py-5 text-center text-xs text-gray-300 font-mono">
-      © {{ new Date().getFullYear() }} PrimeGest — Tous droits réservés
+    <footer class="border-t border-gray-200 py-5 px-8 flex items-center justify-between">
+      <span class="text-xs text-gray-400 font-mono">© {{ new Date().getFullYear() }} PrimeGest — Tous droits réservés</span>
+      <nav class="flex items-center gap-5">
+        <a href="#" class="text-xs text-gray-400 font-mono hover:text-gray-700 transition-colors">Mentions légales</a>
+        <a href="#" class="text-xs text-gray-400 font-mono hover:text-gray-700 transition-colors">Confidentialité</a>
+        <a href="mailto:support@primegest.app" class="text-xs text-gray-400 font-mono hover:text-gray-700 transition-colors">Contact</a>
+      </nav>
     </footer>
 
   </div>
@@ -233,11 +238,6 @@ function contacter(targetPlan) {
 /* Logo */
 .font-display { font-family: 'Playfair Display', serif; font-weight: 900; }
 .logo-text { font-size: 1.4rem; letter-spacing: -0.02em; }
-.text-gold  { color: var(--gold); }
-.bg-gold    { background-color: var(--gold); }
-.border-gold { border-color: var(--gold); }
-.ring-gold  { --tw-ring-color: var(--gold); }
-.shadow-yellow-200 { --tw-shadow-color: #fef08a40; }
 
 /* Plan cards */
 .plan-card {
@@ -302,7 +302,7 @@ function contacter(targetPlan) {
 }
 .feat-on::before {
   content: '✓';
-  color: var(--gold);
+  color: #2563eb;
   font-weight: 900;
   flex-shrink: 0;
 }

@@ -3,7 +3,6 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -19,21 +18,34 @@ class SubscriptionConfirmed extends Mailable
         public string $plan,
         public string $expireDate,
         public float  $amount,
-        public bool   $isTrial = false,
-        public int    $trialDays = 0,
+        public bool   $isTrial,
+        public int    $trialDays,
+        public string $appUrl,
     ) {}
 
     public function envelope(): Envelope
     {
         $subject = $this->isTrial
-            ? "Votre essai gratuit PrimeGest " . ucfirst($this->plan) . " est activé !"
-            : "Votre abonnement PrimeGest " . ucfirst($this->plan) . " est confirmé ✓";
+            ? "Votre essai gratuit PrimeGest est activé"
+            : "Votre abonnement PrimeGest " . ucfirst($this->plan) . " est confirmé";
 
         return new Envelope(subject: $subject);
     }
 
     public function content(): Content
     {
-        return new Content(view: 'emails.subscription-confirmed');
+        return new Content(
+            view: 'emails.subscription_confirmed',
+            with: [
+                'userName'       => $this->userName,
+                'entrepriseName' => $this->entrepriseName,
+                'plan'           => $this->plan,
+                'expiresAt'      => $this->expireDate,
+                'amount'         => $this->amount,
+                'isTrial'        => $this->isTrial,
+                'trialDays'      => $this->trialDays,
+                'appUrl'         => $this->appUrl,
+            ]
+        );
     }
 }

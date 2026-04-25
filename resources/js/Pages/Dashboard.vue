@@ -13,7 +13,6 @@
     >
       <!-- Logo + titre -->
       <div class="flex flex-col items-center pt-6 pb-4 px-3 border-b border-white/10">
-        <!-- Logo PrimeGest agrandi -->
         <div class="relative flex items-center justify-center mb-3">
           <img
             :src="primegestLogo"
@@ -22,11 +21,9 @@
               sidebarOpen ? 'h-20 w-20' : 'h-10 w-10 ring-4 ring-yellow-400/80'
             ]"
           />
-          <!-- halo doré animé -->
           <span v-if="sidebarOpen" class="absolute inset-0 rounded-full animate-pulse-ring"></span>
         </div>
 
-        <!-- Titre PrimeGest bicolore + typo distinctive -->
         <transition name="fade-slide">
           <div v-if="sidebarOpen" class="text-center select-none">
             <div class="primgest-logo-text">
@@ -38,7 +35,6 @@
           </div>
         </transition>
 
-        <!-- Toggle sidebar -->
         <button
           @click="sidebarOpen = !sidebarOpen"
           class="mt-3 text-white/60 hover:text-yellow-400 transition-colors"
@@ -62,7 +58,6 @@
             >
               <Icon :name="item.icon" class="shrink-0 text-lg" />
               <span v-if="sidebarOpen" class="text-sm font-medium truncate">{{ item.name }}</span>
-              <!-- tooltip quand sidebar fermée -->
               <div v-if="!sidebarOpen" class="sidebar-tooltip">{{ item.name }}</div>
             </Link>
           </li>
@@ -101,28 +96,30 @@
             : 'bg-white border-gray-200'
         ]"
       >
-      <div class="w-1/3 flex items-center gap-3">
-        <!-- Logo entreprise -->
-        <img
-          v-if="logoUrl"
-          :src="logoUrl"
-          class="h-10 w-10 object-contain rounded shadow"
-        />
-
-        <!-- Nom entreprise -->
-        <span :class="theme === 'dark' ? 'text-white' : 'text-gray-800'" class="font-semibold text-lg">
-          {{ entrepriseName }}
-          <span v-if="props.succursaleName" class="text-yellow-500">
-            ({{ props.succursaleName }})
+        <div class="w-1/3 flex items-center gap-3">
+          <!-- Logo entreprise -->
+          <img
+            v-if="logoUrl"
+            :src="logoUrl"
+            class="h-10 w-10 object-contain rounded shadow"
+          />
+          <!-- Nom entreprise -->
+          <span :class="theme === 'dark' ? 'text-white' : 'text-gray-800'" class="font-semibold text-lg">
+            {{ entrepriseName }}
+            <span v-if="props.succursaleName" class="text-yellow-500">
+              ({{ props.succursaleName }})
+            </span>
           </span>
-        </span>
-      </div>
+        </div>
+
         <div class="w-1/3 text-center">
           <span :class="theme === 'dark' ? 'text-gray-300' : 'text-gray-600'" class="text-lg font-serif tracking-wide">
             {{ t('dashboard') }}
           </span>
         </div>
+
         <div class="w-1/3 flex justify-end items-center gap-3 relative">
+
           <button @click="toggleProfile" class="flex items-center gap-2 group">
             <div class="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-sm shadow">
               {{ userInitials }}
@@ -161,64 +158,52 @@
         </div>
       </header>
 
-	<!-- Bannière plan + succursale -->
-<div class="px-6 pt-4 space-y-2">
+      <!-- ✅ Badge plan — entre topbar et bannière, aligné à droite -->
+      <div class="px-6 pt-3 flex items-center justify-end gap-2">
+        <div :class="{
+          'bg-gray-100 border-gray-200 text-gray-500':                                     currentPlan === 'free',
+          'bg-blue-50 border-blue-200 text-blue-700':                                      currentPlan === 'premium',
+          'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 text-purple-700': currentPlan === 'pro',
+        }" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide shadow-sm">
+          <span v-if="currentPlan === 'free'">○</span>
+          <span v-else-if="currentPlan === 'premium'" class="text-yellow-500">★</span>
+          <span v-else class="text-purple-500">✦</span>
+          {{ currentPlan }}
+        </div>
+        <button v-if="currentPlan === 'free'"
+          @click="router.get('/upgrade')"
+          class="text-xs bg-gradient-to-r from-yellow-400 to-yellow-500 text-black px-3 py-1 rounded-full font-semibold hover:from-yellow-300 hover:to-yellow-400 transition-all shadow-sm">
+          Passer Premium →
+        </button>
+      </div>
 
-  <!-- Badge plan -->
-  <div class="flex items-center gap-2 flex-wrap">
-    <div :class="{
-      'bg-gray-100 border-gray-200 text-gray-500':                                     currentPlan === 'free',
-      'bg-blue-50 border-blue-200 text-blue-700':                                      currentPlan === 'premium',
-      'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 text-purple-700': currentPlan === 'pro',
-    }" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide shadow-sm">
-      <span v-if="currentPlan === 'free'">○</span>
-      <span v-else-if="currentPlan === 'premium'" class="text-yellow-500">★</span>
-      <span v-else class="text-purple-500">✦</span>
-      {{ currentPlan }}
-    </div>
-
-    <span v-if="planExpiresAt && currentPlan !== 'free'" class="text-xs text-gray-400">
-      Expire le {{ planExpiresAt }}
-    </span>
-
-    <span v-if="planExpiringSoon"
-      class="text-xs bg-red-100 text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-medium animate-pulse">
-      ⚠ Expire bientôt !
-    </span>
-
-    <button v-if="currentPlan === 'free'"
-      @click="router.get('/upgrade')"
-      class="text-xs bg-gradient-to-r from-yellow-400 to-yellow-500 text-black px-3 py-1 rounded-full font-semibold hover:from-yellow-300 hover:to-yellow-400 transition-all shadow-sm">
-      Passer Premium →
-    </button>
-  </div>
-
-  <!-- Bannière succursale -->
-  <div v-if="props.succursaleName || isSuperAdmin"
-    :class="[
-      'rounded-xl px-4 py-3 flex items-center justify-between border',
-      theme === 'dark'
-        ? 'bg-yellow-900/20 border-yellow-700/40 text-yellow-300'
-        : 'bg-yellow-50 border-yellow-200 text-yellow-900'
-    ]"
-  >
-    <div class="flex items-center gap-2">
-      <Icon name="store" class="text-yellow-500" />
-      <span class="font-semibold">
-        {{ entrepriseName }}<span v-if="props.succursaleName"> — {{ props.succursaleName }}</span>
-      </span>
-    </div>
-    <button
-      v-if="props.succursaleName && isSuperAdmin"
-      type="button"
-      @click="router.get('/succursales-exit')"
-      class="text-sm bg-yellow-500 text-black px-3 py-1 rounded-lg hover:bg-yellow-400 font-medium transition-colors"
-    >
-      ← Dashboard central
-    </button>
-  </div>
-
-</div>
+      <!-- Bannière succursale -->
+      <div v-if="props.succursaleName || isSuperAdmin" class="px-6 pt-3">
+        <div
+          :class="[
+            'rounded-xl px-4 py-3 flex items-center justify-between border',
+            theme === 'dark'
+              ? 'bg-yellow-900/20 border-yellow-700/40 text-yellow-300'
+              : 'bg-yellow-50 border-yellow-200 text-yellow-900'
+          ]"
+        >
+          <div class="flex items-center gap-2">
+            <Icon name="store" class="text-yellow-500" />
+            <span class="font-semibold">
+              {{ entrepriseName }}<span v-if="props.succursaleName"> — {{ props.succursaleName }}</span>
+            </span>
+          </div>
+          <!-- ✅ Bouton Dashboard central — visible uniquement si succursale active + super admin -->
+          <button
+            v-if="props.succursaleName && isSuperAdmin"
+            type="button"
+            @click="router.get('/succursales-exit')"
+            class="text-sm bg-yellow-500 text-black px-3 py-1 rounded-lg hover:bg-yellow-400 font-medium transition-colors"
+          >
+            ← Dashboard central
+          </button>
+        </div>
+      </div>
 
       <!-- ═══ MAIN CONTENT ═══ -->
       <main class="p-6 flex-1 overflow-y-auto">
@@ -277,90 +262,85 @@
             </div>
           </div>
 
-        
           <!-- ── ACTIVITÉS (GAUCHE LARGE) ── -->
-<div class="col-span-12 xl:col-span-6">
-  <div :class="cardClass" class="rounded-xl p-5 h-full">
-    <div class="flex items-center justify-between mb-4">
-      <h2 :class="headingClass">{{ t('recent_activity') }}</h2>
-      <button @click="goTo('/journals')" class="text-xs text-yellow-500 hover:text-yellow-400 font-medium">
-        {{ t('view_journal') }} →
-      </button>
-    </div>
+          <div class="col-span-12 xl:col-span-6">
+            <div :class="cardClass" class="rounded-xl p-5 h-full">
+              <div class="flex items-center justify-between mb-4">
+                <h2 :class="headingClass">{{ t('recent_activity') }}</h2>
+                <button @click="goTo('/journals')" class="text-xs text-yellow-500 hover:text-yellow-400 font-medium">
+                  {{ t('view_journal') }} →
+                </button>
+              </div>
 
-    <div v-if="displayActivities?.length" class="space-y-3">
-      <div
-        v-for="(act, idx) in displayActivities"
-        :key="idx"
-        :class="['flex items-start justify-between pb-2 border-b last:border-0', theme === 'dark' ? 'border-gray-700' : 'border-gray-100']"
-      >
-        <div>
-          <div :class="theme === 'dark' ? 'text-gray-200' : 'text-gray-800'" class="text-sm font-medium">
-            {{ act.description }}
+              <div v-if="displayActivities?.length" class="space-y-3">
+                <div
+                  v-for="(act, idx) in displayActivities"
+                  :key="idx"
+                  :class="['flex items-start justify-between pb-2 border-b last:border-0', theme === 'dark' ? 'border-gray-700' : 'border-gray-100']"
+                >
+                  <div>
+                    <div :class="theme === 'dark' ? 'text-gray-200' : 'text-gray-800'" class="text-sm font-medium">
+                      {{ act.description }}
+                    </div>
+                    <div class="text-xs text-gray-500">Par {{ act.user }}</div>
+                  </div>
+                  <div class="text-xs text-gray-400 shrink-0 ml-2">{{ act.time }}</div>
+                </div>
+              </div>
+
+              <div v-else class="text-sm text-gray-400">{{ t('no_activity') }}</div>
+            </div>
           </div>
-          <div class="text-xs text-gray-500">Par {{ act.user }}</div>
-        </div>
-        <div class="text-xs text-gray-400 shrink-0 ml-2">{{ act.time }}</div>
-      </div>
-    </div>
 
-    <div v-else class="text-sm text-gray-400">{{ t('no_activity') }}</div>
-  </div>
-</div>
+          <!-- ── COLONNE DROITE (STRUCTURÉE) ── -->
+          <div class="col-span-12 xl:col-span-6 flex flex-col gap-5">
 
+            <!-- 🔸 ALERTES STOCK -->
+            <div :class="cardClass" class="rounded-xl p-5 flex-1">
+              <h2 :class="headingClass" class="mb-4 text-center">
+                {{ t('stock_alerts_low') }}
+              </h2>
 
-<!-- ── COLONNE DROITE (STRUCTURÉE) ── -->
-<div class="col-span-12 xl:col-span-6 flex flex-col gap-5">
+              <div v-if="(alertesStock || []).length" class="space-y-2 flex flex-col items-center">
+                <div
+                  v-for="(a, idx) in alertesStock"
+                  :key="idx"
+                  :class="[
+                    'flex items-center justify-between text-sm px-3 py-2 rounded-lg w-full max-w-md',
+                    theme === 'dark' ? 'bg-amber-900/20' : 'bg-amber-50'
+                  ]"
+                >
+                  <div class="flex flex-col">
+                    <span :class="theme === 'dark' ? 'text-amber-300' : 'text-amber-800'" class="font-medium">
+                      {{ a.produit }}
+                    </span>
+                    <span v-if="a.succursale" class="text-xs text-gray-400 mt-0.5">
+                      📍 {{ a.succursale }}
+                    </span>
+                  </div>
+                  <span class="text-gray-500 text-xs shrink-0 ml-2">
+                    {{ a.quantite }} / {{ t('threshold') ?? 'seuil' }} {{ a.seuil }}
+                  </span>
+                </div>
+              </div>
 
-  <!-- 🔸 ALERTES STOCK (GRANDE PARTIE) -->
-  <div :class="cardClass" class="rounded-xl p-5 flex-1">
-  <h2 :class="headingClass" class="mb-4 text-center">
-    {{ t('stock_alerts_low') }}
-  </h2>
+              <div v-else class="text-sm text-gray-400 text-center">
+                {{ t('no_alerts') }}
+              </div>
+            </div>
 
-  <div v-if="(alertesStock || []).length" class="space-y-2 flex flex-col items-center">
-    <div
-      v-for="(a, idx) in alertesStock"
-      :key="idx"
-      :class="[
-        'flex items-center justify-between text-sm px-3 py-2 rounded-lg w-full max-w-md',
-        theme === 'dark' ? 'bg-amber-900/20' : 'bg-amber-50'
-      ]"
-    >
-      <!-- ✅ Nom produit + nom succursale si dashboard central -->
-      <div class="flex flex-col">
-        <span :class="theme === 'dark' ? 'text-amber-300' : 'text-amber-800'" class="font-medium">
-          {{ a.produit }}
-        </span>
-        <span v-if="a.succursale" class="text-xs text-gray-400 mt-0.5">
-          📍 {{ a.succursale }}
-        </span>
-      </div>
-      <span class="text-gray-500 text-xs shrink-0 ml-2">
-        {{ a.quantite }} / {{ t('threshold') ?? 'seuil' }} {{ a.seuil }}
-      </span>
-    </div>
-  </div>
+            <!-- 🔸 RAPPORT -->
+            <div :class="cardClass" class="rounded-xl p-4 flex items-center justify-center">
+              <button
+                @click="goTo('/rapport')"
+                class="bg-gradient-to-r from-yellow-500 to-yellow-400 text-black font-semibold px-6 py-2 rounded-lg hover:from-yellow-400 hover:to-yellow-300 transition-all shadow-md shadow-yellow-500/30 w-full max-w-xs"
+              >
+                {{ t('reports') }}
+              </button>
+            </div>
 
-  <div v-else class="text-sm text-gray-400 text-center">
-    {{ t('no_alerts') }}
-  </div>
-</div>
+          </div>
 
-
-  <!-- 🔸 RAPPORT (PETITE PARTIE) -->
-  <div :class="cardClass" class="rounded-xl p-4 flex items-center justify-center">
-    <button
-      @click="goTo('/rapport')"
-      class="bg-gradient-to-r from-yellow-500 to-yellow-400 text-black font-semibold px-6 py-2 rounded-lg hover:from-yellow-400 hover:to-yellow-300 transition-all shadow-md shadow-yellow-500/30 w-full max-w-xs"
-    >
-      {{ t('reports') }}
-    </button>
-  </div>
-
-</div>
-
-      
           <!-- ── Graphique ventes/achats ── -->
           <div class="col-span-12 lg:col-span-6">
             <div :class="cardClass" class="rounded-xl p-5">
@@ -386,7 +366,7 @@
             </div>
           </div>
 
-          <!-- ── Diagramme circulaire succursales (super admin + multi succursales + dashboard central) ── -->
+          <!-- ── Diagramme circulaire succursales ── -->
           <div
             v-if="isSuperAdmin && multiSuccursales && !props.succursaleName && succursaleChartData.labels.length > 0"
             class="col-span-12 lg:col-span-6"
@@ -400,7 +380,6 @@
               <div class="flex flex-col md:flex-row items-center gap-6">
                 <div class="relative w-64 h-64 shrink-0">
                   <canvas ref="pieChartEl"></canvas>
-                  <!-- label central -->
                   <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <div class="text-xs text-gray-400">Total</div>
                     <div :class="theme === 'dark' ? 'text-white' : 'text-gray-800'" class="font-bold text-sm">
@@ -408,7 +387,6 @@
                     </div>
                   </div>
                 </div>
-                <!-- Légende -->
                 <div class="flex-1 space-y-2">
                   <div
                     v-for="(label, i) in succursaleChartData.labels"
@@ -461,8 +439,6 @@
               <div v-else class="text-sm text-gray-400">{{ t('no_sales') }}</div>
             </div>
           </div>
-
-          
 
         </div>
       </main>
@@ -534,20 +510,8 @@ const isSuperAdmin = computed(() => {
   return (authUser.value as any)?.is_super_admin === true || role === 'super_admin'
 })
 
+// ✅ Plan — plus de planExpiringSoon ni planExpiresAt affiché
 const currentPlan = computed(() => pageProps.value.plan ?? 'free')
-
-const planExpiresAt = computed(() => {
-  const d = pageProps.value.plan_expires_at
-  if (!d) return null
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-})
-
-const planExpiringSoon = computed(() => {
-  const d = pageProps.value.plan_expires_at
-  if (!d || currentPlan.value === 'free') return false
-  const diff = (new Date(d).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-  return diff >= 0 && diff <= 7
-})
 
 const userInitials = computed(() => {
   const name = authUser.value?.name || ''

@@ -24,7 +24,7 @@ class User extends Authenticatable
         'access_pages',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'plain_password'];
     protected $casts = [
         'access_pages' => 'array',
         'manager' => 'boolean',
