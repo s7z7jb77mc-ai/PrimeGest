@@ -121,8 +121,17 @@
         <div class="w-1/3 flex justify-end items-center gap-3 relative">
 
           <button @click="toggleProfile" class="flex items-center gap-2 group">
-            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-sm shadow">
-              {{ userInitials }}
+            <div class="relative">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-sm shadow">
+                {{ userInitials }}
+              </div>
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-gray-900"
+                :class="{
+                  'bg-red-500':    !offlineStore.isOnline,
+                  'bg-yellow-400': offlineStore.isOnline && offlineStore.isSyncing,
+                  'bg-green-500':  offlineStore.isOnline && !offlineStore.isSyncing,
+                }"
+              ></span>
             </div>
             <div class="hidden md:block text-left">
               <div :class="theme === 'dark' ? 'text-white' : 'text-gray-800'" class="text-sm font-medium leading-none">{{ authUser?.name || '-' }}</div>
@@ -148,6 +157,28 @@
                   <div class="text-xs text-gray-500">{{ authUser?.email || '-' }}</div>
                   <div class="text-xs text-yellow-500 capitalize font-medium">{{ authUser?.role || '-' }}</div>
                 </div>
+              </div>
+              <!-- Voyant statut -->
+              <div class="flex items-center gap-2 mb-3">
+                <span class="w-2.5 h-2.5 rounded-full"
+                  :class="{
+                    'bg-red-500':    !offlineStore.isOnline,
+                    'bg-yellow-400': offlineStore.isOnline && offlineStore.isSyncing,
+                    'bg-green-500':  offlineStore.isOnline && !offlineStore.isSyncing,
+                  }"
+                ></span>
+                <span class="text-xs"
+                  :class="{
+                    'text-red-400':    !offlineStore.isOnline,
+                    'text-yellow-400': offlineStore.isOnline && offlineStore.isSyncing,
+                    'text-green-500':  offlineStore.isOnline && !offlineStore.isSyncing,
+                  }"
+                >
+                  {{ !offlineStore.isOnline ? 'Hors connexion' : offlineStore.isSyncing ? 'Synchronisation...' : 'En ligne' }}
+                </span>
+                <span v-if="offlineStore.hasPending" class="text-xs text-amber-400 ml-auto">
+                  {{ offlineStore.pendingCount }} en attente
+                </span>
               </div>
               <div :class="theme === 'dark' ? 'border-gray-700 text-gray-400' : 'border-gray-100 text-gray-600'" class="border-t pt-3 text-xs space-y-1">
                 <div>📞 {{ authUser?.employe?.telephone || '-' }}</div>
@@ -447,6 +478,7 @@
 </template>
 
 <script setup lang="ts">
+import { useOfflineStore } from '@/stores/useOfflineStore'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { router, Link, usePage } from '@inertiajs/vue3'
 import { getStoredTheme, setTheme } from '@/theme'
@@ -519,6 +551,7 @@ const userInitials = computed(() => {
 })
 
 const profileOpen = ref(false)
+const offlineStore = useOfflineStore()
 const theme       = ref(getStoredTheme())
 const lang        = ref(getStoredLang())
 const chartType   = ref<'daily' | 'monthly'>('daily')
@@ -882,3 +915,6 @@ onBeforeUnmount(() => {
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 </style>
+
+
+

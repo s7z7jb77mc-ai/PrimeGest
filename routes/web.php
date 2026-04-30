@@ -294,3 +294,8 @@ Route::prefix('owner')->name('owner.')->group(function () {
 
 require __DIR__.'/auth.php';
 require __DIR__.'/settings.php';
+
+// CSRF refresh pour sync offline
+Route::get('/csrf-refresh', function () {
+    return response()->json(['token' => csrf_token()]);
+})->middleware('web');

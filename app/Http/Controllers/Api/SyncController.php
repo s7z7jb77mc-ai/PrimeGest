@@ -94,47 +94,72 @@ if ($quotaError) return $quotaError;
      * GET /api/sync/pull?since=TIMESTAMP&device_id=XXX
      * Retourne le delta depuis le dernier sync du client.
      */
+
     public function pull(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'since'     => ['required', 'integer', 'min:0'],
-            'device_id' => ['required', 'string', 'max:64'],
-        ]);
+{
+    $validator = Validator::make($request->all(), [
+        'since'     => ['required', 'integer', 'min:0'],
+        'device_id' => ['required', 'string', 'max:64'],
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
+    }
 
-        $entrepriseId = auth()->user()->entreprise_id;
-        $since        = \Carbon\Carbon::createFromTimestamp($request->integer('since'));
+    $entrepriseId = auth()->user()->entreprise_id;
+    $since = \Carbon\Carbon::createFromTimestamp($request->integer('since'));
 
-        $delta = Entreprise::withTrashed()
-            ->where('id', $entrepriseId)                   // scope entreprise
+    $entities = [
+        'produits'     => \App\Models\Produit::class,
+        'clients'      => \App\Models\Client::class,
+        'fournisseurs' => \App\Models\Fournisseur::class,
+    ];
+
+    $delta = [];
+
+    foreach ($entities as $name => $modelClass) {
+        $usesSoftDeletes = in_array(
+            \Illuminate\Database\Eloquent\SoftDeletes::class,
+            class_uses_recursive($modelClass)
+        );
+
+        $query = $usesSoftDeletes
+            ? $modelClass::withTrashed()
+            : $modelClass::query();
+
+        $rows = $query
+            ->where('entreprise_id', $entrepriseId)
             ->where('updated_at', '>', $since)
             ->orderBy('updated_at')
-            ->get([
-                'id', 'name', 'address', 'phone', 'email',
-                'sync_version', 'updated_at', 'deleted_at',
-            ])
-            ->map(fn ($e) => array_merge(
-                $e->toArray(),
-                ['updated_at_ts' => $e->updated_at->timestamp]
-            ));
+            ->get()
+	   ->map(fn($r) => [
+   		 'uuid'           => $r->uuid,
+   		 'sync_version'   => $r->sync_version ?? 0,
+   		 'updated_at_ts'  => $r->updated_at->timestamp,
+    		 'deleted_at'     => $r->deleted_at?->timestamp,
+   		 'payload'        => collect($r->toArray())
+                          ->except(['id', 'uuid', 'sync_version', 'entreprise_id', 
+                                    'succursale_id', 'created_at', 'updated_at', 
+                                    'deleted_at', 'updated_at_ts'])
+                          ->toArray(),
+		]);
 
-        SyncLog::create([
-            'entreprise_id'    => $entrepriseId,
-            'device_id'        => $request->device_id,
-            'direction'        => 'pull',
-            'operations_count' => $delta->count(),
-            'conflicts_count'  => 0,
-        ]);
-
-        return response()->json([
-            'delta'     => $delta,
-            'server_ts' => now()->timestamp,
-            'count'     => $delta->count(),
-        ]);
+        $delta[$name] = $rows;
     }
+
+    SyncLog::create([
+        'entreprise_id'    => $entrepriseId,
+        'device_id'        => $request->device_id,
+        'direction'        => 'pull',
+        'operations_count' => collect($delta)->flatten(1)->count(),
+        'conflicts_count'  => 0,
+    ]);
+
+    return response()->json([
+        'delta'     => $delta,
+        'server_ts' => now()->timestamp,
+    ]);
+}
 
     /**
      * GET /api/sync/status
@@ -156,53 +181,90 @@ if ($quotaError) return $quotaError;
     // Méthodes privées
     // -------------------------------------------------------------------------
 
+    private function resolveModel(string $tableName): ?string
+    {
+        return match($tableName) {
+            'clients'      => \App\Models\Client::class,
+            'fournisseurs' => \App\Models\Fournisseur::class,
+            'produits'     => \App\Models\Produit::class,
+            'entreprises'  => Entreprise::class,
+            default        => null,
+        };
+    }
+
+    private function resolveFields(string $tableName): array
+    {
+        return match($tableName) {
+            'clients'      => ['nom_client', 'numero_telephone', 'adresse'],
+            'fournisseurs' => ['nom_entreprise_fournisseur', 'adresse', 'reduction_pourcentage'],
+            'produits'     => ['nom_produit', 'prix_vente', 'prix_achat', 'quantite', 'categorie'],
+            default        => ['name', 'address', 'phone', 'email'],
+        };
+    }
+
     private function upsert(array $op, int $entrepriseId): array
     {
-        $existing = Entreprise::withTrashed()->find($op['record_id']);
+        $tableName  = $op['table_name'] ?? 'entreprises';
+        $modelClass = $this->resolveModel($tableName);
 
-        // Conflict : version serveur plus récente que version client
-        if ($existing && $existing->sync_version > $op['client_sync_version']) {
+        if (! $modelClass) {
+            return ['status' => 'ignored', 'reason' => 'unknown_table'];
+        }
+
+        $usesSoftDeletes = in_array(
+            \Illuminate\Database\Eloquent\SoftDeletes::class,
+            class_uses_recursive($modelClass)
+        );
+
+        $existing = $usesSoftDeletes
+            ? $modelClass::withTrashed()->find($op['record_id'])
+            : $modelClass::find($op['record_id']);
+
+        if ($existing && ($existing->sync_version ?? 0) > $op['client_sync_version']) {
             return [
                 'status'       => 'conflict',
-                'sync_version' => $existing->sync_version,
-                'server_data'  => $existing->only([
-                    'id', 'nom', 'adresse', 'telephone', 'email',
-                    'sync_version', 'updated_at',
-                ]),
+                'sync_version' => $existing->sync_version ?? 0,
             ];
         }
 
-        $payload = collect($op['payload'])->only([
-            'name', 'address', 'phone', 'email',
-        ])->toArray();
+        $fields  = $this->resolveFields($tableName);
+        $payload = collect($op['payload'])->only($fields)->toArray();
+        $payload['entreprise_id'] = $entrepriseId;
 
-        $model = Entreprise::withTrashed()->updateOrCreate(
-            ['id' => $op['record_id']],
-            array_merge($payload, [
-                'sync_version' => DB::raw('sync_version + 1'),
-                'deleted_at'   => null,
-            ])
-        );
+        $mergedPayload = $usesSoftDeletes
+            ? array_merge($payload, ['deleted_at' => null])
+            : $payload;
+
+        $model = $usesSoftDeletes
+            ? $modelClass::withTrashed()->updateOrCreate(['id' => $op['record_id']], $mergedPayload)
+            : $modelClass::updateOrCreate(['id' => $op['record_id']], $mergedPayload);
 
         return [
             'status'       => 'synced',
-            'sync_version' => $model->fresh()->sync_version,
+            'sync_version' => $model->fresh()->sync_version ?? 0,
         ];
     }
 
     private function softDelete(array $op, int $entrepriseId): array
     {
-        $model = Entreprise::find($op['record_id']);
+        $tableName  = $op['table_name'] ?? 'entreprises';
+        $modelClass = $this->resolveModel($tableName);
+
+        if (! $modelClass) {
+            return ['status' => 'ignored'];
+        }
+
+        $model = $modelClass::find($op['record_id']);
 
         if (! $model) {
             return ['status' => 'not_found'];
         }
 
-        if ($model->sync_version > $op['client_sync_version']) {
-            return ['status' => 'conflict', 'sync_version' => $model->sync_version];
+        if (($model->sync_version ?? 0) > $op['client_sync_version']) {
+            return ['status' => 'conflict', 'sync_version' => $model->sync_version ?? 0];
         }
 
-        $model->delete(); // soft delete via SoftDeletes trait
+        $model->delete();
 
         return ['status' => 'synced'];
     }

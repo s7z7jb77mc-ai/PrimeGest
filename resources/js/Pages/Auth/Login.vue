@@ -176,9 +176,34 @@ function translateError(msg: string): string {
 
 const translatedErrors = computed(() => errorList.value.map(msg => translateError(msg)))
 
-function submit() {
+async function submit() {
   form.post('/login', {
-    onFinish: () => form.reset('password')
+    onFinish: () => form.reset('password'),
+    onSuccess: async () => {
+      // Obtenir un token Sanctum pour la sync offline
+      try {
+        const deviceId = localStorage.getItem('primegest_device_id') ?? crypto.randomUUID()
+        localStorage.setItem('primegest_device_id', deviceId)
+
+        const res = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            company_name: form.company_name,
+            email:        form.email,
+            password:     form.password,
+            device_id:    deviceId,
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          localStorage.setItem('primegest_api_token', data.token)
+          console.log('[Auth] Token Sanctum obtenu')
+        }
+      } catch (e) {
+        console.warn('[Auth] Token Sanctum non obtenu:', e)
+      }
+    }
   })
 }
 </script>

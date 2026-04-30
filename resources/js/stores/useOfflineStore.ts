@@ -80,7 +80,19 @@ export const useOfflineStore = defineStore('offline', () => {
 
     // Initialiser les listeners réseau
     function initNetworkListeners() {
-        window.addEventListener('online',  () => setOnline(true))
+        window.addEventListener('online', async () => {
+            setOnline(true)
+            // Attendre 2s que la session Laravel se rafraîchisse
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            // Sync automatique au retour online
+            try {
+                const { useOfflineQueue } = await import('@/composables/useOfflineQueue')
+                const { syncPending } = useOfflineQueue()
+                await syncPending()
+            } catch (e) {
+                console.warn('[Offline] Sync échouée:', e)
+            }
+        })
         window.addEventListener('offline', () => setOnline(false))
     }
 

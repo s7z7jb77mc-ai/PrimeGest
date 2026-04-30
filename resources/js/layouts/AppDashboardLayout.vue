@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { useOfflineStore } from '@/stores/useOfflineStore'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { getStoredTheme, setTheme } from '@/theme'
 import { getStoredLang, t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import Icon from '@/components/Icon.vue'
+
+const offlineStore = useOfflineStore()
 
 const props = defineProps<{
   titre?: string
@@ -202,12 +205,20 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 
           <div class="hidden md:block w-px h-8" :class="theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'"></div>
 
-          <!-- Avatar -->
+          <!-- Avatar  -->
           <div class="flex items-center gap-2">
             <div class="relative">
               <div class="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-xs shadow">
                 {{ userInitials }}
               </div>
+              <!-- Voyant statut connexion sur avatar -->
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-gray-900"
+                :class="{
+                  'bg-red-500':     !offlineStore.isOnline,
+                  'bg-yellow-400':   offlineStore.isOnline && offlineStore.isSyncing,
+                  'bg-green-500':    offlineStore.isOnline && !offlineStore.isSyncing,
+                }"
+              ></span>
               <!-- Badge plan sur avatar — mobile uniquement -->
               <div class="md:hidden absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs border-2"
                 :class="{
@@ -226,6 +237,29 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
                 {{ authUser?.name || '-' }}
               </div>
               <div class="text-xs text-gray-500 capitalize">{{ authUser?.role || '-' }}</div>
+              <!-- Voyant statut connexion -->
+              <div class="flex items-center gap-1 mt-0.5">
+                <span class="w-2 h-2 rounded-full"
+                  :class="{
+                    'bg-red-500':            !offlineStore.isOnline,
+                    'bg-yellow-400 animate-pulse': offlineStore.isOnline && offlineStore.isSyncing,
+                    'bg-green-500':          offlineStore.isOnline && !offlineStore.isSyncing,
+                  }"
+                ></span>
+                <span class="text-xs"
+                  :class="{
+                    'text-red-400':    !offlineStore.isOnline,
+                    'text-yellow-400': offlineStore.isOnline && offlineStore.isSyncing,
+                    'text-green-400':  offlineStore.isOnline && !offlineStore.isSyncing,
+                  }"
+                >
+                  {{ !offlineStore.isOnline ? 'Hors ligne' : offlineStore.isSyncing ? 'Sync...' : 'En ligne' }}
+                </span>
+                <span v-if="offlineStore.hasPending && !offlineStore.isSyncing"
+                  class="text-xs text-amber-400 ml-1">
+                  ({{ offlineStore.pendingCount }})
+                </span>
+              </div>
             </div>
           </div>
         </div>

@@ -4,7 +4,12 @@ import { useForm, router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineQueue } from '@/composables/useOfflineQueue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
 defineOptions({ layout: AppDashboardLayout })
+
+const { queueOperation, syncPending } = useOfflineQueue()
+const offlineStore = useOfflineStore()
 
 const props = defineProps({
   clients: { type: Array, default: () => [] },
@@ -64,7 +69,16 @@ function openClientModal(client = null) {
   clientModalOpen.value = true
 }
 
-function submitClientForm() {
+async function submitClientForm() {
+  if (!offlineStore.isOnline) {
+    // Offline : mise en file d'attente
+    const recordId  = clientForm.id ? String(clientForm.id) : crypto.randomUUID()
+    const operation = clientForm.id ? 'update' : 'create'
+    await queueOperation('clients', recordId, operation, { ...clientForm.data() })
+    clientModalOpen.value = false
+    alert('Hors ligne — opération sauvegardée, elle sera synchronisée dès la reconnexion.')
+    return
+  }
   if (clientForm.id) {
     if (!clientForm.admin_password) {
       alert('Mot de passe Super Admin requis.')
@@ -132,7 +146,16 @@ function openFournisseurModal(fournisseur = null) {
   fournisseurModalOpen.value = true
 }
 
-function submitFournisseurForm() {
+async function submitFournisseurForm() {
+  if (!offlineStore.isOnline) {
+    // Offline : mise en file d'attente
+    const recordId  = fournisseurForm.id ? String(fournisseurForm.id) : crypto.randomUUID()
+    const operation = fournisseurForm.id ? 'update' : 'create'
+    await queueOperation('fournisseurs', recordId, operation, { ...fournisseurForm.data() })
+    fournisseurModalOpen.value = false
+    alert('Hors ligne — opération sauvegardée, elle sera synchronisée dès la reconnexion.')
+    return
+  }
   if (fournisseurForm.id) {
     if (!fournisseurForm.admin_password) {
       alert('Mot de passe Super Admin requis.')

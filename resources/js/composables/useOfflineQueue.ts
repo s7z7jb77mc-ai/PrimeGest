@@ -136,6 +136,15 @@ export function useOfflineQueue() {
      * Sync navigateur : lit IndexedDB et envoie chaque opération au serveur.
      */
     async function syncBrowserQueue(): Promise<void> {
+        // Rafraîchir le CSRF token avant tout envoi
+        let csrfToken = ''
+        try {
+            const r = await fetch('/csrf-refresh', { credentials: 'include' })
+            const json = await r.json()
+            csrfToken = json.token ?? ''
+        } catch {
+            csrfToken = getCsrfToken()
+        }
         const pending = await idbGetPending()
         if (!pending.length) {
             offlineStore.setSyncSuccess(0, 0)
@@ -153,14 +162,20 @@ export function useOfflineQueue() {
 
                 const res = await fetch(url, {
                     method,
+                    redirect: 'manual',
                     headers: {
-                        'Content-Type' : 'application/json',
-                        'X-CSRF-TOKEN' : getCsrfToken(),
-                        'X-Inertia'    : 'true',
-                        'Accept'       : 'application/json',
+                        'Content-Type'     : 'application/json',
+                        'X-CSRF-TOKEN'     : csrfToken,
+                        'X-Requested-With' : 'XMLHttpRequest',
+                        'Accept'           : 'application/json',
                     },
                     body: JSON.stringify(payload),
                 })
+                // Laravel redirige (302) = session expirée, on recharge
+                if (res.type === 'opaqueredirect' || res.status === 302) {
+                    window.location.reload()
+                    return
+                }
 
                 if (res.ok) {
                     await idbMarkSynced(op.id)
@@ -203,6 +218,10 @@ function resolveMethod(operation: string): string {
 }
 
 function getCsrfToken(): string {
+    // Essayer d'abord le cookie XSRF-TOKEN (plus frais que la meta tag)
+    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/)
+    if (match) return decodeURIComponent(match[1])
+    // Fallback sur la meta tag
     return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
 }
 
