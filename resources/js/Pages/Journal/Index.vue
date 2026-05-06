@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useOfflineQueue } from '@/composables/useOfflineQueue'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
 
 // Props envoyés depuis le controller
@@ -15,6 +18,26 @@ const props = defineProps({
 const modalOpen = ref(false)
 const t = _t
 const lang = useLang()
+
+const offlineStore = useOfflineStore()
+const { queueOperation } = useOfflineQueue()
+const localDB = useLocalDB()
+const localJournals = ref<any[]>([])
+
+async function loadLocalJournals() {
+    if (localDB.isAvailable) {
+        localJournals.value = await localDB.getJournals()
+    }
+}
+
+onMounted(async () => {
+    if (!offlineStore.isOnline) await loadLocalJournals()
+    window.addEventListener('primegest:sync-pulled', loadLocalJournals)
+})
+
+const displayJournals = computed<any[]>(() =>
+    offlineStore.isOnline ? (props.journals as any[]) : localJournals.value
+)
 
 // Date format pour datetime-local
 function nowForDatetimeLocal() {
@@ -80,7 +103,19 @@ function formatDateTimeShort(dateStr) {
 }
 
 // Soumission
-function submit() {
+async function submit() {
+  if (!offlineStore.isOnline) {
+    await queueOperation('journals', crypto.randomUUID(), 'create', {
+      type: form.type,
+      description: form.description,
+      montant: form.montant,
+      dateHeure_operation: form.dateHeure_operation,
+    })
+    modalOpen.value = false
+    form.reset()
+    alert('Hors ligne — opération sauvegardée, synchronisation dès reconnexion.')
+    return
+  }
   form.post('/journals', {
     onSuccess: () => {
       modalOpen.value = false
@@ -95,6 +130,11 @@ const hasErrors = computed(() => Object.keys(form.errors).length > 0)
 
 <template>
   <div class="p-6 space-y-6" :key="lang">
+    <!-- Bannière hors-ligne -->
+    <div v-if="!offlineStore.isOnline" class="px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
+      Mode hors-ligne — données locales (lecture seule)
+    </div>
+
     <!-- Header -->
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold">{{ t('journal') }}</h1>
@@ -122,15 +162,15 @@ const hasErrors = computed(() => Object.keys(form.errors).length > 0)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="j in props.journals" :key="j.id" class="border-t">
-              <td class="px-4 py-2">{{ formatDateTimeShort(j.dateHeure_operation) }}</td>
-              <td class="px-4 py-2 capitalize">{{ j.type }}</td>
-              <td class="px-4 py-2">{{ j.description || '-' }}</td>
-              <td class="px-4 py-2 text-right">{{ Number(j.montant).toFixed(2) }}</td>
+            <tr v-for="j in displayJournals" :key="(j as any).id ?? (j as any).uuid" class="border-t">
+              <td class="px-4 py-2">{{ formatDateTimeShort((j as any).dateHeure_operation ?? (j as any).date_heure_operation) }}</td>
+              <td class="px-4 py-2 capitalize">{{ (j as any).type ?? (j as any).type_journal }}</td>
+              <td class="px-4 py-2">{{ (j as any).description || '-' }}</td>
+              <td class="px-4 py-2 text-right">{{ Number((j as any).montant).toFixed(2) }}</td>
             </tr>
-            <tr v-if="!props.journals.length">
+            <tr v-if="!displayJournals.length">
               <td colspan="4" class="text-center py-6 text-gray-400">
-                Aucun enregistrement dans le journal
+                {{ offlineStore.isOnline ? 'Aucun enregistrement dans le journal' : 'Aucune opération en cache local' }}
               </td>
             </tr>
           </tbody>

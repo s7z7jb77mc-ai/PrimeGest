@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Model;
 
 class Succursale extends Model
 {
+    use HasUuid, SyncObservable;
+
     protected $fillable = [
         'entreprise_id',
         'nom',

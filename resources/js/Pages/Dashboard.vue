@@ -238,6 +238,12 @@
 
       <!-- ═══ MAIN CONTENT ═══ -->
       <main class="p-6 flex-1 overflow-y-auto">
+
+        <!-- Bannière hors-ligne -->
+        <div v-if="!offlineStore.isOnline" class="mb-5 px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
+          Mode hors-ligne — KPIs calculés depuis la base locale
+        </div>
+
         <div class="grid grid-cols-12 gap-5">
 
           <!-- ── KPI Cards ── -->
@@ -248,7 +254,7 @@
               </div>
               <div>
                 <div class="kpi-label">{{ t('total_stock') }}</div>
-                <div class="kpi-value">{{ formatCurrency(totalStock) }}</div>
+                <div class="kpi-value">{{ formatCurrency(displayTotalStock) }}</div>
                 <div class="kpi-sub">{{ t('stock_value') }}</div>
               </div>
             </div>
@@ -261,7 +267,7 @@
               </div>
               <div>
                 <div class="kpi-label">{{ t('total_sales') }}</div>
-                <div class="kpi-value text-green-600">{{ formatCurrency(totalVentes) }}</div>
+                <div class="kpi-value text-green-600">{{ formatCurrency(displayTotalVentes) }}</div>
                 <div class="kpi-sub">{{ t('sales_recorded') }}</div>
               </div>
             </div>
@@ -274,7 +280,7 @@
               </div>
               <div>
                 <div class="kpi-label">{{ t('total_expenses') }}</div>
-                <div class="kpi-value text-red-500">{{ formatCurrency(totalDepenses) }}</div>
+                <div class="kpi-value text-red-500">{{ formatCurrency(displayTotalDepenses) }}</div>
                 <div class="kpi-sub">{{ t('cash_out') }}</div>
               </div>
             </div>
@@ -287,7 +293,7 @@
               </div>
               <div>
                 <div class="kpi-label">{{ t('stock_alerts') }}</div>
-                <div class="kpi-value text-amber-500">{{ (alertesStock || []).length }}</div>
+                <div class="kpi-value text-amber-500">{{ displayAlertesStock.length }}</div>
                 <div class="kpi-sub">{{ t('stock_alerts_low') }}</div>
               </div>
             </div>
@@ -332,9 +338,9 @@
                 {{ t('stock_alerts_low') }}
               </h2>
 
-              <div v-if="(alertesStock || []).length" class="space-y-2 flex flex-col items-center">
+              <div v-if="displayAlertesStock.length" class="space-y-2 flex flex-col items-center">
                 <div
-                  v-for="(a, idx) in alertesStock"
+                  v-for="(a, idx) in displayAlertesStock"
                   :key="idx"
                   :class="[
                     'flex items-center justify-between text-sm px-3 py-2 rounded-lg w-full max-w-md',
@@ -479,6 +485,7 @@
 
 <script setup lang="ts">
 import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useLocalDB } from '@/composables/useLocalDB'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { router, Link, usePage } from '@inertiajs/vue3'
 import { getStoredTheme, setTheme } from '@/theme'
@@ -552,7 +559,32 @@ const userInitials = computed(() => {
 
 const profileOpen = ref(false)
 const offlineStore = useOfflineStore()
+const localDB      = useLocalDB()
 const theme       = ref(getStoredTheme())
+
+// ── KPI locaux (mode hors-ligne) ──────────────────────────
+const localTotalStock    = ref(0)
+const localTotalVentes   = ref(0)
+const localTotalDepenses = ref(0)
+const localAlertesStock  = ref<{ produit: string; quantite: number; seuil: number }[]>([])
+
+async function loadLocalKPIs() {
+    if (!localDB.isAvailable) return
+    const valeur = await localDB.getValeurStock()
+    localTotalStock.value = valeur.valeur_stock ?? 0
+    const journalSums = await localDB.getJournalSumByType()
+    localTotalVentes.value = journalSums.entree ?? 0
+    localTotalDepenses.value = journalSums.sortie ?? 0
+    const produits = await localDB.getProduits()
+    localAlertesStock.value = produits
+        .filter((p) => p.quantite <= (p as any).seuil_stock && (p as any).seuil_stock > 0)
+        .map((p) => ({ produit: p.nom_produit, quantite: p.quantite, seuil: (p as any).seuil_stock ?? 0 }))
+}
+
+const displayTotalStock    = computed(() => offlineStore.isOnline ? (props.totalStock    ?? 0) : localTotalStock.value)
+const displayTotalVentes   = computed(() => offlineStore.isOnline ? (props.totalVentes   ?? 0) : localTotalVentes.value)
+const displayTotalDepenses = computed(() => offlineStore.isOnline ? (props.totalDepenses ?? 0) : localTotalDepenses.value)
+const displayAlertesStock  = computed(() => offlineStore.isOnline ? (props.alertesStock  ?? []) : localAlertesStock.value)
 const lang        = ref(getStoredLang())
 const chartType   = ref<'daily' | 'monthly'>('daily')
 const nowTick     = ref(Date.now())
@@ -737,10 +769,12 @@ function buildPieChart() {
 }
 
 // ── Lifecycle ──────────────────────────────────────────
-onMounted(() => {
+onMounted(async () => {
   buildSalesChart()
   nextTick(() => buildPieChart())
   window.addEventListener('primegest:lang', syncLang)
+  if (!offlineStore.isOnline) await loadLocalKPIs()
+  window.addEventListener('primegest:sync-pulled', loadLocalKPIs)
 })
 
 onBeforeUnmount(() => {

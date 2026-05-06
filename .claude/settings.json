@@ -1,0 +1,12 @@
+{
+ 
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write",
+      "hooks": [{
+        "type": "command",
+        "command": "cd '/Users/trystanbyabuze/Desktop/PrimeGest ' && ./vendor/bin/pint --dirty 2>/dev/null || true"
+      }]
+    }]
+  }
+}

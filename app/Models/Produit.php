@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Produit extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid, SyncObservable;
 
     protected $fillable = [
         'entreprise_id',
@@ -16,9 +18,6 @@ class Produit extends Model
         'prix_vente',
     ];
 
-    /**
-     * Un produit appartient à une entreprise.
-     */
     public function entreprise()
     {
         return $this->belongsTo(Entreprise::class);

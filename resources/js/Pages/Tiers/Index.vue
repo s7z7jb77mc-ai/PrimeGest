@@ -6,10 +6,12 @@ import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineQueue } from '@/composables/useOfflineQueue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
 
-const { queueOperation, syncPending } = useOfflineQueue()
+const { queueOperation } = useOfflineQueue()
 const offlineStore = useOfflineStore()
+const localDB = useLocalDB()
 
 const props = defineProps({
   clients: { type: Array, default: () => [] },
@@ -20,6 +22,28 @@ const props = defineProps({
 const t = _t
 const lang = useLang()
 const page = usePage()
+
+const localClients = ref<any[]>([])
+const localFournisseurs = ref<any[]>([])
+
+async function loadLocalTiers() {
+    if (localDB.isAvailable) {
+        localClients.value = await localDB.getClients()
+        localFournisseurs.value = await localDB.getFournisseurs()
+    }
+}
+
+onMounted(async () => {
+    if (!offlineStore.isOnline) await loadLocalTiers()
+    window.addEventListener('primegest:sync-pulled', loadLocalTiers)
+})
+
+const displayClients = computed<any[]>(() =>
+    offlineStore.isOnline ? (props.clients as any[]) : localClients.value
+)
+const displayFournisseurs = computed<any[]>(() =>
+    offlineStore.isOnline ? (props.fournisseurs as any[]) : localFournisseurs.value
+)
 const _isSuperAdmin = computed(() => {
   const propsObj = page.props?.value ?? page.props ?? {}
   if (propsObj.auth?.user?.is_super_admin !== undefined) return propsObj.auth.user.is_super_admin === true
@@ -201,6 +225,11 @@ function goDashboard() {
 
 <template>
   <div class="p-6" :key="lang">
+    <!-- Bannière hors-ligne -->
+    <div v-if="!offlineStore.isOnline" class="mb-4 px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
+      Mode hors-ligne — données locales (lecture seule)
+    </div>
+
     <div class="flex justify-between mb-4">
       <h1 class="text-2xl font-bold">Tiers</h1>
       <div class="flex gap-2">
@@ -245,22 +274,27 @@ function goDashboard() {
                 <th class="px-3 py-2 text-center">Action</th>
               </tr>
             </thead>
-            <tbody v-if="props.clients.length">
-              <tr v-for="c in props.clients" :key="c.id" class="border-t">
-                <td class="px-3 py-2">{{ c.nom_client }}</td>
-                <td class="px-3 py-2">{{ c.numero_telephone }}</td>
-                <td class="px-3 py-2">{{ c.adresse || '-' }}</td>
-                <td class="px-3 py-2 text-right">{{ Number(c.creance || 0).toFixed(2) }}</td>
+            <tbody v-if="displayClients.length">
+              <tr v-for="c in displayClients" :key="(c as any).id ?? (c as any).uuid" class="border-t">
+                <td class="px-3 py-2">{{ (c as any).nom_client }}</td>
+                <td class="px-3 py-2">{{ (c as any).numero_telephone }}</td>
+                <td class="px-3 py-2">{{ (c as any).adresse || '-' }}</td>
+                <td class="px-3 py-2 text-right">{{ Number((c as any).creance || 0).toFixed(2) }}</td>
                 <td class="px-3 py-2 text-center">
-                  <button type="button" @click="openClientModal(c)" class="text-blue-600 hover:underline">Modifier</button>
-                  <button type="button" @click="deleteClient(c.id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
-                  <button type="button" @click="goClientDetail(c.id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                  <template v-if="offlineStore.isOnline">
+                    <button type="button" @click="openClientModal(c)" class="text-blue-600 hover:underline">Modifier</button>
+                    <button type="button" @click="deleteClient((c as any).id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
+                    <button type="button" @click="goClientDetail((c as any).id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                  </template>
+                  <span v-else class="text-gray-400 text-xs">hors-ligne</span>
                 </td>
               </tr>
             </tbody>
             <tbody v-else>
               <tr>
-                <td colspan="5" class="text-center py-6 text-gray-400">Aucun client trouvé</td>
+                <td colspan="5" class="text-center py-6 text-gray-400">
+                  {{ offlineStore.isOnline ? 'Aucun client trouvé' : 'Aucun client en cache local' }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -296,22 +330,27 @@ function goDashboard() {
                 <th class="px-3 py-2 text-center">Action</th>
               </tr>
             </thead>
-            <tbody v-if="props.fournisseurs.length">
-              <tr v-for="f in props.fournisseurs" :key="f.id" class="border-t">
-                <td class="px-3 py-2">{{ f.nom_entreprise_fournisseur }}</td>
-                <td class="px-3 py-2">{{ f.adresse || '-' }}</td>
-                <td class="px-3 py-2 text-right">{{ Number(f.dette || 0).toFixed(2) }}</td>
-                <td class="px-3 py-2 text-right">{{ Number(f.reduction_pourcentage || 0).toFixed(2) }}</td>
+            <tbody v-if="displayFournisseurs.length">
+              <tr v-for="f in displayFournisseurs" :key="(f as any).id ?? (f as any).uuid" class="border-t">
+                <td class="px-3 py-2">{{ (f as any).nom_entreprise_fournisseur }}</td>
+                <td class="px-3 py-2">{{ (f as any).adresse || '-' }}</td>
+                <td class="px-3 py-2 text-right">{{ Number((f as any).dette || 0).toFixed(2) }}</td>
+                <td class="px-3 py-2 text-right">{{ Number((f as any).reduction_pourcentage || 0).toFixed(2) }}</td>
                 <td class="px-3 py-2 text-center">
-                  <button type="button" @click="openFournisseurModal(f)" class="text-blue-600 hover:underline">Modifier</button>
-                  <button type="button" @click="deleteFournisseur(f.id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
-                  <button type="button" @click="goFournisseurDetail(f.id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                  <template v-if="offlineStore.isOnline">
+                    <button type="button" @click="openFournisseurModal(f)" class="text-blue-600 hover:underline">Modifier</button>
+                    <button type="button" @click="deleteFournisseur((f as any).id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
+                    <button type="button" @click="goFournisseurDetail((f as any).id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                  </template>
+                  <span v-else class="text-gray-400 text-xs">hors-ligne</span>
                 </td>
               </tr>
             </tbody>
             <tbody v-else>
               <tr>
-                <td colspan="5" class="text-center py-6 text-gray-400">Aucun fournisseur trouvé</td>
+                <td colspan="5" class="text-center py-6 text-gray-400">
+                  {{ offlineStore.isOnline ? 'Aucun fournisseur trouvé' : 'Aucun fournisseur en cache local' }}
+                </td>
               </tr>
             </tbody>
           </table>

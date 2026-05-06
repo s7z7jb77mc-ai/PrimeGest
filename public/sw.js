@@ -1,4 +1,4 @@
-const SHELL_CACHE   = 'primegest-shell-v1'
+const SHELL_CACHE   = 'primegest-shell-v2'
 const INERTIA_CACHE = 'primegest-inertia-v3'
 const ASSET_CACHE   = 'primegest-assets-v1'
 
@@ -85,15 +85,12 @@ async function cacheFirst(request) {
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(INERTIA_CACHE)
   const cached = await cache.match(request)
-  console.log('[SW] cache hit:', !!cached, request.url)
 
   const fetchPromise = fetch(request)
     .then((response) => {
       const ct = response.headers.get('content-type') || ''
-      console.log('[SW] response ct:', ct, 'ok:', response.ok)
       if (response.ok && ct.includes('application/json')) {
         cache.put(request, response.clone())
-        console.log('[SW] cached:', request.url)
         self.clients.matchAll().then((clients) =>
           clients.forEach((client) =>
             client.postMessage({ type: 'INERTIA_CACHE_UPDATED', url: request.url })
@@ -102,7 +99,7 @@ async function staleWhileRevalidate(request) {
       }
       return response
     })
-    .catch((e) => { console.log('[SW] fetch error:', e); return null })
+    .catch(() => null)
 
   if (cached) {
     fetchPromise
@@ -116,12 +113,19 @@ async function staleWhileRevalidate(request) {
 }
 
 async function navigateFallback(request) {
+  const cache = await caches.open(SHELL_CACHE)
   try {
     const response = await fetch(request)
-    if (response.ok) return response
+    if (response.ok) {
+      cache.put(request, response.clone())
+      return response
+    }
     throw new Error()
   } catch {
-    const shell = await caches.match('/')
-    return shell || caches.match('/offline.html')
+    const routeCached = await cache.match(request)
+    if (routeCached) return routeCached
+    const rootCached = await cache.match('/')
+    if (rootCached) return rootCached
+    return (await cache.match('/offline.html')) || new Response('Hors ligne', { status: 503 })
   }
 }

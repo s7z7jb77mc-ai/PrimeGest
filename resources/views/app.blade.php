@@ -24,11 +24,12 @@
     @inertia
 
     <script>
-      if ('serviceWorker' in navigator) {
+      // N'enregistre le SW que si on n'est pas dans Tauri (Tauri gère son propre contexte)
+      if (!('__TAURI_INTERNALS__' in window) && 'serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(r => console.log('SW:', r.scope))
-            .catch(e => console.warn('SW error:', e))
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(r => console.log('[SW] scope:', r.scope))
+            .catch(e => console.warn('[SW] erreur:', e))
         })
       }
     </script>

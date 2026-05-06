@@ -4,6 +4,9 @@ import { useForm, router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useOfflineQueue } from '@/composables/useOfflineQueue'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
 
 const props = defineProps({
@@ -48,15 +51,44 @@ const multiSuccursales = computed(() =>
   !!pageProps.value.parametres?.multi_succursales || !!pageProps.value.has_succursales
 )
 
+const offlineStore = useOfflineStore()
+const { queueOperation } = useOfflineQueue()
+const localDB = useLocalDB()
+const localMouvements = ref<any[]>([])
+const localProduits = ref<any[]>([])
+const localClients = ref<any[]>([])
+const localFournisseurs = ref<any[]>([])
+
+async function loadLocalMvt() {
+    if (!localDB.isAvailable) return
+    localMouvements.value = await localDB.getMouvementsStock()
+    localProduits.value = await localDB.getProduits()
+    localClients.value = await localDB.getClients()
+    localFournisseurs.value = await localDB.getFournisseurs()
+}
+
+const displayMouvements = computed<any[]>(() =>
+    offlineStore.isOnline ? ((props.mouvements as any[]) ?? []) : localMouvements.value
+)
+const displayProduits = computed<any[]>(() =>
+    offlineStore.isOnline ? ((props.produits as any[]) ?? []) : localProduits.value
+)
+const displayClients = computed<any[]>(() =>
+    offlineStore.isOnline ? ((props.clients as any[]) ?? []) : localClients.value
+)
+const displayFournisseurs = computed<any[]>(() =>
+    offlineStore.isOnline ? ((props.fournisseurs as any[]) ?? []) : localFournisseurs.value
+)
+
 const clientTrouve = computed(() => {
   const phone = String(clientPhone.value || '').trim()
   if (!phone) return null
-  return (props.clients || []).find((c: any) => String(c.numero_telephone) === phone) || null
+  return displayClients.value.find((c: any) => String(c.numero_telephone) === phone) || null
 })
 
 const fournisseurTrouve = computed(() => {
   if (!fournisseurId.value) return null
-  return (props.fournisseurs || []).find((f: any) => Number(f.id) === Number(fournisseurId.value)) || null
+  return displayFournisseurs.value.find((f: any) => Number(f.id) === Number(fournisseurId.value)) || null
 })
 
 const reductionClient = computed(() => Number((clientTrouve.value as any)?.reduction_accordee || 0))
@@ -96,7 +128,7 @@ watch(achatCredit, (val) => { if (val) achatReduction.value = false })
 
 watch(() => form.produit_id, (newVal) => {
   if (!newVal) return
-  const produit = (props.produits || []).find((p: any) => Number(p.id) === Number(newVal))
+  const produit = displayProduits.value.find((p: any) => Number(p.id) === Number(newVal))
   if (!produit) return
   form.prix_unitaire = mode.value === 'entree'
     ? ((produit as any).prix_achat ?? 0)
@@ -105,9 +137,22 @@ watch(() => form.produit_id, (newVal) => {
 
 const prixTotal = computed(() => (Number(form.quantite) || 0) * (Number(form.prix_unitaire) || 0))
 
-function submitMovement() {
+async function submitMovement() {
   if (!form.produit_id) { alert('Sélectionne un produit.'); return }
   if ((Number(form.quantite) || 0) <= 0) { alert('Quantité invalide.'); return }
+
+  if (!offlineStore.isOnline) {
+    await queueOperation('mouvement_stocks', crypto.randomUUID(), 'create', {
+      produit_id: form.produit_id,
+      type: mode.value,
+      quantite: form.quantite,
+      prix_unitaire: form.prix_unitaire,
+      commentaire: form.commentaire,
+    })
+    modalOpen.value = false
+    alert('Hors ligne — mouvement sauvegardé, synchronisation dès reconnexion.')
+    return
+  }
 
   form.use_reduction = (mode.value === 'sortie' && venteReduction.value) || (mode.value === 'entree' && achatReduction.value)
   form.payment_type = form.use_reduction
@@ -132,7 +177,7 @@ function submitMovement() {
 function buildLineFromForm() {
   if (!form.produit_id) { alert('Sélectionne un produit.'); return null }
   if ((Number(form.quantite) || 0) <= 0) { alert('Quantité invalide.'); return null }
-  const produit = (props.produits || []).find((p: any) => Number(p.id) === Number(form.produit_id))
+  const produit = displayProduits.value.find((p: any) => Number(p.id) === Number(form.produit_id))
   return {
     produit_id: form.produit_id,
     quantite: Number(form.quantite),
@@ -239,7 +284,7 @@ function goAddClient() {
 function goDashboard() { router.get('/dashboard') }
 
 const mouvementsAvecTotal = computed(() =>
-  (props.mouvements || []).map((m: any) => ({
+  displayMouvements.value.map((m: any) => ({
     ...m,
     prix_total_affiche: (Number(m.quantite) || 0) * (Number(m.prix_unitaire) || 0)
   }))
@@ -253,17 +298,24 @@ const totalBonEntree = computed(() =>
   bonEntreeLines.value.reduce((sum, l) => sum + (Number(l.quantite) || 0) * (Number(l.prix_unitaire) || 0), 0)
 )
 
-onMounted(() => {
+onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
   const phone = params.get('client_phone')
   const restored = restoreFactureDraft()
   if (restored) { mode.value = 'sortie'; modalOpen.value = true }
   if (phone) { clientPhone.value = phone; mode.value = 'sortie'; modalOpen.value = true }
+  if (!offlineStore.isOnline) await loadLocalMvt()
+  window.addEventListener('primegest:sync-pulled', loadLocalMvt)
 })
 </script>
 
 <template>
   <div class="p-6 space-y-6" :key="lang">
+    <!-- Bannière hors-ligne -->
+    <div v-if="!offlineStore.isOnline" class="px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
+      Mode hors-ligne — données locales (lecture seule)
+    </div>
+
     <!-- HEADER -->
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold">{{ t('stock_moves_title') }}</h1>
@@ -378,7 +430,7 @@ onMounted(() => {
               <label class="text-sm text-gray-600">Fournisseur</label>
               <select v-model="fournisseurId" class="w-full border p-2 rounded mt-1">
                 <option :value="null" disabled>Choisir un fournisseur</option>
-                <option v-for="f in fournisseurs" :key="(f as any).id" :value="(f as any).id">
+                <option v-for="f in displayFournisseurs" :key="(f as any).id ?? (f as any).uuid" :value="(f as any).id ?? (f as any).uuid">
                   {{ (f as any).nom_entreprise_fournisseur }}
                 </option>
               </select>
@@ -409,9 +461,9 @@ onMounted(() => {
             <select v-model="form.produit_id" class="w-full border p-2 rounded mt-1">
               <option :value="null" disabled>Choisir un produit</option>
               <option
-                v-for="p in produits"
-                :key="(p as any).id"
-                :value="(p as any).id"
+                v-for="p in displayProduits"
+                :key="(p as any).id ?? (p as any).uuid"
+                :value="(p as any).id ?? (p as any).uuid"
                 :disabled="mode === 'sortie' && getStock((p as any).id) === 0"
               >
                 {{ (p as any).nom }}

@@ -12,38 +12,151 @@ use Illuminate\Support\Facades\Validator;
 
 class SyncController extends Controller
 {
+    // =========================================================================
+    // NOUVEAU — Endpoint offline-first : reçoit les batches du SyncWorker
+    // =========================================================================
+
+    /**
+     * POST /api/v1/sync
+     * Reçoit un batch d'opérations depuis le SyncWorker local.
+     */
+    public function receive(Request $request): JsonResponse
+    {
+        $batch = $request->input('batch', []);
+        $results = [];
+
+        foreach ($batch as $entry) {
+            try {
+                $results[] = $this->processEntry($entry);
+            } catch (\Exception $e) {
+                $results[] = [
+                    'record_uuid' => $entry['record_uuid'],
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
+    private function processEntry(array $entry): array
+    {
+        $table = $entry['table_name'];
+        $uuid = $entry['record_uuid'];
+        $operation = $entry['operation'];
+        $payload = $entry['payload'];
+        $localTime = $entry['local_time'];
+
+        $checksum = hash('sha256', json_encode($payload));
+        if ($checksum !== $entry['checksum']) {
+            return ['record_uuid' => $uuid, 'status' => 'error', 'message' => 'Checksum invalide'];
+        }
+
+        return DB::connection('mysql')->transaction(function () use ($table, $uuid, $operation, $payload, $localTime) {
+            return match ($operation) {
+                'insert' => $this->handleInsert($table, $uuid, $payload),
+                'update' => $this->handleUpdate($table, $uuid, $payload, $localTime),
+                'delete' => $this->handleDelete($table, $uuid),
+                default => ['record_uuid' => $uuid, 'status' => 'error', 'message' => 'Opération inconnue'],
+            };
+        });
+    }
+
+    private function handleInsert(string $table, string $uuid, array $payload): array
+    {
+        $existing = DB::connection('mysql')->table($table)->where('uuid', $uuid)->first();
+        if ($existing) {
+            return ['record_uuid' => $uuid, 'status' => 'done', 'message' => 'Déjà présent'];
+        }
+
+        unset($payload['id']);
+        DB::connection('mysql')->table($table)->insert($payload);
+
+        return ['record_uuid' => $uuid, 'status' => 'done'];
+    }
+
+    private function handleUpdate(string $table, string $uuid, array $payload, string $localTime): array
+    {
+        $existing = DB::connection('mysql')->table($table)->where('uuid', $uuid)->first();
+
+        if (! $existing) {
+            unset($payload['id']);
+            DB::connection('mysql')->table($table)->insert($payload);
+
+            return ['record_uuid' => $uuid, 'status' => 'done'];
+        }
+
+        $cloudUpdatedAt = $existing->updated_at ?? '1970-01-01';
+        if ($cloudUpdatedAt > $localTime) {
+            DB::connection('mysql')->table('conflict_log')->insert([
+                'table_name' => $table,
+                'record_uuid' => $uuid,
+                'local_payload' => json_encode($payload),
+                'cloud_payload' => json_encode((array) $existing),
+                'created_at' => now(),
+            ]);
+
+            return [
+                'record_uuid' => $uuid,
+                'status' => 'conflict',
+                'message' => 'Version cloud plus récente — données locales archivées dans conflict_log',
+            ];
+        }
+
+        unset($payload['id']);
+        DB::connection('mysql')->table($table)->where('uuid', $uuid)->update($payload);
+
+        return ['record_uuid' => $uuid, 'status' => 'done'];
+    }
+
+    private function handleDelete(string $table, string $uuid): array
+    {
+        DB::connection('mysql')->table($table)->where('uuid', $uuid)->delete();
+
+        return ['record_uuid' => $uuid, 'status' => 'done'];
+    }
+
+    // =========================================================================
+    // EXISTANT — Push/Pull (conservé pour compatibilité)
+    // =========================================================================
+
     /**
      * POST /api/sync/push
      * Reçoit un batch de mutations depuis le client Tauri.
      */
     private function checkQuota(int $entrepriseId, string $plan): ?JsonResponse
-{
-    $quota = config("plans.{$plan}.sync_quota", -1);
-    if ($quota === -1) return null; // illimité
+    {
+        $quota = config("plans.{$plan}.sync_quota", -1);
+        if ($quota === -1) {
+            return null;
+        } // illimité
 
-    $count = Entreprise::withTrashed()
-        ->where('id', $entrepriseId)
-        ->count();
+        $count = Entreprise::withTrashed()
+            ->where('id', $entrepriseId)
+            ->count();
 
-    if ($count >= $quota) {
-        return response()->json([
-            'error'   => 'quota_exceeded',
-            'quota'   => $quota,
-            'current' => $count,
-            'message' => "Limite du plan Free atteinte ({$quota} records). Passez à Premium pour plus.",
-        ], 403);
+        if ($count >= $quota) {
+            return response()->json([
+                'error' => 'quota_exceeded',
+                'quota' => $quota,
+                'current' => $count,
+                'message' => "Limite du plan Free atteinte ({$quota} records). Passez à Premium pour plus.",
+            ], 403);
+        }
+
+        return null;
     }
 
-    return null;
-} 
     public function push(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'device_id'              => ['required', 'string', 'max:64'],
-            'operations'             => ['required', 'array', 'min:1', 'max:100'],
+            'device_id' => ['required', 'string', 'max:64'],
+            'operations' => ['required', 'array', 'min:1', 'max:100'],
+            'operations.*.table_name' => ['required', 'string', 'max:64'],
             'operations.*.record_id' => ['required', 'uuid'],
             'operations.*.operation' => ['required', 'in:create,update,delete'],
-            'operations.*.payload'   => ['required', 'array'],
+            'operations.*.payload' => ['required', 'array'],
             'operations.*.client_sync_version' => ['required', 'integer', 'min:0'],
         ]);
 
@@ -52,19 +165,21 @@ class SyncController extends Controller
         }
 
         $entrepriseId = auth()->user()->entreprise_id;
-        $results      = [];
-        $conflicts    = 0;
+        $results = [];
+        $conflicts = 0;
 
-	$plan        = auth()->user()->entreprise->plan ?? 'free';
-$quotaError  = $this->checkQuota($entrepriseId, $plan);
-if ($quotaError) return $quotaError;
+        $plan = auth()->user()->entreprise->plan ?? 'free';
+        $quotaError = $this->checkQuota($entrepriseId, $plan);
+        if ($quotaError) {
+            return $quotaError;
+        }
 
         DB::transaction(function () use ($request, $entrepriseId, &$results, &$conflicts) {
             foreach ($request->operations as $op) {
                 $result = match ($op['operation']) {
                     'create', 'update' => $this->upsert($op, $entrepriseId),
-                    'delete'           => $this->softDelete($op, $entrepriseId),
-                    default            => ['status' => 'ignored'],
+                    'delete' => $this->softDelete($op, $entrepriseId),
+                    default => ['status' => 'ignored'],
                 };
 
                 if (($result['status'] ?? '') === 'conflict') {
@@ -75,18 +190,18 @@ if ($quotaError) return $quotaError;
             }
 
             SyncLog::create([
-                'entreprise_id'    => $entrepriseId,
-                'device_id'        => $request->device_id,
-                'direction'        => 'push',
+                'entreprise_id' => $entrepriseId,
+                'device_id' => $request->device_id,
+                'direction' => 'push',
                 'operations_count' => count($request->operations),
-                'conflicts_count'  => $conflicts,
+                'conflicts_count' => $conflicts,
             ]);
         });
 
         return response()->json([
-            'results'    => $results,
-            'server_ts'  => now()->timestamp,
-            'conflicts'  => $conflicts,
+            'results' => $results,
+            'server_ts' => now()->timestamp,
+            'conflicts' => $conflicts,
         ]);
     }
 
@@ -94,72 +209,77 @@ if ($quotaError) return $quotaError;
      * GET /api/sync/pull?since=TIMESTAMP&device_id=XXX
      * Retourne le delta depuis le dernier sync du client.
      */
-
     public function pull(Request $request): JsonResponse
-{
-    $validator = Validator::make($request->all(), [
-        'since'     => ['required', 'integer', 'min:0'],
-        'device_id' => ['required', 'string', 'max:64'],
-    ]);
+    {
+        $validator = Validator::make($request->all(), [
+            'since' => ['required', 'integer', 'min:0'],
+            'device_id' => ['required', 'string', 'max:64'],
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $entrepriseId = auth()->user()->entreprise_id;
+        $since = \Carbon\Carbon::createFromTimestamp($request->integer('since'));
+
+        $entities = [
+            'produits' => \App\Models\Produit::class,
+            'clients' => \App\Models\Client::class,
+            'fournisseurs' => \App\Models\Fournisseur::class,
+            'factures' => \App\Models\Facture::class,
+            'mouvement_stocks' => \App\Models\MouvementStock::class,
+            'journals' => \App\Models\Journal::class,
+            'employes' => \App\Models\Employe::class,
+            'transferts' => \App\Models\Transfert::class,
+            'bon_entrees' => \App\Models\BonEntree::class,
+        ];
+
+        $delta = [];
+
+        foreach ($entities as $name => $modelClass) {
+            $usesSoftDeletes = in_array(
+                \Illuminate\Database\Eloquent\SoftDeletes::class,
+                class_uses_recursive($modelClass)
+            );
+
+            $query = $usesSoftDeletes
+                ? $modelClass::withTrashed()
+                : $modelClass::query();
+
+            $rows = $query
+                ->where('entreprise_id', $entrepriseId)
+                ->where('updated_at', '>', $since)
+                ->orderBy('updated_at')
+                ->get()
+                ->map(fn ($r) => [
+                    'uuid' => $r->uuid,
+                    'sync_version' => $r->sync_version ?? 0,
+                    'updated_at_ts' => $r->updated_at->timestamp,
+                    'deleted_at' => $r->deleted_at?->timestamp,
+                    'payload' => collect($r->toArray())
+                        ->except(['id', 'uuid', 'sync_version', 'entreprise_id',
+                            'succursale_id', 'created_at', 'updated_at',
+                            'deleted_at', 'updated_at_ts'])
+                        ->toArray(),
+                ]);
+
+            $delta[$name] = $rows;
+        }
+
+        SyncLog::create([
+            'entreprise_id' => $entrepriseId,
+            'device_id' => $request->device_id,
+            'direction' => 'pull',
+            'operations_count' => collect($delta)->flatten(1)->count(),
+            'conflicts_count' => 0,
+        ]);
+
+        return response()->json([
+            'delta' => $delta,
+            'server_ts' => now()->timestamp,
+        ]);
     }
-
-    $entrepriseId = auth()->user()->entreprise_id;
-    $since = \Carbon\Carbon::createFromTimestamp($request->integer('since'));
-
-    $entities = [
-        'produits'     => \App\Models\Produit::class,
-        'clients'      => \App\Models\Client::class,
-        'fournisseurs' => \App\Models\Fournisseur::class,
-    ];
-
-    $delta = [];
-
-    foreach ($entities as $name => $modelClass) {
-        $usesSoftDeletes = in_array(
-            \Illuminate\Database\Eloquent\SoftDeletes::class,
-            class_uses_recursive($modelClass)
-        );
-
-        $query = $usesSoftDeletes
-            ? $modelClass::withTrashed()
-            : $modelClass::query();
-
-        $rows = $query
-            ->where('entreprise_id', $entrepriseId)
-            ->where('updated_at', '>', $since)
-            ->orderBy('updated_at')
-            ->get()
-	   ->map(fn($r) => [
-   		 'uuid'           => $r->uuid,
-   		 'sync_version'   => $r->sync_version ?? 0,
-   		 'updated_at_ts'  => $r->updated_at->timestamp,
-    		 'deleted_at'     => $r->deleted_at?->timestamp,
-   		 'payload'        => collect($r->toArray())
-                          ->except(['id', 'uuid', 'sync_version', 'entreprise_id', 
-                                    'succursale_id', 'created_at', 'updated_at', 
-                                    'deleted_at', 'updated_at_ts'])
-                          ->toArray(),
-		]);
-
-        $delta[$name] = $rows;
-    }
-
-    SyncLog::create([
-        'entreprise_id'    => $entrepriseId,
-        'device_id'        => $request->device_id,
-        'direction'        => 'pull',
-        'operations_count' => collect($delta)->flatten(1)->count(),
-        'conflicts_count'  => 0,
-    ]);
-
-    return response()->json([
-        'delta'     => $delta,
-        'server_ts' => now()->timestamp,
-    ]);
-}
 
     /**
      * GET /api/sync/status
@@ -170,10 +290,10 @@ if ($quotaError) return $quotaError;
         $user = auth()->user();
 
         return response()->json([
-            'online'       => true,
-            'server_ts'    => now()->timestamp,
-            'plan'         => $user->plan ?? 'free',
-            'sync_interval'=> config("plans.{$user->plan}.sync_interval", null),
+            'online' => true,
+            'server_ts' => now()->timestamp,
+            'plan' => $user->plan ?? 'free',
+            'sync_interval' => config("plans.{$user->plan}.sync_interval", null),
         ]);
     }
 
@@ -183,28 +303,42 @@ if ($quotaError) return $quotaError;
 
     private function resolveModel(string $tableName): ?string
     {
-        return match($tableName) {
-            'clients'      => \App\Models\Client::class,
+        return match ($tableName) {
+            'clients' => \App\Models\Client::class,
             'fournisseurs' => \App\Models\Fournisseur::class,
-            'produits'     => \App\Models\Produit::class,
-            'entreprises'  => Entreprise::class,
-            default        => null,
+            'produits' => \App\Models\Produit::class,
+            'entreprises' => Entreprise::class,
+            'factures' => \App\Models\Facture::class,
+            'mouvement_stocks' => \App\Models\MouvementStock::class,
+            'journals' => \App\Models\Journal::class,
+            'employes' => \App\Models\Employe::class,
+            'transferts' => \App\Models\Transfert::class,
+            'bon_entrees' => \App\Models\BonEntree::class,
+            'stocks' => \App\Models\Stock::class,
+            default => null,
         };
     }
 
     private function resolveFields(string $tableName): array
     {
-        return match($tableName) {
-            'clients'      => ['nom_client', 'numero_telephone', 'adresse'],
+        return match ($tableName) {
+            'clients' => ['nom_client', 'numero_telephone', 'adresse'],
             'fournisseurs' => ['nom_entreprise_fournisseur', 'adresse', 'reduction_pourcentage'],
-            'produits'     => ['nom_produit', 'prix_vente', 'prix_achat', 'quantite', 'categorie'],
-            default        => ['name', 'address', 'phone', 'email'],
+            'produits' => ['nom_produit', 'prix_vente', 'prix_achat', 'quantite', 'categorie'],
+            'factures' => ['total_ht', 'total_tva', 'total_ttc', 'montant_paye', 'statut', 'client_id'],
+            'mouvement_stocks' => ['type', 'quantite', 'prix_unitaire', 'prix_total', 'commentaire', 'produit_id'],
+            'journals' => ['dateHeure_operation', 'type', 'description', 'montant', 'produit_id'],
+            'employes' => ['nom', 'prenom', 'poste', 'salaire_base', 'telephone', 'email', 'date_embauche', 'statut'],
+            'transferts' => ['from_succursale_id', 'to_succursale_id', 'produit_id', 'quantite', 'statut'],
+            'bon_entrees' => ['fournisseur_id', 'total_ht', 'statut', 'payment_type'],
+            'stocks' => ['produit_id', 'quantite', 'seuil_alerte'],
+            default => [],
         };
     }
 
     private function upsert(array $op, int $entrepriseId): array
     {
-        $tableName  = $op['table_name'] ?? 'entreprises';
+        $tableName = $op['table_name'] ?? 'entreprises';
         $modelClass = $this->resolveModel($tableName);
 
         if (! $modelClass) {
@@ -222,12 +356,12 @@ if ($quotaError) return $quotaError;
 
         if ($existing && ($existing->sync_version ?? 0) > $op['client_sync_version']) {
             return [
-                'status'       => 'conflict',
+                'status' => 'conflict',
                 'sync_version' => $existing->sync_version ?? 0,
             ];
         }
 
-        $fields  = $this->resolveFields($tableName);
+        $fields = $this->resolveFields($tableName);
         $payload = collect($op['payload'])->only($fields)->toArray();
         $payload['entreprise_id'] = $entrepriseId;
 
@@ -240,14 +374,14 @@ if ($quotaError) return $quotaError;
             : $modelClass::updateOrCreate(['id' => $op['record_id']], $mergedPayload);
 
         return [
-            'status'       => 'synced',
+            'status' => 'synced',
             'sync_version' => $model->fresh()->sync_version ?? 0,
         ];
     }
 
     private function softDelete(array $op, int $entrepriseId): array
     {
-        $tableName  = $op['table_name'] ?? 'entreprises';
+        $tableName = $op['table_name'] ?? 'entreprises';
         $modelClass = $this->resolveModel($tableName);
 
         if (! $modelClass) {

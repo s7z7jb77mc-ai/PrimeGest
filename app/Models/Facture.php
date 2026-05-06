@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSuccursaleScope;
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasSuccursaleScope;
 
 class Facture extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid, SyncObservable;
     use HasSuccursaleScope;
 
     protected $fillable = [
@@ -99,6 +101,6 @@ class Facture extends Model
             $nextNumber = (int) $matches[1] + 1;
         }
 
-        return 'FAC-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        return 'FAC-'.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
     }
 }

@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSuccursaleScope;
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasSuccursaleScope;
 
 class Employe extends Model
 {
-    use HasFactory, HasSuccursaleScope;
+    use HasFactory, HasSuccursaleScope, HasUuid, SyncObservable;
 
     protected $fillable = [
         'entreprise_id',
@@ -32,8 +34,9 @@ class Employe extends Model
     {
         return $this->belongsTo(Succursale::class);
     }
+
     public function user()
-    {   
+    {
         return $this->hasOne(User::class);
     }
 

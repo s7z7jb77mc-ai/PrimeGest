@@ -123,6 +123,12 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'device_id' => file_exists(storage_path('app/device_id'))
+        ? trim(file_get_contents(storage_path('app/device_id')))
+        : 'unknown_device',
+
+    'sync_token' => env('SYNC_TOKEN', ''),
+
     'providers' => [
         /*
         * Laravel Framework Service Providers...

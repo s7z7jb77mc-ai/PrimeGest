@@ -4,7 +4,10 @@ import { router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
 defineOptions({ layout: AppDashboardLayout })
+
+const offlineStore = useOfflineStore()
 
 interface CaisseItem {
   id: number
@@ -65,7 +68,9 @@ function formatCurrency(value: number | undefined): string {
 }
 
 async function enregistrerSoldeInitial(): Promise<void> {
-  if (props.hasInitial) {
+  if (props.hasInitial) return
+  if (!offlineStore.isOnline) {
+    errorMsg.value = 'Connexion requise pour enregistrer en caisse.'
     return
   }
 
@@ -142,6 +147,11 @@ function formatDateTime(value?: string | null): string {
 
 <template>
   <div class="p-6" :key="lang">
+    <!-- Bannière hors-ligne -->
+    <div v-if="!offlineStore.isOnline" class="mb-4 px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
+      Mode hors-ligne — données en cache (lecture seule). Les enregistrements nécessitent une connexion.
+    </div>
+
     <!-- Header -->
     <div class="flex justify-between mb-4">
       <h1 class="text-2xl font-bold">{{ t('cash_title') }}</h1>
@@ -213,10 +223,10 @@ function formatDateTime(value?: string | null): string {
         <div class="md:col-span-4">
           <button
             type="submit"
-            :disabled="isSaving"
+            :disabled="isSaving || !offlineStore.isOnline"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            Enregistrer le solde initial
+            {{ offlineStore.isOnline ? 'Enregistrer le solde initial' : 'Connexion requise' }}
           </button>
           <p v-if="errorMsg" class="text-red-600 text-sm mt-2">{{ errorMsg }}</p>
           <p v-if="successMsg" class="text-green-600 text-sm mt-2">{{ successMsg }}</p>

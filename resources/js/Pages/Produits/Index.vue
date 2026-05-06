@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'   // ⟵ on utilise router ici (pas Inertia du package core)
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useOfflineQueue } from '@/composables/useOfflineQueue'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
 
 // Props
@@ -36,6 +39,26 @@ const _isSuperAdmin = computed(() => {
 const t = _t
 const lang = useLang()
 
+const offlineStore = useOfflineStore()
+const { queueOperation } = useOfflineQueue()
+const localDB = useLocalDB()
+const localProduits = ref<any[]>([])
+
+async function loadLocalProduits() {
+    if (localDB.isAvailable) {
+        localProduits.value = await localDB.getProduits()
+    }
+}
+
+onMounted(async () => {
+    if (!offlineStore.isOnline) await loadLocalProduits()
+    window.addEventListener('primegest:sync-pulled', loadLocalProduits)
+})
+
+const displayProduits = computed<any[]>(() =>
+    offlineStore.isOnline ? (props.produits as any[]) : localProduits.value
+)
+
 function openModal(produit = null) {
   form.clearErrors()
   form.reset()
@@ -53,7 +76,19 @@ function openModal(produit = null) {
   modalOpen.value = true
 }
 
-function submitForm() {
+async function submitForm() {
+  if (!offlineStore.isOnline) {
+    const recordId = form.id ? String(form.id) : crypto.randomUUID()
+    const operation = form.id ? 'update' : 'create'
+    await queueOperation('produits', recordId, operation, {
+      nom_produit: form.nom,
+      prix_achat: form.prix_achat,
+      prix_vente: form.prix_vente,
+    })
+    modalOpen.value = false
+    alert('Hors ligne — opération sauvegardée, synchronisation dès reconnexion.')
+    return
+  }
   if (form.id) {
     if (!form.admin_password) {
       alert('Mot de passe Super Admin requis.')
@@ -77,8 +112,14 @@ function deleteProduit(id) {
   deleteModalOpen.value = true
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (!deleteTargetId.value) return
+  if (!offlineStore.isOnline) {
+    await queueOperation('produits', String(deleteTargetId.value), 'delete', {})
+    deleteModalOpen.value = false
+    alert('Hors ligne — suppression sauvegardée, synchronisation dès reconnexion.')
+    return
+  }
   if (!deletePassword.value) {
     alert('Mot de passe Super Admin requis.')
     return
@@ -95,6 +136,11 @@ function goDashboard() {
 
 <template>
   <div class="p-6" :key="lang">
+    <!-- Bannière hors-ligne -->
+    <div v-if="!offlineStore.isOnline" class="mb-4 px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
+      Mode hors-ligne — données locales (lecture seule)
+    </div>
+
     <!-- Header -->
     <div class="flex justify-between mb-4">
       <h1 class="text-2xl font-bold">{{ t('products') }}</h1>
@@ -134,16 +180,19 @@ function goDashboard() {
           </tr>
         </thead>
 
-        <tbody v-if="props.produits.length">
-          <tr v-for="prod in props.produits" :key="prod.id" class="border-t">
-            <td class="px-4 py-2">{{ prod.nom }}</td>
-            <td class="px-4 py-2 text-right">{{ prod.stock?.quantite ?? 0 }}</td>
-            <td class="px-4 py-2 text-right">{{ prod.prix_achat }}</td>
-            <td class="px-4 py-2 text-right">{{ prod.prix_vente }}</td>
-            <td class="px-4 py-2 text-right">{{ prod.stock?.seuil_stock ?? 0 }}</td>
+        <tbody v-if="displayProduits.length">
+          <tr v-for="prod in displayProduits" :key="(prod as any).id ?? (prod as any).uuid" class="border-t">
+            <td class="px-4 py-2">{{ (prod as any).nom ?? (prod as any).nom_produit }}</td>
+            <td class="px-4 py-2 text-right">{{ (prod as any).stock?.quantite ?? (prod as any).quantite ?? 0 }}</td>
+            <td class="px-4 py-2 text-right">{{ (prod as any).prix_achat }}</td>
+            <td class="px-4 py-2 text-right">{{ (prod as any).prix_vente }}</td>
+            <td class="px-4 py-2 text-right">{{ (prod as any).stock?.seuil_stock ?? '-' }}</td>
             <td class="px-4 py-2 text-center">
-              <button type="button" @click="openModal(prod)" class="text-blue-600 hover:underline">Modifier</button>
-              <button type="button" @click="deleteProduit(prod.id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
+              <template v-if="offlineStore.isOnline">
+                <button type="button" @click="openModal(prod)" class="text-blue-600 hover:underline">Modifier</button>
+                <button type="button" @click="deleteProduit((prod as any).id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
+              </template>
+              <span v-else class="text-gray-400 text-xs">hors-ligne</span>
             </td>
           </tr>
         </tbody>
@@ -151,7 +200,9 @@ function goDashboard() {
 
         <tbody v-else>
           <tr>
-            <td colspan="6" class="text-center py-6 text-gray-400">Aucun produit trouvé</td>
+            <td colspan="6" class="text-center py-6 text-gray-400">
+              {{ offlineStore.isOnline ? 'Aucun produit trouvé' : 'Aucun produit en cache local' }}
+            </td>
           </tr>
         </tbody>
       </table>

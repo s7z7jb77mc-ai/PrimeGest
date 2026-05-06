@@ -33,6 +33,17 @@ createInertiaApp({
         offlineStore.initNetworkListeners()
 
         app.mount(el)
+
+        // En Tauri hors-ligne : supprimer la modale d'erreur Inertia (le SW sert le cache)
+        if (isTauri) {
+            import('@inertiajs/vue3').then(({ router }) => {
+                router.on('exception', (event) => {
+                    if (!offlineStore.isOnline) {
+                        event.preventDefault()
+                    }
+                })
+            })
+        }
     },
 
     progress: { color: '#4B5563' },
@@ -43,14 +54,3 @@ createInertiaApp({
 // Initialisation du thème (en dehors du setup Inertia pour éviter le flash blanc)
 initializeTheme()
 
-// Enregistrement du Service Worker (Uniquement si pas sur Tauri)
-const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
-
-if (!isTauri && 'serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker
-            .register('/sw.js', { scope: '/' })
-            .then((reg) => console.log('[SW] Enregistré:', reg.scope))
-            .catch((err) => console.warn('[SW] Erreur:', err))
-    })
-}

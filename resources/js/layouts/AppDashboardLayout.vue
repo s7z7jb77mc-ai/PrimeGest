@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useSyncWorker } from '@/composables/useSyncWorker'
+import SyncIndicator from '@/components/SyncIndicator.vue'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { getStoredTheme, setTheme } from '@/theme'
@@ -8,6 +10,7 @@ import { useLang } from '@/composables/useLang'
 import Icon from '@/components/Icon.vue'
 
 const offlineStore = useOfflineStore()
+useSyncWorker()
 
 const props = defineProps<{
   titre?: string

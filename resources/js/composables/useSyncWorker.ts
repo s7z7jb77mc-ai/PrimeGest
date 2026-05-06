@@ -129,6 +129,38 @@ export function useSyncWorker() {
         }
     }
 
+    // ── Initialiser le token Sanctum depuis la session web active ────────────
+
+    async function initTauriToken(): Promise<void> {
+        if (!offlineStore.isTauri) return
+        if (localStorage.getItem('api_token')) return
+
+        const deviceId = getDeviceId()
+        const csrfMatch = document.cookie.match(/XSRF-TOKEN=([^;]+)/)
+        const csrf = csrfMatch
+            ? decodeURIComponent(csrfMatch[1])
+            : document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+
+        try {
+            const res = await fetch('/api/auth/tauri-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ device_id: deviceId }),
+                credentials: 'include',
+            })
+            if (res.ok) {
+                const data = await res.json()
+                if (data.token) localStorage.setItem('api_token', data.token)
+            }
+        } catch {
+            // sera retenté au prochain montage
+        }
+    }
+
     // ── Démarrer le polling ──────────────────────────────────────────────────
 
     function startPolling() {
@@ -156,7 +188,10 @@ export function useSyncWorker() {
 
     onMounted(() => {
         if (!offlineStore.isTauri) return
-        startPolling()
+        initTauriToken().then(() => {
+            startPolling()
+            runSync() // Sync immédiate pour peupler la DB locale dès le premier login
+        })
         window.addEventListener('online', onBackOnline)
     })
 
@@ -176,5 +211,6 @@ export function useSyncWorker() {
         refreshStatus,
         startPolling,
         stopPolling,
+        initTauriToken,
     }
 }

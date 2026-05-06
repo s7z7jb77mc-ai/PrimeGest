@@ -15,14 +15,14 @@ class AuthTokenController extends Controller
     {
         $request->validate([
             'company_name' => ['required', 'string'],
-            'email'        => ['required', 'email'],
-            'password'     => ['required', 'string'],
-            'device_id'    => ['required', 'string', 'max:64'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+            'device_id' => ['required', 'string', 'max:64'],
         ]);
 
         $user = User::whereHas('entreprise', function ($q) use ($request) {
-                $q->where('name', $request->company_name);
-            })
+            $q->where('name', $request->company_name);
+        })
             ->where('email', $request->email)
             ->first();
 
@@ -34,32 +34,55 @@ class AuthTokenController extends Controller
 
         // Révoquer les anciens tokens de cet appareil
         $user->tokens()
-            ->where('name', 'tauri-' . $request->device_id)
+            ->where('name', 'tauri-'.$request->device_id)
             ->delete();
 
         $token = $user->createToken(
-            'tauri-' . $request->device_id,
+            'tauri-'.$request->device_id,
             ['sync:push', 'sync:pull']
         );
 
         return response()->json([
-            'token'        => $token->plainTextToken,
-            'user'         => [
-                'id'    => $user->id,
+            'token' => $token->plainTextToken,
+            'user' => [
+                'id' => $user->id,
                 'email' => $user->email,
-                'name'  => $user->name,
+                'name' => $user->name,
             ],
-            'entreprise'   => [
-                'id'   => $user->entreprise->id,
+            'entreprise' => [
+                'id' => $user->entreprise->id,
                 'name' => $user->entreprise->name,
                 'plan' => $user->entreprise->plan,
             ],
         ]);
     }
 
+    public function issueTauri(Request $request): JsonResponse
+    {
+        $request->validate([
+            'device_id' => ['required', 'string', 'max:64'],
+        ]);
+
+        $user = $request->user();
+
+        $user->tokens()
+            ->where('name', 'tauri-'.$request->device_id)
+            ->delete();
+
+        $token = $user->createToken(
+            'tauri-'.$request->device_id,
+            ['sync:push', 'sync:pull']
+        );
+
+        return response()->json([
+            'token' => $token->plainTextToken,
+        ]);
+    }
+
     public function revoke(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
+
         return response()->json(['revoked' => true]);
     }
 }

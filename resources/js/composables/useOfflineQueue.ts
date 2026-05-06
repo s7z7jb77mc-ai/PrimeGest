@@ -119,7 +119,7 @@ export function useOfflineQueue() {
                 const { invoke } = await import('@tauri-apps/api/core')
                 const result = await invoke<{ synced: number; conflicts: number; errors: number }>('sync_push', {
                     apiUrl   : window.location.origin,
-                    apiToken : '',
+                    apiToken : localStorage.getItem('api_token') ?? '',
                     deviceId : getDeviceId(),
                 })
                 offlineStore.setSyncSuccess(result.synced, result.conflicts)
@@ -129,6 +129,8 @@ export function useOfflineQueue() {
             }
         } catch (err: any) {
             offlineStore.setSyncError(err?.message ?? 'Erreur inconnue')
+        } finally {
+            offlineStore.setSyncing(false)
         }
     }
 

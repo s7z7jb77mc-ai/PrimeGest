@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+
+// use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Entreprise extends Model
 {
-    use SoftDeletes;
+    use HasUuid, SyncObservable;
+
+    // use SoftDeletes;
 
     protected $fillable = [
         'name', 'uuid', 'slug', 'email', 'phone', 'address',
@@ -17,8 +22,8 @@ class Entreprise extends Model
 
     protected $casts = [
         'plan_expires_at' => 'datetime',
-        'sync_version'    => 'integer',
-        'deleted_at'      => 'datetime',
+        'sync_version' => 'integer',
+        'deleted_at' => 'datetime',
     ];
 
     public function admin()

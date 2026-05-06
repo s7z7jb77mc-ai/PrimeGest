@@ -2,7 +2,10 @@
 import { ref, computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
 defineOptions({ layout: AppDashboardLayout })
+
+const offlineStore = useOfflineStore()
 
 const props = defineProps({
   succursales: { type: Array, default: () => [] },
@@ -123,6 +126,11 @@ const confirmDelete = async () => {
 
 <template>
   <div class="p-6">
+    <!-- Bannière hors-ligne -->
+    <div v-if="!offlineStore.isOnline" class="mb-4 px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
+      Mode hors-ligne — les succursales ne sont pas disponibles localement. Reconnectez-vous pour accéder à cette section.
+    </div>
+
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Succursales</h1>
       <div class="flex gap-2">

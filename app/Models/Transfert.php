@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSuccursaleScope;
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasSuccursaleScope;
 
 class Transfert extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid, SyncObservable;
     use HasSuccursaleScope;
 
     protected $fillable = [

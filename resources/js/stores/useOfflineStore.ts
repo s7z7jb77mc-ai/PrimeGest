@@ -80,8 +80,9 @@ export const useOfflineStore = defineStore('offline', () => {
 
     // Initialiser les listeners réseau
     function initNetworkListeners() {
-        window.addEventListener('online', async () => {
-            setOnline(true)
+        const handleOnline = async () => {
+            isOnline.value = true
+            window.dispatchEvent(new CustomEvent('primegest:online'))
             // Attendre 2s que la session Laravel se rafraîchisse
             await new Promise(resolve => setTimeout(resolve, 2000))
             // Sync automatique au retour online
@@ -92,8 +93,15 @@ export const useOfflineStore = defineStore('offline', () => {
             } catch (e) {
                 console.warn('[Offline] Sync échouée:', e)
             }
-        })
-        window.addEventListener('offline', () => setOnline(false))
+        }
+        const handleOffline = () => {
+            isOnline.value = false
+            window.dispatchEvent(new CustomEvent('primegest:offline'))
+        }
+        window.addEventListener('online',  handleOnline)
+        window.addEventListener('offline', handleOffline)
+        // État initial
+        isOnline.value = navigator.onLine
     }
 
     return {

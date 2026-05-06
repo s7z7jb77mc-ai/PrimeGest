@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSuccursaleScope;
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasSuccursaleScope;
 
 class FactureLigne extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid, SyncObservable;
     use HasSuccursaleScope;
 
     protected $fillable = [
@@ -30,16 +32,16 @@ class FactureLigne extends Model
     {
         return $this->belongsTo(Produit::class);
     }
+
     protected static function boot()
-{
-    parent::boot();
+    {
+        parent::boot();
 
-    static::creating(function ($ligne) {
-        // Calcul automatique du total si non défini
-        if (empty($ligne->total)) {
-            $ligne->total = $ligne->quantite * $ligne->prix_ttc;
-        }
-    });
-}
-
+        static::creating(function ($ligne) {
+            // Calcul automatique du total si non défini
+            if (empty($ligne->total)) {
+                $ligne->total = $ligne->quantite * $ligne->prix_ttc;
+            }
+        });
+    }
 }

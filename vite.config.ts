@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import laravel from 'laravel-vite-plugin'
 import vue from '@vitejs/plugin-vue'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
     plugins: [
@@ -14,6 +15,27 @@ export default defineConfig({
                     base: null,
                     includeAbsolute: false,
                 },
+            },
+        }),
+        VitePWA({
+            // Stratégie : on garde notre sw.js custom, le plugin ne le régénère pas
+            strategies: 'injectManifest',
+            srcDir: 'public',
+            filename: 'sw.js',
+
+            // Blade gère l'enregistrement et les balises meta PWA
+            injectRegister: null,
+            manifest: false,
+
+            // Pas d'injection de precache manifest (notre SW gère le cache dynamiquement)
+            injectManifest: {
+                injectionPoint: undefined,
+                globPatterns: [],
+            },
+
+            // Dev : Laravel sert déjà public/sw.js statiquement, pas besoin du virtual SW
+            devOptions: {
+                enabled: false,
             },
         }),
     ],

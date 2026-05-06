@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSuccursaleScope;
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasSuccursaleScope;
 
 class BonEntree extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid, SyncObservable;
     use HasSuccursaleScope;
 
     protected $fillable = [
@@ -43,7 +45,7 @@ class BonEntree extends Model
             if (empty($bon->numero)) {
                 $last = self::latest('id')->first();
                 $nextNumber = $last ? $last->id + 1 : 1;
-                $bon->numero = 'BE-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+                $bon->numero = 'BE-'.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
             }
         });
     }
