@@ -10,11 +10,13 @@ class Subscription extends Model
         'entreprise_id', 'plan', 'amount',
         'payment_method', 'payment_reference',
         'status', 'starts_at', 'expires_at', 'confirmed_by',
+        'warning_sent_at',
     ];
 
     protected $casts = [
-        'starts_at'  => 'datetime',
+        'starts_at' => 'datetime',
         'expires_at' => 'datetime',
+        'warning_sent_at' => 'datetime',
     ];
 
     public function entreprise()

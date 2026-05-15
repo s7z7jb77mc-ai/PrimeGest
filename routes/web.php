@@ -1,35 +1,29 @@
 <?php
 
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-use App\Http\Controllers\EntrepriseController;
+use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\MouvementStockController;
-use App\Http\Controllers\CaisseController;
-use App\Http\Controllers\JournalController;
-use App\Http\Controllers\FicheDePaieController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\ParametreController;
+use App\Http\Controllers\EntrepriseController;
 use App\Http\Controllers\FactureController;
-use App\Http\Controllers\RapportController;
+use App\Http\Controllers\FicheDePaieController;
+use App\Http\Controllers\JournalController;
+use App\Http\Controllers\MouvementStockController;
+use App\Http\Controllers\ParametreController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\TiersController;
-use App\Http\Controllers\SyncController;
 use App\Http\Controllers\SuccursaleController;
+use App\Http\Controllers\SyncController;
+use App\Http\Controllers\TiersController;
 use App\Http\Controllers\TransfertController;
+use App\Http\Controllers\UserController;
 use App\Models\Client;
 use App\Models\Employe;
 use App\Models\FicheDePaie;
 use App\Models\Fournisseur;
 use App\Models\Produit;
-
-
-
-
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -40,8 +34,10 @@ Route::post('/register-entreprise', [EntrepriseController::class, 'store'])->nam
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/upgrade', function () {
-     return Inertia::render('Upgrade');
-     })->name('upgrade');
+        return Inertia::render('Upgrade');
+    })->name('upgrade');
+    Route::get('/abonnement', [\App\Http\Controllers\AbonnementController::class, 'index'])->name('abonnement.index');
+    Route::post('/abonnement/demande', [\App\Http\Controllers\AbonnementController::class, 'storeDemande'])->name('abonnement.demande');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/caisse', [CaisseController::class, 'index'])->name('caisse.index');
     Route::post('/caisse/initial', [CaisseController::class, 'storeInitial'])->name('caisse.initial');
@@ -63,33 +59,32 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transferts/{transfert}/reject', [TransfertController::class, 'reject'])->name('transferts.reject');
 });
 
-Route::match(['put', 'patch'], '/employes/{employe}', [EmployeController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('employes.update');
-Route::delete('/employes/{employe}', [EmployeController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('employes.destroy');
-//Route::match(['put', 'patch'], '/employes', function (Request $request, EmployeController $controller) {
-  //  $employe = Employe::findOrFail($request->input('id'));
+Route::match(['put', 'patch'], '/employes/{employe}', [EmployeController::class, 'update'])->middleware(['auth', 'can:super_admin-only'])->name('employes.update');
+Route::delete('/employes/{employe}', [EmployeController::class, 'destroy'])->middleware(['auth', 'can:super_admin-only'])->name('employes.destroy');
+// Route::match(['put', 'patch'], '/employes', function (Request $request, EmployeController $controller) {
+//  $employe = Employe::findOrFail($request->input('id'));
 
-    //return $controller->update($request, $employe);
-//})->middleware(['auth','can:super_admin-only'])->name('employes.update.fallback');
-//Route::delete('/employes', function (Request $request, EmployeController $controller) {
-  //  $employe = Employe::findOrFail($request->input('id'));
+// return $controller->update($request, $employe);
+// })->middleware(['auth','can:super_admin-only'])->name('employes.update.fallback');
+// Route::delete('/employes', function (Request $request, EmployeController $controller) {
+//  $employe = Employe::findOrFail($request->input('id'));
 
-    //return $controller->destroy($employe);
-//})->middleware(['auth','can:super_admin-only'])->name('employes.destroy.fallback');
+// return $controller->destroy($employe);
+// })->middleware(['auth','can:super_admin-only'])->name('employes.destroy.fallback');
 Route::resource('employes', EmployeController::class)->except(['show', 'update', 'destroy'])->middleware('auth');
 
-
-Route::match(['put', 'patch'], '/produits/{produit}', [ProductController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('produits.update');
-Route::delete('/produits/{produit}', [ProductController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('produits.destroy');
+Route::match(['put', 'patch'], '/produits/{produit}', [ProductController::class, 'update'])->middleware(['auth', 'can:super_admin-only'])->name('produits.update');
+Route::delete('/produits/{produit}', [ProductController::class, 'destroy'])->middleware(['auth', 'can:super_admin-only'])->name('produits.destroy');
 Route::match(['put', 'patch'], '/produits', function (Request $request, ProductController $controller) {
     $produit = Produit::findOrFail($request->input('id'));
 
     return $controller->update($request, $produit);
-})->middleware(['auth','can:super_admin-only'])->name('produits.update.fallback');
+})->middleware(['auth', 'can:super_admin-only'])->name('produits.update.fallback');
 Route::delete('/produits', function (Request $request, ProductController $controller) {
     $produit = Produit::findOrFail($request->input('id'));
 
     return $controller->destroy($produit);
-})->middleware(['auth','can:super_admin-only'])->name('produits.destroy.fallback');
+})->middleware(['auth', 'can:super_admin-only'])->name('produits.destroy.fallback');
 // APRÈS — plan:produits uniquement sur store (création)
 Route::resource('produits', ProductController::class)
     ->except(['show', 'update', 'destroy'])
@@ -99,18 +94,18 @@ Route::resource('produits', ProductController::class)
 Route::post('/produits', [ProductController::class, 'store'])
     ->middleware(['auth', 'plan:produits'])
     ->name('produits.store');
-Route::match(['put', 'patch'], '/clients/{client}', [\App\Http\Controllers\ClientController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('clients.update');
-Route::delete('/clients/{client}', [\App\Http\Controllers\ClientController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('clients.destroy');
-//Route::match(['put', 'patch'], '/clients', function (Request $request, \App\Http\Controllers\ClientController $controller) {
-  //  $client = Client::findOrFail($request->input('id'));
+Route::match(['put', 'patch'], '/clients/{client}', [\App\Http\Controllers\ClientController::class, 'update'])->middleware(['auth', 'can:super_admin-only'])->name('clients.update');
+Route::delete('/clients/{client}', [\App\Http\Controllers\ClientController::class, 'destroy'])->middleware(['auth', 'can:super_admin-only'])->name('clients.destroy');
+// Route::match(['put', 'patch'], '/clients', function (Request $request, \App\Http\Controllers\ClientController $controller) {
+//  $client = Client::findOrFail($request->input('id'));
 
-    //return $controller->update($request, $client);
-//})->middleware(['auth','can:super_admin-only'])->name('clients.update.fallback');
-//Route::delete('/clients', function (Request $request, \App\Http\Controllers\ClientController $controller) {
-  //  $client = Client::findOrFail($request->input('id'));
+// return $controller->update($request, $client);
+// })->middleware(['auth','can:super_admin-only'])->name('clients.update.fallback');
+// Route::delete('/clients', function (Request $request, \App\Http\Controllers\ClientController $controller) {
+//  $client = Client::findOrFail($request->input('id'));
 
-    //return $controller->destroy($client);
-//})->middleware(['auth','can:super_admin-only'])->name('clients.destroy.fallback');
+// return $controller->destroy($client);
+// })->middleware(['auth','can:super_admin-only'])->name('clients.destroy.fallback');
 Route::resource('clients', \App\Http\Controllers\ClientController::class)
     ->except(['show', 'update', 'destroy'])
     ->middleware(['auth'])
@@ -118,18 +113,18 @@ Route::resource('clients', \App\Http\Controllers\ClientController::class)
 Route::post('/clients', [\App\Http\Controllers\ClientController::class, 'store'])
     ->middleware(['auth', 'plan:clients'])
     ->name('clients.store');
-Route::match(['put', 'patch'], '/fournisseurs/{fournisseur}', [\App\Http\Controllers\FournisseurController::class, 'update'])->middleware(['auth','can:super_admin-only'])->name('fournisseurs.update');
-Route::delete('/fournisseurs/{fournisseur}', [\App\Http\Controllers\FournisseurController::class, 'destroy'])->middleware(['auth','can:super_admin-only'])->name('fournisseurs.destroy');
-//Route::match(['put', 'patch'], '/fournisseurs', function (Request $request, \App\Http\Controllers\FournisseurController $controller) {
-  //  $fournisseur = Fournisseur::findOrFail($request->input('id'));
+Route::match(['put', 'patch'], '/fournisseurs/{fournisseur}', [\App\Http\Controllers\FournisseurController::class, 'update'])->middleware(['auth', 'can:super_admin-only'])->name('fournisseurs.update');
+Route::delete('/fournisseurs/{fournisseur}', [\App\Http\Controllers\FournisseurController::class, 'destroy'])->middleware(['auth', 'can:super_admin-only'])->name('fournisseurs.destroy');
+// Route::match(['put', 'patch'], '/fournisseurs', function (Request $request, \App\Http\Controllers\FournisseurController $controller) {
+//  $fournisseur = Fournisseur::findOrFail($request->input('id'));
 
-    //return $controller->update($request, $fournisseur);
-//})->middleware(['auth','can:super_admin-only'])->name('fournisseurs.update.fallback');
-//Route::delete('/fournisseurs', function (Request $request, \App\Http\Controllers\FournisseurController $controller) {
-  //  $fournisseur = Fournisseur::findOrFail($request->input('id'));
+// return $controller->update($request, $fournisseur);
+// })->middleware(['auth','can:super_admin-only'])->name('fournisseurs.update.fallback');
+// Route::delete('/fournisseurs', function (Request $request, \App\Http\Controllers\FournisseurController $controller) {
+//  $fournisseur = Fournisseur::findOrFail($request->input('id'));
 
-    //return $controller->destroy($fournisseur);
-//})->middleware(['auth','can:super_admin-only'])->name('fournisseurs.destroy.fallback');
+// return $controller->destroy($fournisseur);
+// })->middleware(['auth','can:super_admin-only'])->name('fournisseurs.destroy.fallback');
 Route::resource('fournisseurs', \App\Http\Controllers\FournisseurController::class)
     ->except(['show', 'update', 'destroy'])
     ->middleware(['auth'])
@@ -154,24 +149,20 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('mouvement-stocks', MouvementStockController::class);
 });
 
-Route::resource('journals', JournalController::class)->only(['index','store'])->middleware('auth');
-
-
-
+Route::resource('journals', JournalController::class)->only(['index', 'store'])->middleware('auth');
 
 Route::resource('fiches', FicheDePaieController::class)->except(['show', 'edit', 'create'])->middleware('auth');
 Route::put('/fiches/{fiche}/confirmer', [FicheDePaieController::class, 'confirmerPaiement'])
-     ->middleware('auth')
-     ->name('fiches.confirmer');
+    ->middleware('auth')
+    ->name('fiches.confirmer');
 Route::post('/fiches/{fiche}/confirmer', [FicheDePaieController::class, 'confirmerPaiement'])
-     ->middleware('auth')
-     ->name('fiches.confirmer.post');
+    ->middleware('auth')
+    ->name('fiches.confirmer.post');
 Route::match(['put', 'patch', 'post'], '/fiches/confirmer', function (Request $request, FicheDePaieController $controller) {
     $fiche = FicheDePaie::findOrFail($request->input('id') ?? $request->input('fiche_id'));
 
     return $controller->confirmerPaiement($fiche);
 })->middleware('auth')->name('fiches.confirmer.fallback');
-
 
 Route::resource('users', UserController::class)
     ->only(['index'])
@@ -181,7 +172,7 @@ Route::post('/users', [UserController::class, 'store'])
     ->middleware(['auth', 'plan:users'])
     ->name('users.store');
 
-Route::match(['put','patch'], '/users/{user}', [UserController::class, 'update'])
+Route::match(['put', 'patch'], '/users/{user}', [UserController::class, 'update'])
     ->middleware(['auth', 'can:super_admin-only'])
     ->name('users.update');
 
@@ -195,8 +186,8 @@ Route::post('/users/{user}/access', [UserController::class, 'updateAccess'])
 
 Route::middleware(['auth', 'plan:dette_tracking'])->group(function () {
     Route::get('/creances-dettes', [\App\Http\Controllers\CreancesDettesController::class, 'index'])
-    ->middleware(['auth'])
-    ->name('creances-dettes.index');
+        ->middleware(['auth'])
+        ->name('creances-dettes.index');
     Route::post('/creances-dettes/clients/{client}/paiement', [\App\Http\Controllers\CreancesDettesController::class, 'payerCreance'])->name('creances-dettes.clients.payer');
     Route::post('/creances-dettes/fournisseurs/{fournisseur}/paiement', [\App\Http\Controllers\CreancesDettesController::class, 'payerDette'])->name('creances-dettes.fournisseurs.payer');
     Route::get('/creances-dettes/clients/{client}', [\App\Http\Controllers\CreancesDettesController::class, 'detailClient'])->name('creances-dettes.clients.detail');
@@ -206,23 +197,19 @@ Route::middleware(['auth', 'plan:dette_tracking'])->group(function () {
     Route::post('/rapport/log', [\App\Http\Controllers\RapportController::class, 'logAction'])->name('rapport.log');
 });
 
-
-
-
-//Route::get('/parametres', [ParametreController::class, 'index'])->name('parametres.index');
-//Route::post('/parametres', [ParametreController::class, 'store'])->name('parametres.store');
+// Route::get('/parametres', [ParametreController::class, 'index'])->name('parametres.index');
+// Route::post('/parametres', [ParametreController::class, 'store'])->name('parametres.store');
 Route::middleware(['auth'])->group(function () {
     Route::get('/parametres', [ParametreController::class, 'index'])->name('parametres.index');
     Route::post('/parametres', [ParametreController::class, 'store'])->name('parametres.store');
     Route::put('/parametres/{parametre}', [ParametreController::class, 'update'])->middleware('can:super_admin-only')->name('parametres.update');
 });
 
-
-//Route::middleware(['auth'])->group(function () {
+// Route::middleware(['auth'])->group(function () {
 //    Route::get('/factures', [FactureController::class, 'index'])->name('factures.index');
 //    Route::post('/factures', [FactureController::class, 'store'])->name('factures.store');
 //    Route::get('/factures/{id}', [FactureController::class, 'show'])->name('factures.show');
-//});
+// });
 
 Route::resource('factures', FactureController::class)->middleware('auth');
 Route::middleware(['auth'])->group(function () {
@@ -251,17 +238,17 @@ Route::middleware(['auth'])->group(function () {
     // Historiques
     Route::get('/historique/mouvements-stock', [\App\Http\Controllers\HistoriqueController::class, 'mouvementStock'])->name('historique.mouvements-stock');
     Route::get('/historique/journaux', [\App\Http\Controllers\HistoriqueController::class, 'journal'])->name('historique.journaux');
-    
+
     // Archives de mouvements de stock
     Route::get('/archives/mouvements-stock', [\App\Http\Controllers\MouvementStockArchiveController::class, 'index'])->name('archives.mouvements-stock');
     Route::get('/archives/mouvements-stock/{date}/download', [\App\Http\Controllers\MouvementStockArchiveController::class, 'download'])->name('archives.mouvements-stock.download');
     Route::get('/archives/mouvements-stock/{date}/preview', [\App\Http\Controllers\MouvementStockArchiveController::class, 'preview'])->name('archives.mouvements-stock.preview');
-    
+
     // Archives de journaux
     Route::get('/archives/journaux', [\App\Http\Controllers\JournalArchiveController::class, 'index'])->name('archives.journaux');
     Route::get('/archives/journaux/{date}/download', [\App\Http\Controllers\JournalArchiveController::class, 'download'])->name('archives.journaux.download');
     Route::get('/archives/journaux/{date}/preview', [\App\Http\Controllers\JournalArchiveController::class, 'preview'])->name('archives.journaux.preview');
-    
+
     // Rapport
     Route::get('/rapport', [\App\Http\Controllers\RapportController::class, 'index'])->name('rapport.index');
 });
@@ -285,7 +272,7 @@ Route::prefix('owner')->name('owner.')->group(function () {
     Route::post('/logout', [\App\Http\Controllers\Owner\AuthController::class, 'logout'])->name('logout');
 
     // Dashboard protégé
-    Route::middleware(['web','owner'])->group(function () {
+    Route::middleware(['web', 'owner'])->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\Admin\PlanController::class, 'index'])->name('dashboard');
         Route::post('/plans/{entreprise}/activate', [\App\Http\Controllers\Admin\PlanController::class, 'activate'])->name('plans.activate');
         Route::post('/plans/{entreprise}/downgrade', [\App\Http\Controllers\Admin\PlanController::class, 'downgrade'])->name('plans.downgrade');
