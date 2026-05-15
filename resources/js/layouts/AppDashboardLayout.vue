@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useOfflineStore } from '@/stores/useOfflineStore'
 import { useSyncWorker } from '@/composables/useSyncWorker'
+import { useUpdater } from '@/composables/useUpdater'
+import { useTauriTitle } from '@/composables/useTauriTitle'
 import SyncIndicator from '@/components/SyncIndicator.vue'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
@@ -11,6 +13,8 @@ import Icon from '@/components/Icon.vue'
 
 const offlineStore = useOfflineStore()
 useSyncWorker()
+useUpdater()
+useTauriTitle()
 
 const props = defineProps<{
   titre?: string

@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use App\Notifications\CustomResetPassword;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
-use App\Notifications\CustomResetPassword;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
@@ -26,6 +26,7 @@ class User extends Authenticatable
     ];
 
     protected $hidden = ['password', 'remember_token', 'plain_password'];
+
     protected $casts = [
         'access_pages' => 'array',
         'manager' => 'boolean',
@@ -45,7 +46,8 @@ class User extends Authenticatable
     {
         $role = strtolower(trim((string) $this->role));
         $role = str_replace([' ', '-'], '_', $role);
-        return in_array($role, ['super_admin', 'super_aadmin'], true);
+
+        return $role === 'super_admin';
     }
 
     public function getIsSuperAdminAttribute(): bool

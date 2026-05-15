@@ -19,8 +19,12 @@ class SuccursaleContext
     {
         static $cache = [];
 
-        if (!array_key_exists($table, $cache)) {
-            $cache[$table] = Schema::hasColumn($table, 'succursale_id');
+        if (! array_key_exists($table, $cache)) {
+            try {
+                $cache[$table] = Schema::hasTable($table) && Schema::hasColumn($table, 'succursale_id');
+            } catch (\Throwable) {
+                $cache[$table] = false;
+            }
         }
 
         return $cache[$table];
@@ -37,16 +41,16 @@ class SuccursaleContext
         $table = $model->getTable();
         $effectiveSuccursaleId = $succursaleId ?? self::currentId();
 
-        if ($effectiveSuccursaleId === null || !self::hasColumn($table)) {
+        if ($effectiveSuccursaleId === null || ! self::hasColumn($table)) {
             return $builder;
         }
 
-        return $builder->where($table . '.succursale_id', $effectiveSuccursaleId);
+        return $builder->where($table.'.succursale_id', $effectiveSuccursaleId);
     }
 
     public static function forWrite(Model $model, ?int $explicitSuccursaleId = null): ?int
     {
-        if (!self::hasColumn($model->getTable())) {
+        if (! self::hasColumn($model->getTable())) {
             return null;
         }
 
@@ -60,7 +64,7 @@ class SuccursaleContext
     public static function withoutScope(string $modelClass): Builder
     {
         /** @var Model $model */
-        $model = new $modelClass();
+        $model = new $modelClass;
 
         return $model->newQueryWithoutScopes();
     }

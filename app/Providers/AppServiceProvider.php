@@ -38,9 +38,24 @@ class AppServiceProvider extends ServiceProvider
         MouvementStock::observe(MouvementStockObserver::class);
         Journal::observe(JournalObserver::class);
 
-        // Démarrer le SyncWorker uniquement quand l'app sert des requêtes HTTP
+        // Démarrer le SyncWorker uniquement si des données sont en attente
+        // et qu'aucun job SyncWorker n'est déjà en queue (évite les doublons)
         if (! app()->runningInConsole() && config('app.env') !== 'testing') {
-            SyncWorker::dispatch()->delay(now()->addSeconds(10));
+            try {
+                $alreadyQueued = \Illuminate\Support\Facades\DB::table('jobs')
+                    ->where('payload', 'like', '%SyncWorker%')
+                    ->exists();
+
+                $hasPending = \Illuminate\Support\Facades\DB::table('sync_queue')
+                    ->where('status', 'pending')
+                    ->exists();
+
+                if ($hasPending && ! $alreadyQueued) {
+                    SyncWorker::dispatch()->delay(now()->addSeconds(10));
+                }
+            } catch (\Throwable) {
+                // Tables pas encore créées (premier démarrage avant migrate)
+            }
         }
     }
 }

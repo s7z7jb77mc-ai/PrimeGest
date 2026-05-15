@@ -18,16 +18,20 @@ class Caisse extends Model
     protected $fillable = [
         'entreprise_id',
         'succursale_id',
+        'uuid',
         'date_operation',
         'description',
         'entree',
         'sortie',
         'solde',
         'type_operation',
+        'sync_version',
     ];
 
     protected $casts = [
         'date_operation' => 'datetime',
+        'sync_version' => 'integer',
+        'deleted_at' => 'datetime',
     ];
 
     public function entreprise()

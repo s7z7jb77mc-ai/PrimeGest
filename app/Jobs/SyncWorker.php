@@ -127,11 +127,26 @@ class SyncWorker implements ShouldQueue
 
     private function reschedule(): void
     {
-        self::dispatch()->delay(now()->addSeconds(30));
+        $alreadyQueued = \Illuminate\Support\Facades\DB::table('jobs')
+            ->where('payload', 'like', '%SyncWorker%')
+            ->exists();
+
+        if (! $alreadyQueued) {
+            self::dispatch()->delay(now()->addSeconds(30));
+        }
     }
 
     private function getApiToken(): string
     {
+        $tokenFile = storage_path('app/sync_token');
+        if (file_exists($tokenFile)) {
+            try {
+                return decrypt(trim(file_get_contents($tokenFile)));
+            } catch (\Throwable) {
+                // Fichier corrompu ou non chiffré — on ignore et on tombe sur le fallback
+            }
+        }
+
         return config('app.sync_token', '');
     }
 }

@@ -115,14 +115,28 @@ export function useOfflineQueue() {
 
         try {
             if (isTauri) {
-                // Tauri : sync via Rust
+                // Tauri : cycle complet push + pull pour garder SQLite locale à jour.
                 const { invoke } = await import('@tauri-apps/api/core')
                 const result = await invoke<{ synced: number; conflicts: number; errors: number }>('sync_push', {
                     apiUrl   : window.location.origin,
                     apiToken : localStorage.getItem('api_token') ?? '',
                     deviceId : getDeviceId(),
                 })
+
+                const pulled = await invoke<number>('sync_pull', {
+                    apiUrl     : window.location.origin,
+                    apiToken   : localStorage.getItem('api_token') ?? '',
+                    deviceId   : getDeviceId(),
+                    lastSyncTs : offlineStore.lastSyncAt,
+                })
+
                 offlineStore.setSyncSuccess(result.synced, result.conflicts)
+
+                if (pulled > 0) {
+                    window.dispatchEvent(new CustomEvent('primegest:sync-pulled', {
+                        detail: { count: pulled },
+                    }))
+                }
             } else {
                 // Navigateur : envoi direct via fetch
                 await syncBrowserQueue()
@@ -135,64 +149,70 @@ export function useOfflineQueue() {
     }
 
     /**
-     * Sync navigateur : lit IndexedDB et envoie chaque opération au serveur.
+     * Sync navigateur : lit IndexedDB et envoie tout en un seul batch à /api/sync/push.
      */
     async function syncBrowserQueue(): Promise<void> {
-        // Rafraîchir le CSRF token avant tout envoi
-        let csrfToken = ''
-        try {
-            const r = await fetch('/csrf-refresh', { credentials: 'include' })
-            const json = await r.json()
-            csrfToken = json.token ?? ''
-        } catch {
-            csrfToken = getCsrfToken()
-        }
         const pending = await idbGetPending()
         if (!pending.length) {
             offlineStore.setSyncSuccess(0, 0)
             return
         }
 
-        let synced = 0
-        let errors = 0
+        const csrfToken = getCsrfToken()
+        const deviceId  = getDeviceId()
 
-        for (const op of pending) {
-            try {
-                const payload = JSON.parse(op.payload)
-                const url     = resolveUrl(op.table_name, op.record_id, op.operation)
-                const method  = resolveMethod(op.operation)
+        const operations = pending.map(op => ({
+            table_name           : op.table_name,
+            record_id            : op.record_id,
+            operation            : op.operation,
+            payload              : typeof op.payload === 'string' ? JSON.parse(op.payload) : op.payload,
+            client_sync_version  : op.client_sync_version ?? 0,
+        }))
 
-                const res = await fetch(url, {
-                    method,
-                    redirect: 'manual',
-                    headers: {
-                        'Content-Type'     : 'application/json',
-                        'X-CSRF-TOKEN'     : csrfToken,
-                        'X-Requested-With' : 'XMLHttpRequest',
-                        'Accept'           : 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                })
-                // Laravel redirige (302) = session expirée, on recharge
-                if (res.type === 'opaqueredirect' || res.status === 302) {
-                    window.location.reload()
-                    return
-                }
+        try {
+            const res = await fetch('/api/sync/push', {
+                method  : 'POST',
+                redirect: 'manual',
+                headers : {
+                    'Content-Type'     : 'application/json',
+                    'X-CSRF-TOKEN'     : csrfToken,
+                    'X-Requested-With' : 'XMLHttpRequest',
+                    'Accept'           : 'application/json',
+                },
+                body: JSON.stringify({ device_id: deviceId, operations }),
+            })
 
-                if (res.ok) {
+            // Session expirée → recharger pour re-auth
+            if (res.type === 'opaqueredirect' || res.status === 302) {
+                window.location.reload()
+                return
+            }
+
+            if (!res.ok) {
+                offlineStore.setSyncError(`Erreur serveur ${res.status}`)
+                return
+            }
+
+            const json = await res.json()
+            const results: Array<{ record_id: string; status: string }> = json.results ?? []
+
+            let synced = 0
+            let conflicts = 0
+
+            for (const result of results) {
+                const op = pending.find(p => p.record_id === result.record_id)
+                if (!op) continue
+                if (result.status === 'synced') {
                     await idbMarkSynced(op.id)
                     synced++
-                } else {
-                    errors++
+                } else if (result.status === 'conflict') {
+                    conflicts++
                 }
-            } catch {
-                errors++
             }
-        }
 
-        offlineStore.setSyncSuccess(synced, 0)
-        if (errors > 0) {
-            offlineStore.setSyncError(`${errors} opération(s) en erreur`)
+            offlineStore.setSyncSuccess(synced, conflicts)
+        } catch (err: any) {
+            offlineStore.setSyncError(err?.message ?? 'Erreur réseau')
         }
     }
 
@@ -200,24 +220,6 @@ export function useOfflineQueue() {
 }
 
 // ── Utilitaires ────────────────────────────────────────────────────────────
-
-function resolveUrl(tableName: string, recordId: string, operation: string): string {
-    const map: Record<string, string> = {
-        clients      : '/clients',
-        fournisseurs : '/fournisseurs',
-        produits     : '/produits',
-    }
-    const base = map[tableName] ?? `/${tableName}`
-    if (operation === 'create') return base
-    return `${base}/${recordId}`
-}
-
-function resolveMethod(operation: string): string {
-    if (operation === 'create') return 'POST'
-    if (operation === 'update') return 'PUT'
-    if (operation === 'delete') return 'DELETE'
-    return 'POST'
-}
 
 function getCsrfToken(): string {
     // Essayer d'abord le cookie XSRF-TOKEN (plus frais que la meta tag)

@@ -14,11 +14,12 @@ return new class extends Migration
 
         Schema::create('sync_inbox', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique();
+            $table->uuid('record_uuid')->unique();
             $table->string('device_id')->nullable();
-            $table->string('entity');
+            $table->string('table_name');
             $table->string('operation');
             $table->json('payload');
+            $table->string('checksum')->nullable();
             $table->timestamp('occurred_at')->nullable();
             $table->timestamp('received_at')->useCurrent();
             $table->unsignedBigInteger('user_id')->nullable();

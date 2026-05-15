@@ -99,6 +99,55 @@ export interface EmployeLocal {
     deleted_at: number | null
 }
 
+export interface SuccursaleLocal {
+    uuid: string
+    nom: string
+    adresse: string | null
+    manager_user_id: number | null
+    active: boolean
+    sync_version: number
+    updated_at: number
+    deleted_at: number | null
+}
+
+export interface CaisseLocal {
+    uuid: string
+    date_operation: string | null
+    description: string | null
+    entree: number
+    sortie: number
+    solde: number | null
+    type_operation: string | null
+    succursale_id: number | null
+    sync_version: number
+    updated_at: number
+    deleted_at: number | null
+}
+
+export interface ParametreLocal {
+    uuid: string
+    nom_entreprise: string | null
+    adresse: string | null
+    email: string | null
+    telephone: string | null
+    devise: string | null
+    langue: string | null
+    rccm: string | null
+    identifiant_national: string | null
+    numero_impot: string | null
+    tva: number
+    reduction_accordee: number
+    theme: string | null
+    message_remerciement: string | null
+    multi_succursales: boolean
+    seuil_alerte: number | null
+    logo_path: string | null
+    logo_position: string | null
+    sync_version: number
+    updated_at: number
+    deleted_at: number | null
+}
+
 // ── Options de requête ─────────────────────────────────────────────────────────
 
 export interface QueryOptions {
@@ -157,6 +206,9 @@ export function useLocalDB() {
         getMouvementsStock: (opts?: QueryOptions) => queryLocal<MouvementStockLocal>('mouvement_stocks', opts),
         getJournals: (opts?: QueryOptions) => queryLocal<JournalLocal>('journals', opts),
         getEmployes: (opts?: QueryOptions) => queryLocal<EmployeLocal>('employes', opts),
+        getSuccursales: (opts?: QueryOptions) => queryLocal<SuccursaleLocal>('succursales', opts),
+        getCaisses: (opts?: QueryOptions) => queryLocal<CaisseLocal>('caisses', opts),
+        getParametres: (opts?: QueryOptions) => queryLocal<ParametreLocal>('parametres', opts),
 
         // Agrégats pour le dashboard
         getProduitsCount: () => queryAggregate('produits', 'count'),

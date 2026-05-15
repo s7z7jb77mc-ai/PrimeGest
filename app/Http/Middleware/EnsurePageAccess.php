@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Succursale;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\Succursale;
 
 class EnsurePageAccess
 {
@@ -13,23 +13,23 @@ class EnsurePageAccess
      * Map des clés access_pages vers les préfixes de routes.
      */
     private array $map = [
-        'dashboard'           => ['/dashboard'],
-        'mouvement_stocks'    => ['/mouvement-stocks'],
-        'produits'            => ['/produits'],
-        'clients'             => ['/clients', '/tiers'],
-        'fournisseurs'        => ['/fournisseurs', '/tiers'],
-        'tiers'               => ['/tiers'],
-        'journal'             => ['/journals'],
-        'factures'            => ['/factures'],
-        'rapports'            => ['/rapport'],
-        'archives'            => ['/archives'],
-        'caisse'              => ['/caisse'],
-        'creances_dettes'     => ['/creances-dettes'],
+        'dashboard' => ['/dashboard'],
+        'mouvement_stocks' => ['/mouvement-stocks'],
+        'produits' => ['/produits'],
+        'clients' => ['/clients', '/tiers'],
+        'fournisseurs' => ['/fournisseurs', '/tiers'],
+        'tiers' => ['/tiers'],
+        'journal' => ['/journals'],
+        'factures' => ['/factures'],
+        'rapports' => ['/rapport'],
+        'archives' => ['/archives'],
+        'caisse' => ['/caisse'],
+        'creances_dettes' => ['/creances-dettes'],
         'ressources_humaines' => ['/ressources-humaines', '/employes', '/fiches'],
-        'succursales'         => ['/succursales'],
-        'transferts'          => ['/transferts'],
-        'users'               => ['/users'],
-        'parametres'          => ['/parametres'],
+        'succursales' => ['/succursales'],
+        'transferts' => ['/transferts'],
+        'users' => ['/users'],
+        'parametres' => ['/parametres'],
     ];
 
     /**
@@ -60,11 +60,11 @@ class EnsurePageAccess
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return $next($request);
         }
 
-        $path = '/' . ltrim($request->path(), '/');
+        $path = '/'.ltrim($request->path(), '/');
 
         // Toujours autorisé
         if (
@@ -84,9 +84,13 @@ class EnsurePageAccess
         // ✅ Manager de la succursale active — accès complet à sa succursale
         $succursaleId = session('succursale_id');
         if ($succursaleId) {
-            $succursale = Succursale::where('id', $succursaleId)
-                ->where('entreprise_id', $user->entreprise_id)
-                ->first();
+            try {
+                $succursale = Succursale::where('id', $succursaleId)
+                    ->where('entreprise_id', $user->entreprise_id)
+                    ->first();
+            } catch (\Throwable) {
+                $succursale = null;
+            }
 
             if ($succursale && (int) $succursale->manager_user_id === (int) $user->id) {
                 foreach ($this->managerDefaultPages as $prefix) {

@@ -28,6 +28,11 @@
       <div class="w-full max-w-xl p-8 rounded-2xl border border-black backdrop-blur-md shadow-lg">
         <h2 class="text-2xl font-bold text-center mb-6 text-white">Créer une entreprise</h2>
 
+        <!-- Erreurs globales -->
+        <div v-if="Object.keys(form.errors).length" class="mb-2 bg-red-500/20 border border-red-400/50 text-red-200 rounded-lg p-3 text-sm space-y-1">
+          <div v-for="(msg, key) in form.errors" :key="key">{{ msg }}</div>
+        </div>
+
         <form @submit.prevent="submit" class="space-y-4 text-white">
           <!-- Infos Entreprise -->
           <div>
@@ -59,17 +64,20 @@
           <div>
             <label class="label text-white">Nom complet</label>
             <input v-model="form.admin_name" type="text" class="input bg-white/20 text-white placeholder-white/70 border border-black"/>
+            <span v-if="form.errors.admin_name" class="text-sm text-red-300">{{ form.errors.admin_name }}</span>
           </div>
 
           <div>
             <label class="label text-white">Email</label>
             <input v-model="form.admin_email" type="email" class="input bg-white/20 text-white placeholder-white/70 border border-black"/>
+            <span v-if="form.errors.admin_email" class="text-sm text-red-300">{{ form.errors.admin_email }}</span>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="label text-white">Mot de passe</label>
               <input v-model="form.admin_password" type="password" class="input bg-white/20 text-white placeholder-white/70 border border-black"/>
+              <span v-if="form.errors.admin_password" class="text-sm text-red-300">{{ form.errors.admin_password }}</span>
             </div>
             <div>
               <label class="label text-white">Confirmer</label>
@@ -77,7 +85,13 @@
             </div>
           </div>
 
-          <button type="submit" class="btn w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white">Créer l’entreprise</button>
+          <button
+            type="submit"
+            :disabled="form.processing"
+            class="btn w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white"
+          >
+            {{ form.processing ? ‘Création en cours…’ : "Créer l’entreprise" }}
+          </button>
         </form>
       </div>
     </main>

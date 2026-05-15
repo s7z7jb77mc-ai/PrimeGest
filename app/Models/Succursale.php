@@ -12,14 +12,18 @@ class Succursale extends Model
 
     protected $fillable = [
         'entreprise_id',
+        'uuid',
         'nom',
         'adresse',
         'manager_user_id',
         'active',
+        'sync_version',
     ];
 
     protected $casts = [
         'active' => 'boolean',
+        'sync_version' => 'integer',
+        'deleted_at' => 'datetime',
     ];
 
     public function entreprise()

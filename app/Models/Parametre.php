@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\HasUuid;
+use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Model;
 
 class Parametre extends Model
 {
+    use HasUuid, SyncObservable;
+
     protected $fillable = [
         'entreprise_id',
+        'uuid',
         'nom_entreprise',
         'adresse',
         'email',
@@ -26,16 +31,28 @@ class Parametre extends Model
         'logo_path',
         'logo',
         'logo_position',
+        'sync_version',
     ];
 
     protected $appends = [
         'logo_url',
     ];
 
+    protected $casts = [
+        'multi_succursales' => 'boolean',
+        'sync_version' => 'integer',
+        'deleted_at' => 'datetime',
+    ];
+
+    public function entreprise()
+    {
+        return $this->belongsTo(Entreprise::class);
+    }
+
     public function getLogoUrlAttribute()
     {
         $path = $this->logo_path ?: ($this->attributes['logo'] ?? null);
-        if (!$path) {
+        if (! $path) {
             return null;
         }
         $normalized = str_replace('\\', '/', trim((string) $path));
@@ -45,8 +62,8 @@ class Parametre extends Model
             $normalized = substr($normalized, strpos($normalized, 'logos/'));
         }
 
-        if (!str_contains($normalized, '/') && preg_match('/\.(png|jpe?g|webp|gif|svg)$/i', $normalized)) {
-            $normalized = 'logos/' . $normalized;
+        if (! str_contains($normalized, '/') && preg_match('/\.(png|jpe?g|webp|gif|svg)$/i', $normalized)) {
+            $normalized = 'logos/'.$normalized;
         }
 
         if (str_starts_with($normalized, 'http://') || str_starts_with($normalized, 'https://')) {
@@ -64,6 +81,6 @@ class Parametre extends Model
             }
         }
 
-        return asset('storage/' . $normalized);
+        return asset('storage/'.$normalized);
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthTokenController;
+use App\Http\Controllers\Api\LegacySyncController;
 use App\Http\Controllers\Api\SyncController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
 
 // ── Statut de sync local (interrogé par le store Pinia) ──
-Route::get('/local/sync-status', function () {
+Route::middleware('auth:sanctum')->get('/local/sync-status', function () {
     $pending = \App\Models\SyncQueue::where('status', 'pending')->count();
     $syncing = \App\Models\SyncQueue::where('status', 'syncing')->count();
     $lastDone = \App\Models\SyncQueue::where('status', 'done')
@@ -34,23 +35,24 @@ Route::get('/local/sync-status', function () {
     ]);
 });
 
-// ── Endpoint offline-first : SyncWorker → cloud ──
+// ── Flux officiel offline-first : SQLite locale -> SyncWorker -> cloud ──
 Route::middleware('auth:sanctum')->post('/v1/sync', [SyncController::class, 'receive']);
 
-Route::post('auth/token', [AuthTokenController::class, 'issue']);
+Route::post('auth/token', [AuthTokenController::class, 'issue'])->middleware('throttle:10,1');
 Route::middleware('auth:sanctum')
     ->delete('auth/token', [AuthTokenController::class, 'revoke']);
 // Émet un token Sanctum depuis une session web active (utilisé par Tauri après login Inertia)
 Route::middleware('auth:web')
     ->post('auth/tauri-token', [AuthTokenController::class, 'issueTauri']);
 
+// ── Flux legacy web/Tauri conservé tant que le frontend n'est pas migré vers v1/sync ──
 Route::middleware('auth:sanctum')
     ->prefix('sync')
     ->name('sync.')
     ->group(function () {
-        Route::post('push', [SyncController::class, 'push'])->name('push');
-        Route::get('pull', [SyncController::class, 'pull'])->name('pull');
-        Route::get('status', [SyncController::class, 'status'])->name('status');
+        Route::post('push', [LegacySyncController::class, 'push'])->name('push');
+        Route::get('pull', [LegacySyncController::class, 'pull'])->name('pull');
+        Route::get('status', [LegacySyncController::class, 'status'])->name('status');
     });
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {

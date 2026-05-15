@@ -42,6 +42,9 @@ class AuthTokenController extends Controller
             ['sync:push', 'sync:pull']
         );
 
+        // Sauvegarder le token localement pour le SyncWorker PHP (chiffré avec APP_KEY)
+        file_put_contents(storage_path('app/sync_token'), encrypt($token->plainTextToken));
+
         return response()->json([
             'token' => $token->plainTextToken,
             'user' => [
@@ -73,6 +76,9 @@ class AuthTokenController extends Controller
             'tauri-'.$request->device_id,
             ['sync:push', 'sync:pull']
         );
+
+        // Sauvegarder le token localement pour le SyncWorker PHP (chiffré avec APP_KEY)
+        file_put_contents(storage_path('app/sync_token'), encrypt($token->plainTextToken));
 
         return response()->json([
             'token' => $token->plainTextToken,

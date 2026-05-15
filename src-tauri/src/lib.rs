@@ -44,6 +44,7 @@ fn f64_val(v: &serde_json::Value) -> f64 {
 
 async fn get_local_sync_version(db: &Pool<Sqlite>, entity: &str, uuid: &str) -> i64 {
     let table = match entity {
+        "parametres"       => "parametres_local",
         "produits"         => "produits_local",
         "clients"          => "clients_local",
         "fournisseurs"     => "fournisseurs_local",
@@ -51,6 +52,8 @@ async fn get_local_sync_version(db: &Pool<Sqlite>, entity: &str, uuid: &str) -> 
         "mouvement_stocks" => "mouvement_stocks_local",
         "journals"         => "journals_local",
         "employes"         => "employes_local",
+        "succursales"      => "succursales_local",
+        "caisses"          => "caisses_local",
         "transferts"       => "transferts_local",
         "bon_entrees"      => "bon_entrees_local",
         _ => return 0,
@@ -66,6 +69,7 @@ async fn get_local_sync_version(db: &Pool<Sqlite>, entity: &str, uuid: &str) -> 
 
 async fn local_soft_delete(db: &Pool<Sqlite>, entity: &str, uuid: &str) -> bool {
     let table = match entity {
+        "parametres"       => "parametres_local",
         "produits"         => "produits_local",
         "clients"          => "clients_local",
         "fournisseurs"     => "fournisseurs_local",
@@ -73,6 +77,8 @@ async fn local_soft_delete(db: &Pool<Sqlite>, entity: &str, uuid: &str) -> bool 
         "mouvement_stocks" => "mouvement_stocks_local",
         "journals"         => "journals_local",
         "employes"         => "employes_local",
+        "succursales"      => "succursales_local",
+        "caisses"          => "caisses_local",
         "transferts"       => "transferts_local",
         "bon_entrees"      => "bon_entrees_local",
         _ => return false,
@@ -237,6 +243,88 @@ async fn optimistic_write_entity(
             .bind(str_val(&p["date_embauche"]))
             .bind(str_val(&p["statut"]).unwrap_or("actif"))
             .bind(search_text).bind(sync_version).bind(ts).bind(json.to_string())
+            .execute(db).await.is_ok()
+        }
+        "caisses" => {
+            let json = serde_json::json!({
+                "uuid": uuid, "sync_version": sync_version, "updated_at": ts, "deleted_at": null,
+                "date_operation": p["date_operation"], "description": p["description"],
+                "entree": p["entree"], "sortie": p["sortie"], "solde": p["solde"],
+                "type_operation": p["type_operation"], "succursale_id": p["succursale_id"],
+            });
+            sqlx::query(
+                "INSERT INTO caisses_local
+                    (uuid, date_operation, description, entree, sortie, solde, type_operation,
+                     succursale_id, sync_version, updated_at, deleted_at, json_data)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,NULL,?)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                    date_operation=excluded.date_operation, description=excluded.description,
+                    entree=excluded.entree, sortie=excluded.sortie, solde=excluded.solde,
+                    type_operation=excluded.type_operation, succursale_id=excluded.succursale_id,
+                    updated_at=excluded.updated_at, json_data=excluded.json_data",
+            )
+            .bind(uuid).bind(str_val(&p["date_operation"])).bind(str_val(&p["description"]))
+            .bind(f64_val(&p["entree"])).bind(f64_val(&p["sortie"]))
+            .bind(p["solde"].as_f64()).bind(str_val(&p["type_operation"]))
+            .bind(p["succursale_id"].as_i64())
+            .bind(sync_version).bind(ts).bind(json.to_string())
+            .execute(db).await.is_ok()
+        }
+        "succursales" => {
+            let json = serde_json::json!({
+                "uuid": uuid, "sync_version": sync_version, "updated_at": ts, "deleted_at": null,
+                "nom": p["nom"], "adresse": p["adresse"],
+                "manager_user_id": p["manager_user_id"], "active": p["active"],
+            });
+            sqlx::query(
+                "INSERT INTO succursales_local
+                    (uuid, nom, adresse, manager_user_id, active,
+                     sync_version, updated_at, deleted_at, json_data)
+                 VALUES (?,?,?,?,?,?,?,NULL,?)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                    nom=excluded.nom, adresse=excluded.adresse,
+                    manager_user_id=excluded.manager_user_id, active=excluded.active,
+                    updated_at=excluded.updated_at, json_data=excluded.json_data",
+            )
+            .bind(uuid).bind(str_val(&p["nom"])).bind(str_val(&p["adresse"]))
+            .bind(p["manager_user_id"].as_i64())
+            .bind(p["active"].as_bool().map(|b| b as i64).unwrap_or(1))
+            .bind(sync_version).bind(ts).bind(json.to_string())
+            .execute(db).await.is_ok()
+        }
+        "parametres" => {
+            let json = serde_json::json!({
+                "uuid": uuid, "sync_version": sync_version, "updated_at": ts, "deleted_at": null,
+                "nom_entreprise": p["nom_entreprise"], "adresse": p["adresse"],
+                "email": p["email"], "telephone": p["telephone"],
+                "devise": p["devise"], "langue": p["langue"],
+                "tva": p["tva"], "reduction_accordee": p["reduction_accordee"],
+                "theme": p["theme"], "multi_succursales": p["multi_succursales"],
+                "seuil_alerte": p["seuil_alerte"], "logo_path": p["logo_path"],
+            });
+            sqlx::query(
+                "INSERT INTO parametres_local
+                    (uuid, nom_entreprise, adresse, email, telephone, devise, langue,
+                     tva, reduction_accordee, theme, multi_succursales, seuil_alerte, logo_path,
+                     sync_version, updated_at, deleted_at, json_data)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,?)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                    nom_entreprise=excluded.nom_entreprise, adresse=excluded.adresse,
+                    email=excluded.email, telephone=excluded.telephone,
+                    devise=excluded.devise, langue=excluded.langue,
+                    tva=excluded.tva, reduction_accordee=excluded.reduction_accordee,
+                    theme=excluded.theme, multi_succursales=excluded.multi_succursales,
+                    seuil_alerte=excluded.seuil_alerte, logo_path=excluded.logo_path,
+                    updated_at=excluded.updated_at, json_data=excluded.json_data",
+            )
+            .bind(uuid).bind(str_val(&p["nom_entreprise"])).bind(str_val(&p["adresse"]))
+            .bind(str_val(&p["email"])).bind(str_val(&p["telephone"]))
+            .bind(str_val(&p["devise"])).bind(str_val(&p["langue"]))
+            .bind(f64_val(&p["tva"])).bind(f64_val(&p["reduction_accordee"]))
+            .bind(str_val(&p["theme"]))
+            .bind(p["multi_succursales"].as_bool().map(|b| b as i64).unwrap_or(0))
+            .bind(p["seuil_alerte"].as_f64()).bind(str_val(&p["logo_path"]))
+            .bind(sync_version).bind(ts).bind(json.to_string())
             .execute(db).await.is_ok()
         }
         _ => false,
@@ -849,6 +937,103 @@ async fn upsert_entity(
             .await
         }
 
+        "caisses" => {
+            let json = serde_json::json!({
+                "uuid": uuid, "sync_version": sync_version,
+                "updated_at": updated_at, "deleted_at": deleted_at,
+                "date_operation": p["date_operation"], "description": p["description"],
+                "entree": p["entree"], "sortie": p["sortie"], "solde": p["solde"],
+                "type_operation": p["type_operation"], "succursale_id": p["succursale_id"],
+            });
+            sqlx::query(
+                "INSERT INTO caisses_local
+                    (uuid, date_operation, description, entree, sortie, solde,
+                     type_operation, succursale_id, sync_version, updated_at, deleted_at, json_data)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                    date_operation=excluded.date_operation, description=excluded.description,
+                    entree=excluded.entree, sortie=excluded.sortie, solde=excluded.solde,
+                    type_operation=excluded.type_operation, succursale_id=excluded.succursale_id,
+                    sync_version=excluded.sync_version,
+                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+                    json_data=excluded.json_data
+                 WHERE excluded.sync_version >= caisses_local.sync_version",
+            )
+            .bind(uuid).bind(str_val(&p["date_operation"])).bind(str_val(&p["description"]))
+            .bind(f64_val(&p["entree"])).bind(f64_val(&p["sortie"]))
+            .bind(p["solde"].as_f64()).bind(str_val(&p["type_operation"]))
+            .bind(p["succursale_id"].as_i64())
+            .bind(sync_version).bind(updated_at).bind(deleted_at).bind(json.to_string())
+            .execute(db).await
+        }
+
+        "succursales" => {
+            let json = serde_json::json!({
+                "uuid": uuid, "sync_version": sync_version,
+                "updated_at": updated_at, "deleted_at": deleted_at,
+                "nom": p["nom"], "adresse": p["adresse"],
+                "manager_user_id": p["manager_user_id"], "active": p["active"],
+            });
+            sqlx::query(
+                "INSERT INTO succursales_local
+                    (uuid, nom, adresse, manager_user_id, active,
+                     sync_version, updated_at, deleted_at, json_data)
+                 VALUES (?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                    nom=excluded.nom, adresse=excluded.adresse,
+                    manager_user_id=excluded.manager_user_id, active=excluded.active,
+                    sync_version=excluded.sync_version,
+                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+                    json_data=excluded.json_data
+                 WHERE excluded.sync_version >= succursales_local.sync_version",
+            )
+            .bind(uuid).bind(str_val(&p["nom"])).bind(str_val(&p["adresse"]))
+            .bind(p["manager_user_id"].as_i64())
+            .bind(p["active"].as_bool().map(|b| b as i64).unwrap_or(1))
+            .bind(sync_version).bind(updated_at).bind(deleted_at).bind(json.to_string())
+            .execute(db).await
+        }
+
+        "parametres" => {
+            let json = serde_json::json!({
+                "uuid": uuid, "sync_version": sync_version,
+                "updated_at": updated_at, "deleted_at": deleted_at,
+                "nom_entreprise": p["nom_entreprise"], "adresse": p["adresse"],
+                "email": p["email"], "telephone": p["telephone"],
+                "devise": p["devise"], "langue": p["langue"],
+                "tva": p["tva"], "reduction_accordee": p["reduction_accordee"],
+                "theme": p["theme"], "multi_succursales": p["multi_succursales"],
+                "seuil_alerte": p["seuil_alerte"], "logo_path": p["logo_path"],
+            });
+            sqlx::query(
+                "INSERT INTO parametres_local
+                    (uuid, nom_entreprise, adresse, email, telephone, devise, langue,
+                     tva, reduction_accordee, theme, multi_succursales, seuil_alerte, logo_path,
+                     sync_version, updated_at, deleted_at, json_data)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                    nom_entreprise=excluded.nom_entreprise, adresse=excluded.adresse,
+                    email=excluded.email, telephone=excluded.telephone,
+                    devise=excluded.devise, langue=excluded.langue,
+                    tva=excluded.tva, reduction_accordee=excluded.reduction_accordee,
+                    theme=excluded.theme, multi_succursales=excluded.multi_succursales,
+                    seuil_alerte=excluded.seuil_alerte, logo_path=excluded.logo_path,
+                    sync_version=excluded.sync_version,
+                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+                    json_data=excluded.json_data
+                 WHERE excluded.sync_version >= parametres_local.sync_version",
+            )
+            .bind(uuid).bind(str_val(&p["nom_entreprise"])).bind(str_val(&p["adresse"]))
+            .bind(str_val(&p["email"])).bind(str_val(&p["telephone"]))
+            .bind(str_val(&p["devise"])).bind(str_val(&p["langue"]))
+            .bind(f64_val(&p["tva"])).bind(f64_val(&p["reduction_accordee"]))
+            .bind(str_val(&p["theme"]))
+            .bind(p["multi_succursales"].as_bool().map(|b| b as i64).unwrap_or(0))
+            .bind(p["seuil_alerte"].as_f64()).bind(str_val(&p["logo_path"]))
+            .bind(sync_version).bind(updated_at).bind(deleted_at).bind(json.to_string())
+            .execute(db).await
+        }
+
         _ => return false, // entité inconnue → ignorer
     };
 
@@ -884,6 +1069,9 @@ async fn query_local(
         "employes"        => ("employes_local", "search_text"),
         "transferts"      => ("transferts_local", "statut"),
         "bon_entrees"     => ("bon_entrees_local", "statut"),
+        "caisses"         => ("caisses_local", "description"),
+        "succursales"     => ("succursales_local", "nom"),
+        "parametres"      => ("parametres_local", "nom_entreprise"),
         _ => return Err(format!("Entité inconnue: {}", entity)),
     };
 
@@ -1181,6 +1369,61 @@ const MIGRATIONS: &str = "
     CREATE INDEX IF NOT EXISTS idx_bon_entrees_local_statut ON bon_entrees_local(statut, deleted_at);
 ";
 
+const MIGRATIONS_V3: &str = "
+    -- Caisses (livre de caisse local)
+    CREATE TABLE IF NOT EXISTS caisses_local (
+        uuid           TEXT PRIMARY KEY,
+        date_operation TEXT,
+        description    TEXT,
+        entree         REAL NOT NULL DEFAULT 0,
+        sortie         REAL NOT NULL DEFAULT 0,
+        solde          REAL,
+        type_operation TEXT,
+        succursale_id  INTEGER,
+        sync_version   INTEGER NOT NULL DEFAULT 0,
+        updated_at     INTEGER NOT NULL,
+        deleted_at     INTEGER,
+        json_data      TEXT NOT NULL DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS idx_caisses_local_date ON caisses_local(date_operation, deleted_at);
+    CREATE INDEX IF NOT EXISTS idx_caisses_local_succursale ON caisses_local(succursale_id, deleted_at);
+
+    -- Succursales (établissements)
+    CREATE TABLE IF NOT EXISTS succursales_local (
+        uuid             TEXT PRIMARY KEY,
+        nom              TEXT,
+        adresse          TEXT,
+        manager_user_id  INTEGER,
+        active           INTEGER NOT NULL DEFAULT 1,
+        sync_version     INTEGER NOT NULL DEFAULT 0,
+        updated_at       INTEGER NOT NULL,
+        deleted_at       INTEGER,
+        json_data        TEXT NOT NULL DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS idx_succursales_local_nom ON succursales_local(nom, deleted_at);
+
+    -- Paramètres entreprise
+    CREATE TABLE IF NOT EXISTS parametres_local (
+        uuid                 TEXT PRIMARY KEY,
+        nom_entreprise       TEXT,
+        adresse              TEXT,
+        email                TEXT,
+        telephone            TEXT,
+        devise               TEXT,
+        langue               TEXT,
+        tva                  REAL NOT NULL DEFAULT 0,
+        reduction_accordee   REAL NOT NULL DEFAULT 0,
+        theme                TEXT,
+        multi_succursales    INTEGER NOT NULL DEFAULT 0,
+        seuil_alerte         REAL,
+        logo_path            TEXT,
+        sync_version         INTEGER NOT NULL DEFAULT 0,
+        updated_at           INTEGER NOT NULL,
+        deleted_at           INTEGER,
+        json_data            TEXT NOT NULL DEFAULT '{}'
+    );
+";
+
 // ── run ───────────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1198,10 +1441,18 @@ pub fn run() {
             sql: "ALTER TABLE sync_queue ADD COLUMN client_sync_version INTEGER NOT NULL DEFAULT 0;",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "add_caisses_succursales_parametres_local",
+            sql: MIGRATIONS_V3,
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:primegest.db", migrations_plugin)
@@ -1223,6 +1474,8 @@ pub fn run() {
                 sqlx::query("ALTER TABLE sync_queue ADD COLUMN client_sync_version INTEGER NOT NULL DEFAULT 0")
                     .execute(&pool)
             ).ok();
+            // Tables ajoutées en v3 — .ok() absorbe l'erreur si elles existent déjà
+            tauri::async_runtime::block_on(sqlx::query(MIGRATIONS_V3).execute(&pool)).ok();
 
             app.manage(AppDb(pool));
             Ok(())
