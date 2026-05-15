@@ -38,6 +38,9 @@ Route::middleware('auth:sanctum')->get('/local/sync-status', function () {
 // ── Flux officiel offline-first : SQLite locale -> SyncWorker -> cloud ──
 Route::middleware('auth:sanctum')->post('/v1/sync', [SyncController::class, 'receive']);
 
+// ── Webhook paiement (agrégateur externe — signature HMAC obligatoire) ──
+Route::post('/v1/payment/webhook', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handle']);
+
 Route::post('auth/token', [AuthTokenController::class, 'issue'])->middleware('throttle:10,1');
 Route::middleware('auth:sanctum')
     ->delete('auth/token', [AuthTokenController::class, 'revoke']);
