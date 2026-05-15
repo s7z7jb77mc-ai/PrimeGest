@@ -7,6 +7,7 @@ namespace App\Actions\Subscription;
 use App\Mail\SubscriptionConfirmed;
 use App\Models\Entreprise;
 use App\Models\Subscription;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -23,31 +24,37 @@ class ActivateSubscriptionAction
         ?int $confirmedBy = null,
     ): Subscription {
         $isTrial = $trialDays > 0;
+        $startsAt = now();
         $expiresAt = $isTrial
-            ? now()->addDays($trialDays)
-            : now()->addMonths($durationMonths);
+            ? $startsAt->copy()->addDays($trialDays)
+            : $startsAt->copy()->addMonths($durationMonths);
 
         // Valeurs par défaut métier si non fournies
-        $amount ??= $isTrial ? 0.0 : ($plan === 'premium' ? 7.0 : 10.0);
+        $amount ??= $isTrial ? 0.0 : (float) (config("plans.prices.{$plan}") ?? 0.0);
         $paymentMethod ??= $isTrial ? 'trial' : 'manual';
         $paymentReference ??= $isTrial ? "trial-{$trialDays}j" : 'admin';
 
-        $entreprise->update([
-            'plan' => $plan,
-            'plan_expires_at' => $expiresAt,
-        ]);
+        $subscription = DB::transaction(function () use (
+            $entreprise, $plan, $expiresAt, $startsAt,
+            $amount, $paymentMethod, $paymentReference, $confirmedBy
+        ): Subscription {
+            $entreprise->update([
+                'plan' => $plan,
+                'plan_expires_at' => $expiresAt,
+            ]);
 
-        $subscription = Subscription::create([
-            'entreprise_id' => $entreprise->id,
-            'plan' => $plan,
-            'amount' => $amount,
-            'payment_method' => $paymentMethod,
-            'payment_reference' => $paymentReference,
-            'status' => 'confirmed',
-            'starts_at' => now(),
-            'expires_at' => $expiresAt,
-            'confirmed_by' => $confirmedBy,
-        ]);
+            return Subscription::create([
+                'entreprise_id' => $entreprise->id,
+                'plan' => $plan,
+                'amount' => $amount,
+                'payment_method' => $paymentMethod,
+                'payment_reference' => $paymentReference,
+                'status' => 'confirmed',
+                'starts_at' => $startsAt,
+                'expires_at' => $expiresAt,
+                'confirmed_by' => $confirmedBy,
+            ]);
+        });
 
         $adminUser = $entreprise->users()
             ->where('role', 'super_admin')
@@ -64,7 +71,7 @@ class ActivateSubscriptionAction
                         plan: $plan,
                         expireDate: $expiresAt->format('d/m/Y'),
                         amount: $amount,
-                        isTrial: $trialDays > 0,
+                        isTrial: $isTrial,
                         trialDays: $trialDays,
                         appUrl: config('app.url'),
                     ));

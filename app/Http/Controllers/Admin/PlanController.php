@@ -4,35 +4,38 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Subscription\ActivateSubscriptionAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Subscription\ActivateSubscriptionRequest;
 use App\Models\Entreprise;
 use App\Models\Subscription;
-use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class PlanController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
         $entreprises = Entreprise::orderBy('created_at', 'desc')
+            ->limit(500)
             ->get()
-            ->map(fn ($e) => [
+            ->map(fn (Entreprise $e) => [
                 'id' => $e->id,
                 'name' => $e->name,
                 'plan' => $e->plan,
-                'plan_expires_at' => $e->plan_expires_at
-                    ? \Carbon\Carbon::parse($e->plan_expires_at)->format('d/m/Y')
-                    : null,
+                'plan_expires_at' => $e->plan_expires_at?->format('d/m/Y'),
                 'created_at' => $e->created_at->format('d/m/Y'),
             ]);
 
         $subscriptions = Subscription::with('entreprise')
             ->where('status', 'pending')
             ->latest()
+            ->limit(200)
             ->get()
-            ->map(fn ($s) => [
+            ->map(fn (Subscription $s) => [
                 'id' => $s->id,
-                'entreprise' => $s->entreprise->name ?? '—',
+                'entreprise' => $s->entreprise?->name ?? '—',
                 'plan' => $s->plan,
                 'amount' => $s->amount,
                 'payment_method' => $s->payment_method,
@@ -46,9 +49,9 @@ class PlanController extends Controller
             ->latest()
             ->limit(100)
             ->get()
-            ->map(fn ($s) => [
+            ->map(fn (Subscription $s) => [
                 'id' => $s->id,
-                'entreprise' => $s->entreprise->name ?? '—',
+                'entreprise' => $s->entreprise?->name ?? '—',
                 'plan' => $s->plan,
                 'amount' => $s->amount,
                 'status' => $s->status,
@@ -65,34 +68,29 @@ class PlanController extends Controller
         ]);
     }
 
-    public function activate(Request $request, Entreprise $entreprise): \Illuminate\Http\RedirectResponse
+    public function activate(ActivateSubscriptionRequest $request, Entreprise $entreprise): RedirectResponse
     {
-        $request->validate([
-            'plan' => 'required|in:free,premium,pro',
-            'duration' => 'required|integer|min:1|max:12',
-            'trial_days' => 'nullable|integer|min:0|max:30',
-        ]);
+        $data = $request->validated();
+        $trialDays = (int) ($data['trial_days'] ?? 0);
 
-        $trialDays = (int) ($request->trial_days ?? 0);
-
-        (new \App\Actions\Subscription\ActivateSubscriptionAction)->execute(
+        (new ActivateSubscriptionAction)->execute(
             entreprise: $entreprise,
-            plan: $request->plan,
-            durationMonths: (int) $request->duration,
+            plan: $data['plan'],
+            durationMonths: (int) $data['duration'],
             trialDays: $trialDays,
-            paymentMethod: $request->payment_method ?? null,
-            paymentReference: $request->payment_reference ?? null,
-            confirmedBy: auth('owner')?->id() ?? auth()->id(),
+            paymentMethod: $data['payment_method'] ?? null,
+            paymentReference: $data['payment_reference'] ?? null,
+            confirmedBy: auth()->id(),
         );
 
         $msg = $trialDays > 0
             ? "Essai {$trialDays} jours activé pour {$entreprise->name}"
-            : "Plan {$request->plan} activé pour {$entreprise->name}";
+            : "Plan {$data['plan']} activé pour {$entreprise->name}";
 
         return back()->with('success', $msg);
     }
 
-    public function downgrade(Entreprise $entreprise)
+    public function downgrade(Entreprise $entreprise): RedirectResponse
     {
         $entreprise->update([
             'plan' => 'free',
