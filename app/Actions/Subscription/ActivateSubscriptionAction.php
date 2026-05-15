@@ -17,14 +17,20 @@ class ActivateSubscriptionAction
         string $plan,
         int $durationMonths,
         int $trialDays = 0,
-        float $amount = 0.0,
-        string $paymentMethod = 'manual',
-        string $paymentReference = 'admin',
+        ?float $amount = null,
+        ?string $paymentMethod = null,
+        ?string $paymentReference = null,
         ?int $confirmedBy = null,
     ): Subscription {
-        $expiresAt = $trialDays > 0
+        $isTrial = $trialDays > 0;
+        $expiresAt = $isTrial
             ? now()->addDays($trialDays)
             : now()->addMonths($durationMonths);
+
+        // Valeurs par défaut métier si non fournies
+        $amount ??= $isTrial ? 0.0 : ($plan === 'premium' ? 7.0 : 10.0);
+        $paymentMethod ??= $isTrial ? 'trial' : 'manual';
+        $paymentReference ??= $isTrial ? "trial-{$trialDays}j" : 'admin';
 
         $entreprise->update([
             'plan' => $plan,

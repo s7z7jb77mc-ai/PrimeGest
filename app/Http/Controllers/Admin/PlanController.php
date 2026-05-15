@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -71,24 +73,19 @@ class PlanController extends Controller
             'trial_days' => 'nullable|integer|min:0|max:30',
         ]);
 
-        $trialDays = intval($request->trial_days ?? 0);
-        $isTrial = $trialDays > 0;
-        $amount = $isTrial ? 0 : ($request->plan === 'premium' ? 7 : 10);
-        $method = $isTrial ? 'trial' : ($request->payment_method ?? 'manual');
-        $ref = $isTrial ? "trial-{$trialDays}j" : ($request->payment_reference ?? 'admin');
+        $trialDays = (int) ($request->trial_days ?? 0);
 
         (new \App\Actions\Subscription\ActivateSubscriptionAction)->execute(
             entreprise: $entreprise,
             plan: $request->plan,
             durationMonths: (int) $request->duration,
             trialDays: $trialDays,
-            amount: $amount,
-            paymentMethod: $method,
-            paymentReference: $ref,
-            confirmedBy: auth('owner')->id() ?? auth()->id(),
+            paymentMethod: $request->payment_method ?? null,
+            paymentReference: $request->payment_reference ?? null,
+            confirmedBy: auth('owner')?->id() ?? auth()->id(),
         );
 
-        $msg = $isTrial
+        $msg = $trialDays > 0
             ? "Essai {$trialDays} jours activé pour {$entreprise->name}"
             : "Plan {$request->plan} activé pour {$entreprise->name}";
 
