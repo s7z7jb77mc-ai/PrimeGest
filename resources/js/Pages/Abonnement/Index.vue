@@ -157,6 +157,10 @@ function arreterPolling(): void {
     }
 }
 
+function recharger(): void {
+    window.location.reload()
+}
+
 function recommencer(): void {
     arreterPolling()
     erreurMsg.value = ''
@@ -226,7 +230,7 @@ onUnmounted(arreterPolling)
                         <option v-for="n in 12" :key="n" :value="n">
                             {{ n }} mois
                             <template v-if="promo_prices[form.plan]?.[n]">
-                                — {{ promo_prices[form.plan][n] }}$ (réduit)
+                                    — {{ promo_prices[form.plan]?.[n] }}$ (réduit)
                             </template>
                             <template v-else>
                                 — {{ (prices[form.plan] ?? 0) * n }}$
@@ -316,7 +320,7 @@ onUnmounted(arreterPolling)
             </div>
             <h3 class="text-lg font-bold text-gray-800">Paiement confirmé !</h3>
             <p class="text-gray-500 text-sm">Votre abonnement est maintenant actif. Un email de confirmation vous a été envoyé.</p>
-            <button @click="() => window.location.reload()"
+            <button @click="recharger"
                     class="bg-[#1A56A0] text-white px-6 py-2 rounded-xl text-sm font-semibold hover:bg-[#0B2D5E] transition">
                 Voir mon plan
             </button>
