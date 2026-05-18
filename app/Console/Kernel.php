@@ -12,6 +12,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        // Vérification des abonnements expirés chaque jour à 02:00
+        $schedule->command('subscriptions:check')
+            ->dailyAt('02:00')
+            ->withoutOverlapping();
+
         // Archivage automatique chaque jour à 23:59.
         $schedule->command('archive:unified --only=journal,mouvement_stock,facture')
             ->dailyAt('23:59')
@@ -33,7 +38,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands(): void
     {
-        $this->load(__DIR__ . '/Commands');
+        $this->load(__DIR__.'/Commands');
 
         require base_path('routes/console.php');
     }
