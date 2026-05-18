@@ -291,8 +291,8 @@ onUnmounted(arreterPolling)
 
         <!-- État : EN ATTENTE -->
         <div v-if="etape === 'attente'" class="bg-white rounded-2xl shadow p-8 text-center space-y-4">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mx-auto">
-                <svg class="animate-spin w-8 h-8 text-[#1A56A0]" fill="none" viewBox="0 0 24 24">
+            <div class="mx-auto">
+                <svg class="animate-spin w-8 h-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
@@ -307,11 +307,7 @@ onUnmounted(arreterPolling)
 
         <!-- État : SUCCÈS -->
         <div v-if="etape === 'succes'" class="bg-white rounded-2xl shadow p-8 text-center space-y-4">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-50 mx-auto">
-                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
-            </div>
+            <p class="text-4xl text-gray-900 mx-auto text-center">✓</p>
             <h3 class="text-lg font-bold text-gray-800">Paiement confirmé !</h3>
             <p class="text-gray-500 text-sm">Votre abonnement est maintenant actif. Un email de confirmation vous a été envoyé.</p>
             <button @click="recharger"
@@ -322,11 +318,7 @@ onUnmounted(arreterPolling)
 
         <!-- État : TIMEOUT -->
         <div v-if="etape === 'timeout'" class="bg-white rounded-2xl shadow p-8 text-center space-y-4">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-50 mx-auto">
-                <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-            </div>
+            <p class="text-4xl text-gray-400 mx-auto text-center">⏱</p>
             <h3 class="text-lg font-bold text-gray-800">Délai expiré</h3>
             <p class="text-gray-500 text-sm">
                 Le paiement n'a pas été confirmé dans les 5 minutes.<br>
@@ -340,11 +332,7 @@ onUnmounted(arreterPolling)
 
         <!-- État : ERREUR -->
         <div v-if="etape === 'erreur'" class="bg-white rounded-2xl shadow p-8 text-center space-y-4">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 mx-auto">
-                <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-            </div>
+            <p class="text-4xl text-gray-400 mx-auto text-center">✕</p>
             <h3 class="text-lg font-bold text-gray-800">Paiement échoué</h3>
             <p class="text-gray-500 text-sm">{{ erreurMsg || 'Une erreur est survenue.' }}</p>
             <button @click="recommencer"
