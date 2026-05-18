@@ -21,6 +21,11 @@ return [
         'pro' => 10.0,
     ],
 
+    'promotional_prices' => [
+        'premium' => [6 => 40.0, 12 => 70.0],
+        'pro' => [6 => 55.0, 12 => 100.0],
+    ],
+
     'premium' => [
         'users' => -1,
         'produits' => -1,

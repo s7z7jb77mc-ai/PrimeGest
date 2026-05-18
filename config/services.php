@@ -37,4 +37,14 @@ return [
 
     'webhook_secret' => env('WEBHOOK_SECRET', ''),
 
+    'netikash' => [
+        'client_id' => env('NETIKASH_CLIENT_ID'),
+        'client_secret' => env('NETIKASH_CLIENT_SECRET'),
+        'base_url' => env('NETIKASH_BASE_URL', 'https://gateway.netikash.com'),
+        'token_path' => env('NETIKASH_TOKEN_PATH', '/oauth/token'),
+        'payment_path' => env('NETIKASH_PAYMENT_PATH', '/api/v1/payment/initiate'),
+        'webhook_secret' => env('NETIKASH_WEBHOOK_SECRET'),
+        'usd_to_cdf_rate' => (float) env('NETIKASH_USD_TO_CDF_RATE', 2800),
+    ],
+
 ];
