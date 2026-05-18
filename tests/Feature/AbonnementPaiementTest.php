@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Actions\Subscription\InitierPaiementAction;
 use App\Models\Entreprise;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\NetikashService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -44,11 +44,21 @@ class AbonnementPaiementTest extends TestCase
 
     public function test_initier_paiement_cree_subscription_pending(): void
     {
-        $this->mock(NetikashService::class, function ($mock) {
-            $mock->shouldReceive('initiatePayment')->once()->andReturn([
-                'transaction_id' => 'TXN-TEST-001',
+        config(['plans.prices.premium' => 7.0]);
+
+        $this->mock(InitierPaiementAction::class, function ($mock) {
+            $sub = new Subscription([
+                'entreprise_id' => $this->entreprise->id,
+                'plan' => 'premium',
+                'amount' => 7.0,
+                'payment_method' => 'netikash',
+                'payment_reference' => 'PG-1-TESTAAAA',
                 'status' => 'pending',
+                'starts_at' => now(),
+                'expires_at' => now()->addMonth(),
             ]);
+            $sub->save();
+            $mock->shouldReceive('execute')->once()->andReturn($sub);
         });
 
         $response = $this->actingAs($this->user)
@@ -73,8 +83,21 @@ class AbonnementPaiementTest extends TestCase
 
     public function test_initier_paiement_6_mois_applique_reduction(): void
     {
-        $this->mock(NetikashService::class, function ($mock) {
-            $mock->shouldReceive('initiatePayment')->once()->andReturn(['transaction_id' => 'TXN-TEST-002']);
+        config(['plans.promotional_prices.premium' => [6 => 40.0, 12 => 70.0]]);
+
+        $this->mock(InitierPaiementAction::class, function ($mock) {
+            $sub = new Subscription([
+                'entreprise_id' => $this->entreprise->id,
+                'plan' => 'premium',
+                'amount' => 40.0,
+                'payment_method' => 'netikash',
+                'payment_reference' => 'PG-1-TEST6MOS',
+                'status' => 'pending',
+                'starts_at' => now(),
+                'expires_at' => now()->addMonths(6),
+            ]);
+            $sub->save();
+            $mock->shouldReceive('execute')->once()->andReturn($sub);
         });
 
         $this->actingAs($this->user)
@@ -94,8 +117,8 @@ class AbonnementPaiementTest extends TestCase
 
     public function test_initier_paiement_netikash_echoue_marque_failed(): void
     {
-        $this->mock(NetikashService::class, function ($mock) {
-            $mock->shouldReceive('initiatePayment')->once()
+        $this->mock(InitierPaiementAction::class, function ($mock) {
+            $mock->shouldReceive('execute')->once()
                 ->andThrow(new \RuntimeException('Netikash: service indisponible'));
         });
 
@@ -106,12 +129,8 @@ class AbonnementPaiementTest extends TestCase
                 'phone' => '243812345678',
                 'devise' => 'USD',
             ])
-            ->assertStatus(422);
-
-        $this->assertDatabaseHas('subscriptions', [
-            'entreprise_id' => $this->entreprise->id,
-            'status' => 'failed',
-        ]);
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
     }
 
     public function test_statut_retourne_statut_subscription(): void

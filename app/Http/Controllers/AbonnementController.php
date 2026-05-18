@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\Subscription\InitierPaiementAction;
+use App\Http\Requests\InitierPaiementRequest;
 use App\Models\Subscription;
-use App\Services\NetikashService;
-use App\Services\PricingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,15 +18,14 @@ class AbonnementController extends Controller
     public function index(Request $request): Response
     {
         $entreprise = $request->user()->entreprise;
+        abort_if($entreprise === null, 403, 'Entreprise introuvable.');
 
         $joursRestants = $entreprise->plan_expires_at
             ? (int) max(0, now()->diffInDays($entreprise->plan_expires_at, false))
             : null;
 
         $historique = Subscription::where('entreprise_id', $entreprise->id)
-            ->latest()
-            ->take(10)
-            ->get()
+            ->latest()->take(10)->get()
             ->map(fn (Subscription $s) => [
                 'id' => $s->id,
                 'plan' => $s->plan,
@@ -51,45 +49,20 @@ class AbonnementController extends Controller
         ]);
     }
 
-    public function initierPaiement(Request $request): JsonResponse
+    public function initierPaiement(InitierPaiementRequest $request, InitierPaiementAction $action): JsonResponse
     {
-        $data = $request->validate([
-            'plan' => ['required', 'in:premium,pro'],
-            'duree' => ['required', 'integer', 'min:1', 'max:12'],
-            'phone' => ['required', 'string', 'min:9', 'max:20'],
-            'devise' => ['required', 'in:USD,CDF'],
-        ]);
-
         $entreprise = $request->user()->entreprise;
-
-        $pricing = app(PricingService::class);
-        $montant = $pricing->calculate($data['plan'], (int) $data['duree'], $data['devise']);
-        $reference = 'PG-'.$entreprise->id.'-'.strtoupper(Str::random(8));
-        $expiresAt = now()->addMonths((int) $data['duree']);
-
-        $subscription = Subscription::create([
-            'entreprise_id' => $entreprise->id,
-            'plan' => $data['plan'],
-            'amount' => $montant,
-            'payment_method' => 'netikash',
-            'payment_reference' => $reference,
-            'status' => 'pending',
-            'starts_at' => now(),
-            'expires_at' => $expiresAt,
-        ]);
+        abort_if($entreprise === null, 403, 'Entreprise introuvable.');
 
         try {
-            $netikash = app(NetikashService::class);
-            $netikash->initiatePayment(
-                phone: $data['phone'],
-                amount: $montant,
-                currency: $data['devise'],
-                reference: $reference,
-                description: 'Abonnement PrimeGest '.ucfirst($data['plan']).' '.$data['duree'].' mois',
+            $subscription = $action->execute(
+                entreprise: $entreprise,
+                plan: $request->validated('plan'),
+                duree: (int) $request->validated('duree'),
+                phone: $request->validated('phone'),
+                devise: $request->validated('devise'),
             );
-        } catch (\Throwable $e) {
-            $subscription->update(['status' => 'failed']);
-
+        } catch (\Throwable) {
             return response()->json([
                 'success' => false,
                 'message' => 'Le paiement n\'a pas pu être initié. Vérifiez votre numéro et réessayez.',
@@ -98,7 +71,7 @@ class AbonnementController extends Controller
 
         return response()->json([
             'success' => true,
-            'reference' => $reference,
+            'reference' => $subscription->payment_reference,
             'message' => 'Confirmez le paiement sur votre téléphone.',
         ]);
     }
@@ -106,6 +79,8 @@ class AbonnementController extends Controller
     public function statut(Request $request, string $reference): JsonResponse
     {
         $entreprise = $request->user()->entreprise;
+        abort_if($entreprise === null, 403, 'Entreprise introuvable.');
+
         $subscription = Subscription::where('payment_reference', $reference)
             ->where('entreprise_id', $entreprise->id)
             ->first();
