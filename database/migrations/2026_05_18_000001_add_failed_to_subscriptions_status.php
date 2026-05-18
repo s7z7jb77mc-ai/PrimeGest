@@ -18,6 +18,7 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::getDriverName() === 'mysql') {
+            DB::statement("UPDATE subscriptions SET status = 'expired' WHERE status = 'failed'");
             DB::statement("ALTER TABLE subscriptions MODIFY COLUMN status ENUM('pending','confirmed','expired') NOT NULL DEFAULT 'pending'");
         }
     }
