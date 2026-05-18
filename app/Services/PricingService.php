@@ -16,6 +16,10 @@ class PricingService
             throw new \InvalidArgumentException("Devise '{$devise}' non supportée. Utiliser USD ou CDF.");
         }
 
+        if ($duree < 1 || $duree > 12) {
+            throw new \InvalidArgumentException("La durée doit être comprise entre 1 et 12 mois.");
+        }
+
         $promo = config("plans.promotional_prices.{$plan}", []);
         $basePrice = (float) config("plans.prices.{$plan}", 0);
 

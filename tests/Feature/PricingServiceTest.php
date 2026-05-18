@@ -49,13 +49,14 @@ class PricingServiceTest extends TestCase
 
     public function test_premium_1_mois_cdf(): void
     {
-        // 7 USD × taux config (2800 par défaut)
-        $this->assertSame(7.0 * config('services.netikash.usd_to_cdf_rate'), $this->pricing->calculate('premium', 1, 'CDF'));
+        config(['services.netikash.usd_to_cdf_rate' => 2800.0]);
+        $this->assertSame(19600.0, $this->pricing->calculate('premium', 1, 'CDF'));
     }
 
     public function test_premium_6_mois_cdf_reduction(): void
     {
-        $this->assertSame(40.0 * config('services.netikash.usd_to_cdf_rate'), $this->pricing->calculate('premium', 6, 'CDF'));
+        config(['services.netikash.usd_to_cdf_rate' => 2800.0]);
+        $this->assertSame(112000.0, $this->pricing->calculate('premium', 6, 'CDF'));
     }
 
     public function test_plan_invalide_leve_exception(): void
@@ -68,5 +69,23 @@ class PricingServiceTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->pricing->calculate('premium', 1, 'EUR');
+    }
+
+    public function test_duree_zero_leve_exception(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->pricing->calculate('premium', 0, 'USD');
+    }
+
+    public function test_duree_negative_leve_exception(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->pricing->calculate('premium', -1, 'USD');
+    }
+
+    public function test_duree_hors_limites_leve_exception(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->pricing->calculate('premium', 13, 'USD');
     }
 }
