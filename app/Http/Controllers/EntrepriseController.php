@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Mail\EntrepriseCreatedMail;
 use App\Models\Entreprise;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -20,7 +23,7 @@ class EntrepriseController extends Controller
         return inertia('Entreprise/Register');
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'entreprise_name' => 'required|string|max:255|unique:entreprises,name',

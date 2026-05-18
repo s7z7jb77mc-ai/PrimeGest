@@ -18,6 +18,10 @@ return new class extends Migration
             if (in_array('status', $columns, true)) {
                 DB::statement('PRAGMA foreign_keys = OFF');
 
+                // Dynamically check if warning_sent_at column exists
+                $hasWarningColumn = in_array('warning_sent_at', $columns, true);
+                $warningColDefinition = $hasWarningColumn ? ",\n                        warning_sent_at TEXT" : '';
+
                 DB::statement("
                     CREATE TABLE subscriptions_trial_tmp (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,13 +33,20 @@ return new class extends Migration
                         status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','expired','failed','trial')),
                         starts_at TEXT,
                         expires_at TEXT,
-                        confirmed_by INTEGER,
-                        warning_sent_at TEXT,
+                        confirmed_by INTEGER{$warningColDefinition},
                         created_at TEXT,
                         updated_at TEXT
                     )
                 ");
-                DB::statement('INSERT INTO subscriptions_trial_tmp SELECT * FROM subscriptions');
+
+                // Build the SELECT statement dynamically based on existing columns
+                $selectColumns = 'id, entreprise_id, plan, amount, payment_method, payment_reference, status, starts_at, expires_at, confirmed_by';
+                if ($hasWarningColumn) {
+                    $selectColumns .= ', warning_sent_at';
+                }
+                $selectColumns .= ', created_at, updated_at';
+
+                DB::statement("INSERT INTO subscriptions_trial_tmp SELECT {$selectColumns} FROM subscriptions");
                 DB::statement('DROP TABLE subscriptions');
                 DB::statement('ALTER TABLE subscriptions_trial_tmp RENAME TO subscriptions');
 
