@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import axios from 'axios'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 
@@ -32,6 +32,16 @@ const form = ref({
     duree:  1,
     phone:  '',
     devise: 'USD' as 'USD' | 'CDF',
+})
+
+// ── Lecture du query param `plan` ────────────────────────────────────────────
+
+onMounted(() => {
+    const params = new URLSearchParams(window.location.search)
+    const planParam = params.get('plan')
+    if (planParam === 'premium' || planParam === 'pro') {
+        form.value.plan = planParam
+    }
 })
 
 // ── États UI ─────────────────────────────────────────────────────────────────
