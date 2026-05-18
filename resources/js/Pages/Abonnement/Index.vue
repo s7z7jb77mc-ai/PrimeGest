@@ -183,11 +183,9 @@ onUnmounted(arreterPolling)
                         <strong>{{ new Date(plan_expires_at).toLocaleDateString('fr-FR') }}</strong>
                     </span>
                 </div>
-                <div v-if="joursWarning && plan !== 'free'"
-                     class="mt-3 flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-sm text-yellow-800">
-                    <span>⚠</span>
-                    <span>Expire dans <strong>{{ jours_restants }} jour{{ jours_restants !== 1 ? 's' : '' }}</strong> — pensez à renouveler.</span>
-                </div>
+                <p v-if="joursWarning && plan !== 'free'" class="mt-2 text-sm text-gray-600">
+                    Expire dans <strong>{{ jours_restants }} jour{{ jours_restants !== 1 ? 's' : '' }}</strong> — pensez à renouveler.
+                </p>
             </div>
             <div v-if="plan === 'free'" class="text-sm text-gray-400 italic">
                 Passez à Premium ou Pro pour débloquer toutes les fonctionnalités.
@@ -241,12 +239,12 @@ onUnmounted(arreterPolling)
                     <div class="flex gap-3">
                         <button type="button" @click="form.devise = 'USD'"
                                 :class="['flex-1 border-2 rounded-lg py-2 text-sm font-semibold transition',
-                                         form.devise === 'USD' ? 'border-[#1A56A0] bg-blue-50 text-[#1A56A0]' : 'border-gray-200 text-gray-600']">
+                                         form.devise === 'USD' ? 'border-gray-900 text-gray-900' : 'border-gray-200 text-gray-600']">
                             USD ($)
                         </button>
                         <button type="button" @click="form.devise = 'CDF'"
                                 :class="['flex-1 border-2 rounded-lg py-2 text-sm font-semibold transition',
-                                         form.devise === 'CDF' ? 'border-[#1A56A0] bg-blue-50 text-[#1A56A0]' : 'border-gray-200 text-gray-600']">
+                                         form.devise === 'CDF' ? 'border-gray-900 text-gray-900' : 'border-gray-200 text-gray-600']">
                             CDF (FC)
                         </button>
                     </div>
@@ -267,7 +265,7 @@ onUnmounted(arreterPolling)
                 </div>
 
                 <!-- Récap montant -->
-                <div class="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-700">
+                <div class="border-t border-gray-200 pt-3 text-sm text-gray-700">
                     <div class="flex items-center justify-between">
                         <span>Total à payer</span>
                         <div class="text-right">
