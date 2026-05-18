@@ -163,7 +163,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { usePage, router } from '@inertiajs/vue3'
 
@@ -186,8 +186,8 @@ const featureLabels = {
 
 const featureLabel = computed(() => featureLabels[feature.value] ?? feature.value)
 
-function allerAbonnement(targetPlan) {
-  router.visit('/abonnement', { data: { plan: targetPlan } })
+function allerAbonnement(targetPlan: string): void {
+  router.visit(`/abonnement?plan=${targetPlan}`)
 }
 </script>
 
