@@ -12,7 +12,6 @@ use App\Http\Controllers\ParametreController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuccursaleController;
-use App\Http\Controllers\SyncController;
 use App\Http\Controllers\TiersController;
 use App\Http\Controllers\TransfertController;
 use App\Http\Controllers\UserController;
@@ -38,13 +37,14 @@ Route::middleware(['auth'])->group(function () {
     })->name('upgrade');
     Route::get('/abonnement', [\App\Http\Controllers\AbonnementController::class, 'index'])->name('abonnement.index');
     Route::post('/abonnement/demande', [\App\Http\Controllers\AbonnementController::class, 'storeDemande'])->name('abonnement.demande');
+    Route::post('/abonnement/payer', [\App\Http\Controllers\AbonnementController::class, 'initierPaiement'])->name('abonnement.payer');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/caisse', [CaisseController::class, 'index'])->name('caisse.index');
     Route::post('/caisse/initial', [CaisseController::class, 'storeInitial'])->name('caisse.initial');
     Route::get('/ressources-humaines', [\App\Http\Controllers\RessourcesHumainesController::class, 'index'])->name('ressources-humaines.index');
     Route::get('/profil', [ProfileController::class, 'index'])->name('profil.index');
     Route::get('/tiers', [TiersController::class, 'index'])->name('tiers.index');
-    Route::post('/sync', [SyncController::class, 'store'])->name('sync.store');
+    // Route::post('/sync', [SyncController::class, 'store'])->name('sync.store'); // désactivée — table sync_inbox inexistante, utiliser /api/sync/push
     Route::post('/succursales', [SuccursaleController::class, 'store'])->middleware('plan:succursales')->name('succursales.store');
     Route::get('/succursales', [SuccursaleController::class, 'index'])->name('succursales.index');
     Route::get('/succursales/{succursale}', [SuccursaleController::class, 'show'])->name('succursales.show');

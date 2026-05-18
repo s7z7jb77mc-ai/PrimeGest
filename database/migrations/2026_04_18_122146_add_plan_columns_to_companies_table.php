@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::table('entreprises', function (Blueprint $table) {
             $table->enum('plan', ['free', 'premium', 'pro'])
-                  ->default('free')
-                  ->after('name');
+                ->default('free')
+                ->after('name');
             $table->timestamp('plan_expires_at')->nullable()->after('plan');
             $table->integer('storage_used_mb')->default(0)->after('plan_expires_at');
         });
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->decimal('amount', 8, 2);
             $table->string('payment_method')->nullable();
             $table->string('payment_reference')->nullable();
-            $table->enum('status', ['pending', 'confirmed', 'expired'])->default('pending');
+            $table->enum('status', ['pending', 'confirmed', 'expired', 'failed'])->default('pending');
             $table->timestamp('starts_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->foreignId('confirmed_by')->nullable()->constrained('users')->nullOnDelete();

@@ -41,6 +41,11 @@ Route::middleware('auth:sanctum')->post('/v1/sync', [SyncController::class, 'rec
 // ── Webhook paiement (agrégateur externe — signature HMAC obligatoire) ──
 Route::post('/v1/payment/webhook', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handle']);
 
+// ── Statut d'un abonnement Netikash (polling frontend) ──
+Route::middleware('auth:sanctum')
+    ->get('/abonnement/statut/{reference}', [\App\Http\Controllers\AbonnementController::class, 'statut'])
+    ->name('abonnement.statut');
+
 Route::post('auth/token', [AuthTokenController::class, 'issue'])->middleware('throttle:10,1');
 Route::middleware('auth:sanctum')
     ->delete('auth/token', [AuthTokenController::class, 'revoke']);
