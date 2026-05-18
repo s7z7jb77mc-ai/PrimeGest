@@ -20,7 +20,8 @@ class CheckSubscriptionsExpiration extends Command
     public function handle(): int
     {
         $this->downgradeExpired();
-        $this->sendExpiringWarnings();
+        $this->sendWarningsForGroup(statusFilter: ['confirmed'], windowDays: 7);
+        $this->sendWarningsForGroup(statusFilter: ['trial'], windowDays: 1);
 
         return Command::SUCCESS;
     }
@@ -42,7 +43,7 @@ class CheckSubscriptionsExpiration extends Command
             ]);
 
             Subscription::where('entreprise_id', $entreprise->id)
-                ->where('status', 'confirmed')
+                ->whereIn('status', ['confirmed', 'trial'])
                 ->update(['status' => 'expired']);
 
             $adminUser = $entreprise->users()
@@ -69,19 +70,19 @@ class CheckSubscriptionsExpiration extends Command
         }
     }
 
-    private function sendExpiringWarnings(): void
+    private function sendWarningsForGroup(array $statusFilter, int $windowDays): void
     {
-        $soonEntreprises = Entreprise::query()
+        $entreprises = Entreprise::query()
             ->where('plan', '!=', 'free')
             ->whereNotNull('plan_expires_at')
             ->where('plan_expires_at', '>', now())
-            ->where('plan_expires_at', '<=', now()->addDays(7))
+            ->where('plan_expires_at', '<=', now()->addDays($windowDays))
+            ->whereHas('subscriptions', fn ($q) => $q->whereIn('status', $statusFilter))
             ->get();
 
-        foreach ($soonEntreprises as $entreprise) {
-            // Éviter le double envoi dans la même journée
-            $alreadySent = Subscription::where('entreprise_id', $entreprise->id)
-                ->where('status', 'confirmed')
+        foreach ($entreprises as $entreprise) {
+            $alreadySent = $entreprise->subscriptions()
+                ->whereIn('status', $statusFilter)
                 ->whereNotNull('warning_sent_at')
                 ->whereDate('warning_sent_at', today())
                 ->exists();
@@ -110,8 +111,8 @@ class CheckSubscriptionsExpiration extends Command
                             appUrl: config('app.url'),
                         ));
 
-                    Subscription::where('entreprise_id', $entreprise->id)
-                        ->where('status', 'confirmed')
+                    $entreprise->subscriptions()
+                        ->whereIn('status', $statusFilter)
                         ->update(['warning_sent_at' => now()]);
 
                     $this->info("Avertissement envoyé : {$entreprise->name} (expire dans {$joursRestants}j)");

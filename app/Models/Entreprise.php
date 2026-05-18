@@ -4,13 +4,14 @@ namespace App\Models;
 
 use App\Traits\HasUuid;
 use App\Traits\SyncObservable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 // use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Entreprise extends Model
 {
-    use HasUuid, SyncObservable;
+    use HasFactory, HasUuid, SyncObservable;
 
     // use SoftDeletes;
 
