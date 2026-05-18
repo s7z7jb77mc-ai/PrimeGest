@@ -16,7 +16,7 @@ async function tauriInvoke<T>(cmd: string, args: Record<string, unknown> = {}): 
 
 export interface ProduitLocal {
     uuid: string
-    nom_produit: string
+    nom: string
     prix_vente: number
     prix_achat: number
     quantite: number

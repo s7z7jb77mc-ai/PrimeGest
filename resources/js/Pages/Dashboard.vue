@@ -578,7 +578,7 @@ async function loadLocalKPIs() {
     const produits = await localDB.getProduits()
     localAlertesStock.value = produits
         .filter((p) => p.quantite <= (p as any).seuil_stock && (p as any).seuil_stock > 0)
-        .map((p) => ({ produit: p.nom_produit, quantite: p.quantite, seuil: (p as any).seuil_stock ?? 0 }))
+        .map((p) => ({ produit: p.nom, quantite: p.quantite, seuil: (p as any).seuil_stock ?? 0 }))
 }
 
 const displayTotalStock    = computed(() => offlineStore.isOnline ? (props.totalStock    ?? 0) : localTotalStock.value)

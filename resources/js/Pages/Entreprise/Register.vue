@@ -90,7 +90,7 @@
             :disabled="form.processing"
             class="btn w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white"
           >
-            {{ form.processing ? ‘Création en cours…’ : "Créer l’entreprise" }}
+            {{ form.processing ? "Création en cours..." : "Créer l'entreprise" }}
           </button>
         </form>
       </div>

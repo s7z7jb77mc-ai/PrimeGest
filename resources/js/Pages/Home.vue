@@ -34,7 +34,7 @@ const content = {
       register: 'Essai gratuit',
     },
     hero: {
-      eyebrow: 'Gestion commerciale pour pharmacies, boutiques et PME en croissance',
+      eyebrow: 'Gestion commerciale pour les Petites et Moyennes Entreprises en croissance',
       title: 'Votre entreprise, enfin pilotée avec clarté.',
       subtitle: 'PrimeGest réunit stocks, caisse, clients, fournisseurs et équipes dans une interface fluide, bilingue et pensée pour votre quotidien — que vous soyez au bureau ou sur le terrain.',
       primary: 'Créer mon espace gratuit',
@@ -158,7 +158,7 @@ const content = {
       register: 'Free trial',
     },
     hero: {
-      eyebrow: 'Business management for pharmacies, shops and growing SMEs',
+      eyebrow: 'Business management for SMEs',
       title: 'Your business, finally run with clarity.',
       subtitle: 'PrimeGest brings stock, cash flow, customers, suppliers and teams together in one fluid, bilingual interface — built for your daily reality, whether you\'re at HQ or in the field.',
       primary: 'Create my free workspace',

@@ -81,7 +81,7 @@ async function submitForm() {
     const recordId = form.id ? String(form.id) : crypto.randomUUID()
     const operation = form.id ? 'update' : 'create'
     await queueOperation('produits', recordId, operation, {
-      nom_produit: form.nom,
+      nom: form.nom,
       prix_achat: form.prix_achat,
       prix_vente: form.prix_vente,
     })

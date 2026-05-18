@@ -197,8 +197,7 @@ async function submit() {
         })
         if (res.ok) {
           const data = await res.json()
-          localStorage.setItem('primegest_api_token', data.token)
-          console.log('[Auth] Token Sanctum obtenu')
+          localStorage.setItem('api_token', data.token)
         }
       } catch (e) {
         console.warn('[Auth] Token Sanctum non obtenu:', e)

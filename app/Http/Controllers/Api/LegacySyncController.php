@@ -192,7 +192,6 @@ class LegacySyncController extends Controller
             'clients' => \App\Models\Client::class,
             'fournisseurs' => \App\Models\Fournisseur::class,
             'produits' => \App\Models\Produit::class,
-            'entreprises' => Entreprise::class,
             'factures' => \App\Models\Facture::class,
             'mouvement_stocks' => \App\Models\MouvementStock::class,
             'journals' => \App\Models\Journal::class,
@@ -217,7 +216,7 @@ class LegacySyncController extends Controller
             ],
             'clients' => ['nom_client', 'numero_telephone', 'adresse'],
             'fournisseurs' => ['nom_entreprise_fournisseur', 'adresse', 'reduction_pourcentage'],
-            'produits' => ['nom_produit', 'prix_vente', 'prix_achat', 'quantite', 'categorie'],
+            'produits' => ['nom', 'prix_vente', 'prix_achat', 'quantite', 'categorie'],
             'factures' => ['total_ht', 'total_tva', 'total_ttc', 'montant_paye', 'statut', 'client_id'],
             'mouvement_stocks' => ['type', 'quantite', 'prix_unitaire', 'prix_total', 'commentaire', 'produit_id'],
             'journals' => ['dateHeure_operation', 'type', 'description', 'montant', 'produit_id'],
@@ -233,8 +232,8 @@ class LegacySyncController extends Controller
 
     private function upsert(array $op, int $entrepriseId): array
     {
-        $tableName = $op['table_name'] ?? 'entreprises';
-        $modelClass = $this->resolveModel($tableName);
+        $tableName = $op['table_name'] ?? null;
+        $modelClass = $this->resolveModel($tableName ?? '');
 
         if (! $modelClass) {
             return ['status' => 'ignored', 'reason' => 'unknown_table'];
@@ -258,7 +257,7 @@ class LegacySyncController extends Controller
             ];
         }
 
-        $fields = $this->resolveFields($tableName);
+        $fields = $this->resolveFields($tableName ?? '');
         $payload = collect($op['payload'])->only($fields)->toArray();
         $payload['entreprise_id'] = $entrepriseId;
         $payload['uuid'] = $op['record_id'];
@@ -279,14 +278,16 @@ class LegacySyncController extends Controller
 
     private function softDelete(array $op, int $entrepriseId): array
     {
-        $tableName = $op['table_name'] ?? 'entreprises';
-        $modelClass = $this->resolveModel($tableName);
+        $tableName = $op['table_name'] ?? null;
+        $modelClass = $this->resolveModel($tableName ?? '');
 
         if (! $modelClass) {
             return ['status' => 'ignored'];
         }
 
-        $model = $modelClass::where('uuid', $op['record_id'])->first();
+        $model = $modelClass::where('uuid', $op['record_id'])
+            ->where('entreprise_id', $entrepriseId)
+            ->first();
 
         if (! $model) {
             return ['status' => 'not_found'];
