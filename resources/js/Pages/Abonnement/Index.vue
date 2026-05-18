@@ -203,15 +203,15 @@ onUnmounted(arreterPolling)
                 <!-- Choix du plan -->
                 <div class="grid grid-cols-2 gap-3">
                     <button type="button" @click="form.plan = 'premium'"
-                            :class="['border-2 rounded-xl p-4 text-left transition',
-                                     form.plan === 'premium' ? 'border-gray-900' : 'border border-gray-200']">
+                            :class="['rounded-xl p-4 text-left transition',
+                                     form.plan === 'premium' ? 'border-2 border-gray-900' : 'border border-gray-200']">
                         <p class="font-bold text-gray-800">Premium</p>
                         <p class="text-gray-900 font-bold text-lg">{{ prices.premium }} $/mois</p>
                         <p class="text-xs text-gray-500 mt-1">Illimité · Exports · Créances</p>
                     </button>
                     <button type="button" @click="form.plan = 'pro'"
-                            :class="['border-2 rounded-xl p-4 text-left transition',
-                                     form.plan === 'pro' ? 'border-gray-900' : 'border border-gray-200']">
+                            :class="['rounded-xl p-4 text-left transition',
+                                     form.plan === 'pro' ? 'border-2 border-gray-900' : 'border border-gray-200']">
                         <p class="font-bold text-gray-800">Pro</p>
                         <p class="text-gray-900 font-bold text-lg">{{ prices.pro }} $/mois</p>
                         <p class="text-xs text-gray-500 mt-1">Tout Premium · Succursales</p>
