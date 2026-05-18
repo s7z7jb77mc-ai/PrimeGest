@@ -91,12 +91,8 @@ class NetikashService
     public function normalizePhone(string $phone): string
     {
         $phone = preg_replace('/\s+/', '', trim($phone));
-
-        if (str_starts_with($phone, '+')) {
-            $phone = substr($phone, 1);
-        } elseif (str_starts_with($phone, '00')) {
-            $phone = substr($phone, 2);
-        }
+        $phone = ltrim($phone, '+');
+        $phone = (string) preg_replace('/^0+(?=[1-9])/', '', $phone);
 
         return $phone;
     }

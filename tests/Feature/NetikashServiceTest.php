@@ -94,4 +94,17 @@ class NetikashServiceTest extends TestCase
         $service = new NetikashService;
         $this->assertSame('243812345678', $service->normalizePhone(' 243 812 345 678 '));
     }
+
+    public function test_get_access_token_leve_exception_si_echec_oauth(): void
+    {
+        Cache::forget('netikash_access_token');
+
+        Http::fake([
+            '*/oauth/token' => Http::response(['error' => 'invalid_client'], 401),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+
+        (new NetikashService)->getAccessToken();
+    }
 }
