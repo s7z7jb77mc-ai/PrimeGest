@@ -8,7 +8,6 @@ use App\Actions\Subscription\InitierPaiementAction;
 use App\Http\Requests\InitierPaiementRequest;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -94,31 +93,5 @@ class AbonnementController extends Controller
             'plan' => $subscription->plan,
             'expires_at' => $subscription->expires_at?->toIso8601String(),
         ]);
-    }
-
-    public function storeDemande(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'plan' => ['required', 'in:premium,pro'],
-            'duree' => ['required', 'integer', 'min:1', 'max:12'],
-            'payment_method' => ['required', 'string', 'max:100'],
-            'payment_reference' => ['required', 'string', 'max:255'],
-        ]);
-
-        $entreprise = $request->user()->entreprise;
-        $expiresAt = now()->addMonths((int) $data['duree']);
-
-        Subscription::create([
-            'entreprise_id' => $entreprise->id,
-            'plan' => $data['plan'],
-            'amount' => config("plans.prices.{$data['plan']}", 0) * (int) $data['duree'],
-            'payment_method' => $data['payment_method'],
-            'payment_reference' => $data['payment_reference'],
-            'status' => 'pending',
-            'starts_at' => now(),
-            'expires_at' => $expiresAt,
-        ]);
-
-        return back()->with('success', 'Votre demande a été soumise. L\'équipe PrimeGest la confirmera sous 24h.');
     }
 }

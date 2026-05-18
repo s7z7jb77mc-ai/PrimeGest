@@ -36,7 +36,6 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('Upgrade');
     })->name('upgrade');
     Route::get('/abonnement', [\App\Http\Controllers\AbonnementController::class, 'index'])->name('abonnement.index');
-    Route::post('/abonnement/demande', [\App\Http\Controllers\AbonnementController::class, 'storeDemande'])->name('abonnement.demande');
     Route::post('/abonnement/payer', [\App\Http\Controllers\AbonnementController::class, 'initierPaiement'])->name('abonnement.payer');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/caisse', [CaisseController::class, 'index'])->name('caisse.index');
