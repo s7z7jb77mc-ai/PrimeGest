@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\EntrepriseCreatedMail;
 use App\Models\Entreprise;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,25 @@ class EntrepriseController extends Controller
 
             // Lier l'entreprise à son admin
             $entreprise->update(['user_id' => $admin->id]);
+
+            // Activer le plan Pro trial 2 jours
+            $expiresAt = now()->addDays(2);
+
+            $entreprise->update([
+                'plan' => 'pro',
+                'plan_expires_at' => $expiresAt,
+            ]);
+
+            Subscription::create([
+                'entreprise_id' => $entreprise->id,
+                'plan' => 'pro',
+                'amount' => 0,
+                'status' => 'trial',
+                'payment_method' => 'trial',
+                'payment_reference' => 'trial-2j-'.now()->format('YmdHis'),
+                'starts_at' => now(),
+                'expires_at' => $expiresAt,
+            ]);
 
             return [$admin, $entreprise];
         });
