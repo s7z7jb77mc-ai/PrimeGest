@@ -84,16 +84,12 @@ const planColor = 'bg-gray-100 text-gray-700'
 const joursWarning = computed(() => props.jours_restants !== null && props.jours_restants <= 7)
 
 function statusLabel(status: string): string {
-    return ({ pending: 'En attente', confirmed: 'Confirmé', expired: 'Expiré', failed: 'Échoué' })[status] ?? status
-}
-
-function statusColor(status: string): string {
     return ({
-        pending:   'bg-yellow-100 text-yellow-800',
-        confirmed: 'bg-green-100 text-green-800',
-        expired:   'bg-red-100 text-red-800',
-        failed:    'bg-red-100 text-red-800',
-    })[status] ?? 'bg-gray-100 text-gray-700'
+        pending:   'En attente',
+        confirmed: '✓ Confirmé',
+        expired:   'Expiré',
+        failed:    '✕ Échoué',
+    })[status] ?? status
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -360,7 +356,7 @@ onUnmounted(arreterPolling)
                             <td class="py-2 pr-4 font-medium capitalize">{{ s.plan }}</td>
                             <td class="py-2 pr-4">{{ s.amount }} $</td>
                             <td class="py-2 pr-4">
-                                <span :class="['px-2 py-0.5 rounded-full text-xs font-semibold', statusColor(s.status)]">
+                                <span :class="['text-xs', s.status === 'confirmed' ? 'text-gray-700 font-medium' : 'text-gray-400']">
                                     {{ statusLabel(s.status) }}
                                 </span>
                             </td>
