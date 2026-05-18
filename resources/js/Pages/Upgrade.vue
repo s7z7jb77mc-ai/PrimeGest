@@ -25,8 +25,8 @@
     <!-- ══ HERO ══ -->
     <section class="text-center pt-14 pb-10 px-4">
       <!-- Badge contexte si redirigé depuis une feature bloquée -->
-      <div v-if="feature" class="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full border border-blue-200 bg-blue-50 text-sm text-blue-600 font-mono tracking-wide">
-        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+      <div v-if="feature" class="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full border border-gray-200 bg-gray-50 text-sm text-gray-600 font-mono tracking-wide">
+        <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse"></span>
         Fonctionnalité « {{ featureLabel }} » — Plan supérieur requis
       </div>
 
@@ -91,15 +91,10 @@
 
       <!-- ─ PREMIUM ─ -->
       <div class="plan-card plan-card--featured relative">
-        <!-- Ruban recommandé -->
-        <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-black font-mono px-4 py-1 rounded-full tracking-widest shadow-lg shadow-blue-200">
-          RECOMMANDÉ
-        </div>
-
-        <div class="plan-badge bg-black text-blue-400">Premium</div>
+        <div class="plan-badge bg-gray-100 text-gray-700">Premium</div>
 
         <div class="mt-6 mb-1">
-          <span class="plan-price text-blue-600">{{ billing === '1' ? '7' : billing === '6' ? '40' : '70' }}</span>
+          <span class="plan-price">{{ billing === '1' ? '7' : billing === '6' ? '40' : '70' }}</span>
           <span class="plan-currency text-gray-400">$ / {{ billing === '1' ? 'mois' : billing === '6' ? '6 mois' : '12 mois' }}</span>
         </div>
         <p class="text-xs text-gray-400 font-mono mb-7">
@@ -122,15 +117,15 @@
           class="w-full text-center py-2 rounded-lg border border-blue-500 text-blue-500 text-sm font-mono font-medium">
           Plan actuel
         </div>
-        <button v-else @click="contacter('premium')"
-          class="w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-black font-mono tracking-wide hover:bg-blue-700 transition-all shadow-lg shadow-blue-200/60 active:scale-95">
+        <button v-else @click="allerAbonnement('premium')"
+          class="w-full py-2.5 rounded-lg bg-[#1A56A0] text-white text-sm font-black font-mono tracking-wide hover:bg-[#0B2D5E] transition-all shadow-lg shadow-blue-200/60 active:scale-95">
           Passer au Premium →
         </button>
       </div>
 
       <!-- ─ PRO ─ -->
       <div :class="['plan-card', plan === 'pro' ? 'ring-2 ring-black' : '']">
-        <div class="plan-badge bg-gray-900 text-gold">Pro</div>
+        <div class="plan-badge bg-gray-100 text-gray-700">Pro</div>
 
         <div class="mt-6 mb-1">
           <span class="plan-price">{{ billing === '1' ? '10' : billing === '6' ? '55' : '100' }}</span>
@@ -152,29 +147,12 @@
           class="w-full text-center py-2 rounded-lg border border-black text-black text-sm font-mono font-medium">
           Plan actuel
         </div>
-        <button v-else @click="contacter('pro')"
+        <button v-else @click="allerAbonnement('pro')"
           class="w-full py-2.5 rounded-lg border-2 border-black text-black text-sm font-black font-mono tracking-wide hover:bg-black hover:text-white transition-all active:scale-95">
           Passer au Pro →
         </button>
       </div>
 
-    </section>
-
-    <!-- ══ INSTRUCTIONS PAIEMENT ══ -->
-    <section class="max-w-xl mx-auto px-4 pb-16">
-      <div class="rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center">
-        <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gold/10 mb-4">
-          <span class="text-gold text-lg">✦</span>
-        </div>
-        <h3 class="font-display text-lg font-black text-black mb-2">Comment upgrader ?</h3>
-        <p class="text-sm text-gray-500 leading-relaxed mb-5">
-          Effectuez votre paiement par <strong class="text-black">Mobile Money</strong> ou <strong class="text-black">virement bancaire</strong>, puis contactez-nous avec votre référence de paiement. L'activation est manuelle sous <strong class="text-black">24h</strong>.
-        </p>
-        <a href="mailto:support@primegest.app"
-          class="inline-flex items-center gap-2 text-sm font-mono font-bold text-gold border border-gold/40 px-5 py-2 rounded-full hover:bg-gold hover:text-black transition-all">
-          support@primegest.app ↗
-        </a>
-      </div>
     </section>
 
     <!-- ══ FOOTER ══ -->
@@ -208,20 +186,12 @@ const featureLabels = {
 
 const featureLabel = computed(() => featureLabels[feature.value] ?? feature.value)
 
-function contacter(targetPlan) {
-  const dureeLabel = billing.value === '1' ? '1 mois' : billing.value === '6' ? '6 mois' : '12 mois'
-  const montant = targetPlan === 'premium'
-    ? (billing.value === '1' ? '7$' : billing.value === '6' ? '40$' : '70$')
-    : (billing.value === '1' ? '10$' : billing.value === '6' ? '55$' : '100$')
-  const subject = `Upgrade PrimeGest — Plan ${targetPlan} (${dureeLabel})`
-  const body    = `Bonjour,\n\nJe souhaite passer au plan ${targetPlan} pour une durée de ${dureeLabel} (${montant}).\n\nMon email : ${page.props.auth?.user?.email ?? ''}\nMa référence de paiement : `
-  window.location.href = `mailto:support@primegest.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+function allerAbonnement(targetPlan) {
+  router.visit('/abonnement', { data: { plan: targetPlan } })
 }
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&display=swap');
-
 :root {
   --gold: #D4AF37;
 }
@@ -253,11 +223,10 @@ function contacter(targetPlan) {
   transform: translateY(-2px);
 }
 .plan-card--featured {
-  border: 2px solid #2563eb;
-  box-shadow: 0 4px 24px rgba(37,99,235,0.12);
+  border: 2px solid #111;
 }
 .plan-card--featured:hover {
-  box-shadow: 0 8px 40px rgba(37,99,235,0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.07);
 }
 
 /* Badge plan */
