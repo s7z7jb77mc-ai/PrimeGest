@@ -50,12 +50,12 @@ class SuccursaleContext
 
     public static function forWrite(Model $model, ?int $explicitSuccursaleId = null): ?int
     {
-        if (! self::hasColumn($model->getTable())) {
-            return null;
-        }
-
         if ($explicitSuccursaleId !== null) {
             return $explicitSuccursaleId;
+        }
+
+        if (! self::hasColumn($model->getTable())) {
+            return null;
         }
 
         return self::currentId();

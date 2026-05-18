@@ -41,16 +41,13 @@ class SuccursaleContextTest extends TestCase
     public function test_for_write_prefers_explicit_succursale_id(): void
     {
         session(['succursale_id' => 3]);
-        Schema::shouldReceive('hasColumn')
-            ->once()
-            ->with('fake_scoped_models', 'succursale_id')
-            ->andReturn(true);
 
         $model = new class extends Model
         {
             protected $table = 'fake_scoped_models';
         };
 
+        // L'ID explicite doit être retourné sans consulter le schéma
         $this->assertSame(12, SuccursaleContext::forWrite($model, 12));
     }
 }

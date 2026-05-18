@@ -120,6 +120,7 @@ class UserManagementTest extends TestCase
             'password' => Hash::make('adminpass'),
             'role' => 'admin',
             'entreprise_id' => $superAdmin->entreprise_id,
+            'access_pages' => ['users'],
         ]);
 
         $response = $this->actingAs($admin)
@@ -168,6 +169,7 @@ class UserManagementTest extends TestCase
     {
         Schema::create('entreprises', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable();
             $table->string('name');
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
@@ -195,6 +197,7 @@ class UserManagementTest extends TestCase
 
         Schema::create('employes', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable();
             $table->unsignedBigInteger('entreprise_id');
             $table->unsignedBigInteger('succursale_id')->nullable();
             $table->string('nom');
@@ -210,6 +213,7 @@ class UserManagementTest extends TestCase
 
         Schema::create('succursales', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable();
             $table->unsignedBigInteger('entreprise_id');
             $table->string('nom');
             $table->string('adresse')->nullable();

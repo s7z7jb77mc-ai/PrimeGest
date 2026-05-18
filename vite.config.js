@@ -25,6 +25,7 @@ export default defineConfig({
     },
     build: {
         rollupOptions: {
+            external: ['@tauri-apps/plugin-updater', '@tauri-apps/plugin-process', '@tauri-apps/api/core'],
             output: {
                 manualChunks: {
                     'vendor-vue':    ['vue', '@inertiajs/vue3', 'pinia'],

@@ -102,7 +102,7 @@ class FactureGenerationTest extends TestCase
 
     private function createUserWithEntreprise(): array
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'super_admin']);
 
         $entreprise = Entreprise::create([
             'name' => 'Entreprise Test',

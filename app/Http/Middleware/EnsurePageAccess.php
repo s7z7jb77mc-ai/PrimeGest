@@ -66,12 +66,19 @@ class EnsurePageAccess
 
         $path = '/'.ltrim($request->path(), '/');
 
-        // Toujours autorisé
+        // Toujours autorisé (pages système et auth)
         if (
             str_starts_with($path, '/profil') ||
+            str_starts_with($path, '/profile') ||
+            str_starts_with($path, '/password') ||
+            str_starts_with($path, '/settings') ||
+            str_starts_with($path, '/verify-email') ||
+            str_starts_with($path, '/confirm-password') ||
+            str_starts_with($path, '/email') ||
+            str_starts_with($path, '/abonnement') ||
             $path === '/logout' ||
             $path === '/dashboard' ||
-            str_starts_with($path, '/fiche-paye') // page fiche de paie alternative
+            str_starts_with($path, '/fiche-paye')
         ) {
             return $next($request);
         }
