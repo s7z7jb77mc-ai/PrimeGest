@@ -79,11 +79,7 @@ const montantSansReduction = computed((): string => {
 
 const planLabel = computed(() => ({ free: 'Free', premium: 'Premium', pro: 'Pro' })[props.plan] ?? props.plan)
 
-const planColor = computed(() => ({
-    free:    'bg-gray-100 text-gray-700',
-    premium: 'bg-blue-100 text-blue-800',
-    pro:     'bg-purple-100 text-purple-800',
-})[props.plan] ?? 'bg-gray-100 text-gray-700')
+const planColor = 'bg-gray-100 text-gray-700'
 
 const joursWarning = computed(() => props.jours_restants !== null && props.jours_restants <= 7)
 
@@ -208,16 +204,16 @@ onUnmounted(arreterPolling)
                 <div class="grid grid-cols-2 gap-3">
                     <button type="button" @click="form.plan = 'premium'"
                             :class="['border-2 rounded-xl p-4 text-left transition',
-                                     form.plan === 'premium' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200']">
+                                     form.plan === 'premium' ? 'border-gray-900' : 'border border-gray-200']">
                         <p class="font-bold text-gray-800">Premium</p>
-                        <p class="text-blue-600 font-bold text-lg">{{ prices.premium }} $/mois</p>
+                        <p class="text-gray-900 font-bold text-lg">{{ prices.premium }} $/mois</p>
                         <p class="text-xs text-gray-500 mt-1">Illimité · Exports · Créances</p>
                     </button>
                     <button type="button" @click="form.plan = 'pro'"
                             :class="['border-2 rounded-xl p-4 text-left transition',
-                                     form.plan === 'pro' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-200']">
+                                     form.plan === 'pro' ? 'border-gray-900' : 'border border-gray-200']">
                         <p class="font-bold text-gray-800">Pro</p>
-                        <p class="text-purple-600 font-bold text-lg">{{ prices.pro }} $/mois</p>
+                        <p class="text-gray-900 font-bold text-lg">{{ prices.pro }} $/mois</p>
                         <p class="text-xs text-gray-500 mt-1">Tout Premium · Succursales</p>
                     </button>
                 </div>
