@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -25,7 +26,13 @@ class CheckPlanLimit
             return $this->upgradeResponse($request, 'entreprise_not_found', $feature, 'free');
         }
 
-        $plan   = $entreprise->plan ?? 'free';
+        $plan = $entreprise->plan ?? 'free';
+
+        // Plan expiré → retomber en free côté middleware aussi
+        if ($plan !== 'free' && $entreprise->plan_expires_at && Carbon::parse($entreprise->plan_expires_at)->isPast()) {
+            $plan = 'free';
+        }
+
         $limits = config("plans.{$plan}");
         $limit  = $limits[$feature] ?? false;
 
