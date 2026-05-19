@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // ✅ Trust Cloudflare proxies
         $middleware->trustProxies(at: '*');
 
+        // ✅ Webhooks exclus du CSRF
+        $middleware->validateCsrfTokens(except: [
+            'api/v1/payment/webhook',
+            'payment/callback',
+        ]);
+
         // ✅ Middlewares web (ordre important)
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
