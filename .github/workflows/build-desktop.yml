@@ -25,6 +25,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -44,15 +54,6 @@ jobs:
 
       - name: Install Node dependencies
         run: npm ci
-        env:
-          npm_config_loglevel: verbose
-
-      - name: Show npm log on failure
-        if: failure()
-        shell: bash
-        run: |
-          LOG=$(ls C:/npm/cache/_logs/*.log 2>/dev/null | tail -1)
-          [ -f "$LOG" ] && cat "$LOG" || echo "Log introuvable"
 
       - name: Build Vue/Vite frontend
         run: npm run build
