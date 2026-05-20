@@ -48,13 +48,6 @@
   "plugins": {
     "sql": {
       "preloadConnections": ["sqlite:primegest.db"]
-    },
-    "updater": {
-      "endpoints": [
-        "https://primegest.app/releases/{{target}}/{{arch}}/{{current_version}}"
-      ],
-      "dialog": false,
-      "pubkey": ""
     }
   }
 }
