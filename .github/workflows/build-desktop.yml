@@ -25,15 +25,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup PHP 8.2
+      - name: Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
+          extensions: fileinfo, mbstring, openssl, pdo, tokenizer, xml
           tools: composer:v2
           coverage: none
 
       - name: Install Composer dependencies
-        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
