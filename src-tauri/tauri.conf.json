@@ -42,14 +42,7 @@
     "category": "Business",
     "shortDescription": "Application de gestion commerciale pour PME",
     "windows": {
-      "nsis": {
-        "installMode": "perMachine",
-        "languages": ["French"],
-        "displayLanguageSelector": false,
-        "createDesktopShortcut": true,
-        "createStartMenuShortcut": true,
-        "startMenuFolder": "PrimeGest"
-      }
+	"digestAlgorithm": "sha256"
     }
   },
   "plugins": {
