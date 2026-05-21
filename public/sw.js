@@ -1,6 +1,6 @@
-const SHELL_CACHE   = 'primegest-shell-v3'
-const INERTIA_CACHE = 'primegest-inertia-v4'
-const ASSET_CACHE   = 'primegest-assets-v2'
+const SHELL_CACHE   = 'primegest-shell-v4'
+const INERTIA_CACHE = 'primegest-inertia-v5'
+const ASSET_CACHE   = 'primegest-assets-v3'
 
 const INERTIA_ROUTES = [
   '/dashboard',
@@ -172,10 +172,10 @@ async function navigateFallback(request) {
     }
     throw new Error()
   } catch {
+    // Chercher uniquement le cache de CETTE route — jamais servir '/' pour une autre URL
+    // (évite de montrer la Home page à la place de /login, /dashboard, etc.)
     const routeCached = await cache.match(request)
     if (routeCached) return routeCached
-    const rootCached = await cache.match('/')
-    if (rootCached) return rootCached
     return (await cache.match('/offline.html')) || new Response('Hors ligne', { status: 503 })
   }
 }
