@@ -8,7 +8,6 @@ use App\Models\Succursale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -50,14 +49,14 @@ class UserController extends Controller
         $users = User::with('employe')
             ->where('entreprise_id', $entrepriseId)
             ->when(
-                $succursaleId && Schema::hasColumn('employes', 'succursale_id'),
+                $succursaleId && schema_has_column('employes', 'succursale_id'),
                 fn($q) => $q->whereHas('employe', fn($qe) => $qe->where('succursale_id', $succursaleId))
             )
             ->get();
 
         $employes = Employe::where('entreprise_id', $entrepriseId)
             ->when(
-                $succursaleId && Schema::hasColumn('employes', 'succursale_id'),
+                $succursaleId && schema_has_column('employes', 'succursale_id'),
                 fn($q) => $q->where('succursale_id', $succursaleId)
             )
             ->get();
@@ -309,7 +308,7 @@ class UserController extends Controller
 
     private function syncEmployeToActiveSuccursale(?Employe $employe, ?int $succursaleId): void
     {
-        if (!$employe || !$succursaleId || !Schema::hasColumn('employes', 'succursale_id')) {
+        if (!$employe || !$succursaleId || !schema_has_column('employes', 'succursale_id')) {
             return;
         }
 

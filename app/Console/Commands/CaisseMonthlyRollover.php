@@ -6,7 +6,6 @@ use App\Models\Caisse;
 use App\Models\Entreprise;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class CaisseMonthlyRollover extends Command
 {
@@ -15,7 +14,7 @@ class CaisseMonthlyRollover extends Command
 
     public function handle(): int
     {
-        if (!Schema::hasColumn('caisses', 'type_operation')) {
+        if (!schema_has_column('caisses', 'type_operation')) {
             $this->warn('Colonne type_operation absente. Rollover ignoré.');
             return self::SUCCESS;
         }

@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // ✅ Middlewares web (ordre important)
+        // Sanctum SPA : authentification par session pour les routes API (fetch depuis le navigateur)
+        $middleware->api(prepend: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\EnsureWritableAccess::class,

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Succursale;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -18,44 +19,58 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        $parametres = null;
-        $hasSuccursales = false;
-        $succursaleId = null;
-        $succursaleName = null;
-        $plan = 'free';
-        $planLimits = config('plans.free');
-        $planExpiresAt = null;
-        $entreprise = null;
+        $parametres      = null;
+        $hasSuccursales  = false;
+        $succursaleId    = null;
+        $succursaleName  = null;
+        $plan            = 'free';
+        $planLimits      = config('plans.free');
+        $planExpiresAt   = null;
 
         $user = $request->user();
 
         if ($user) {
-            try {
-                $parametres = \App\Models\Parametre::where('entreprise_id', $user->entreprise_id)->first();
-            } catch (\Throwable) {
-                $parametres = null;
-            }
+            $eid = $user->entreprise_id;
 
-            try {
-                $hasSuccursales = Succursale::where('entreprise_id', $user->entreprise_id)->exists();
-                $succursaleId = session('succursale_id');
-
-                if ($succursaleId) {
-                    $succursaleName = Succursale::where('entreprise_id', $user->entreprise_id)
-                        ->where('id', $succursaleId)
-                        ->value('nom');
+            // ── Paramètres : cache 5 min par entreprise ──────────────────
+            $parametres = Cache::remember("inertia.parametres.{$eid}", 300, function () use ($eid) {
+                try {
+                    return \App\Models\Parametre::where('entreprise_id', $eid)->first();
+                } catch (\Throwable) {
+                    return null;
                 }
-            } catch (\Throwable) {
-                $hasSuccursales = false;
-                $succursaleId = null;
+            });
+
+            // ── Succursales : cache 2 min par entreprise ──────────────────
+            $hasSuccursales = Cache::remember("inertia.has_succursales.{$eid}", 120, function () use ($eid) {
+                try {
+                    return Succursale::where('entreprise_id', $eid)->exists();
+                } catch (\Throwable) {
+                    return false;
+                }
+            });
+
+            $succursaleId = session('succursale_id');
+
+            if ($succursaleId) {
+                $succursaleName = Cache::remember(
+                    "inertia.succursale_name.{$eid}.{$succursaleId}",
+                    120,
+                    fn () => Succursale::where('entreprise_id', $eid)
+                        ->where('id', $succursaleId)
+                        ->value('nom')
+                );
             }
 
-            // Plan — fresh depuis DB
-            $entreprise = $user->entreprise()->first();
-            $plan = $entreprise?->plan ?? 'free';
+            // ── Plan entreprise : utiliser la relation déjà chargée ou cache ─
+            // On réutilise l'entreprise si déjà chargée via EnsurePlanNotExpired
+            $entreprise = $user->relationLoaded('entreprise')
+                ? $user->entreprise
+                : Cache::remember("inertia.entreprise.{$eid}", 60, fn () => $user->entreprise()->first());
+
+            $plan          = $entreprise?->plan ?? 'free';
             $planExpiresAt = $entreprise?->plan_expires_at;
 
-            // Plan expiré → retomber en free
             if ($plan !== 'free' && $planExpiresAt && Carbon::parse($planExpiresAt)->isPast()) {
                 $plan = 'free';
             }
@@ -63,18 +78,16 @@ class HandleInertiaRequests extends Middleware
             $planLimits = config('plans.'.$plan) ?? config('plans.free');
         }
 
-        $canManage = $user?->isSuperAdmin() === true;
-
         return [
             ...parent::share($request),
-            'auth' => ['user' => $user],
-            'plan' => $plan,
-            'plan_limits' => $planLimits,
+            'auth'            => ['user' => $user],
+            'plan'            => $plan,
+            'plan_limits'     => $planLimits,
             'plan_expires_at' => $planExpiresAt,
-            'can_manage' => $canManage,
-            'parametres' => $parametres,
+            'can_manage'      => $user?->isSuperAdmin() === true,
+            'parametres'      => $parametres,
             'has_succursales' => $hasSuccursales,
-            'succursale_id' => $succursaleId,
+            'succursale_id'   => $succursaleId,
             'succursale_name' => $succursaleName,
         ];
     }

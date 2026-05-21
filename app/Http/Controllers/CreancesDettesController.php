@@ -14,7 +14,6 @@ use App\Models\BonEntree;
 use App\Models\ReductionUsage;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class CreancesDettesController extends Controller
@@ -25,13 +24,13 @@ class CreancesDettesController extends Controller
         $succursaleId = session('succursale_id');
 
         $clients = Client::where('entreprise_id', $entrepriseId)
-            ->when(Schema::hasColumn('clients', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when(schema_has_column('clients', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
             ->where('creance', '>', 0)
             ->orderBy('nom_client')
             ->get();
 
         $fournisseurs = Fournisseur::where('entreprise_id', $entrepriseId)
-            ->when(Schema::hasColumn('fournisseurs', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when(schema_has_column('fournisseurs', 'succursale_id') && $succursaleId, fn($q) => $q->where('succursale_id', $succursaleId))
             ->where('dette', '>', 0)
             ->orderBy('nom_entreprise_fournisseur')
             ->get();
@@ -64,7 +63,7 @@ class CreancesDettesController extends Controller
         $dateOperation = now();
 
         $caisseId = null;
-        if (Schema::hasColumn('caisses', 'type_operation')) {
+        if (schema_has_column('caisses', 'type_operation')) {
             $payload = [
                 'entreprise_id' => $entrepriseId,
                 'description' => 'Paiement créance: ' . $client->nom_client,
@@ -73,7 +72,7 @@ class CreancesDettesController extends Controller
                 'sortie' => 0,
                 'type_operation' => 'creance',
             ];
-            if (Schema::hasColumn('caisses', 'succursale_id')) {
+            if (schema_has_column('caisses', 'succursale_id')) {
                 $payload['succursale_id'] = $succursaleId;
             }
             $caisse = CaisseService::createOperation($payload);
@@ -86,7 +85,7 @@ class CreancesDettesController extends Controller
                 'entree' => $montant,
                 'sortie' => 0,
             ];
-            if (Schema::hasColumn('caisses', 'succursale_id')) {
+            if (schema_has_column('caisses', 'succursale_id')) {
                 $payload['succursale_id'] = $succursaleId;
             }
             $caisse = CaisseService::createOperation($payload);
@@ -99,7 +98,7 @@ class CreancesDettesController extends Controller
             'montant_paye' => $montant,
             'caisse_id' => $caisseId,
         ];
-        if (Schema::hasColumn('creances', 'succursale_id')) {
+        if (schema_has_column('creances', 'succursale_id')) {
             $payload['succursale_id'] = $succursaleId;
         }
         Creance::create($payload);
@@ -128,7 +127,7 @@ class CreancesDettesController extends Controller
         $dateOperation = now();
 
         $caisseId = null;
-        if (Schema::hasColumn('caisses', 'type_operation')) {
+        if (schema_has_column('caisses', 'type_operation')) {
             $payload = [
                 'entreprise_id' => $entrepriseId,
                 'description' => 'Paiement dette: ' . $fournisseur->nom_entreprise_fournisseur,
@@ -137,7 +136,7 @@ class CreancesDettesController extends Controller
                 'sortie' => $montant,
                 'type_operation' => 'dette',
             ];
-            if (Schema::hasColumn('caisses', 'succursale_id')) {
+            if (schema_has_column('caisses', 'succursale_id')) {
                 $payload['succursale_id'] = $succursaleId;
             }
             $caisse = CaisseService::createOperation($payload);
@@ -150,7 +149,7 @@ class CreancesDettesController extends Controller
                 'entree' => 0,
                 'sortie' => $montant,
             ];
-            if (Schema::hasColumn('caisses', 'succursale_id')) {
+            if (schema_has_column('caisses', 'succursale_id')) {
                 $payload['succursale_id'] = $succursaleId;
             }
             $caisse = CaisseService::createOperation($payload);
@@ -163,7 +162,7 @@ class CreancesDettesController extends Controller
             'montant_paye' => $montant,
             'caisse_id' => $caisseId,
         ];
-        if (Schema::hasColumn('dettes', 'succursale_id')) {
+        if (schema_has_column('dettes', 'succursale_id')) {
             $payload['succursale_id'] = $succursaleId;
         }
         Dette::create($payload);
@@ -376,7 +375,7 @@ class CreancesDettesController extends Controller
 
         $facturesQuery = Facture::where('entreprise_id', $entrepriseId);
         $facturesQuery->when($succursaleId, fn($q) => $q->where('succursale_id', $succursaleId));
-        if (Schema::hasColumn('factures', 'client_id')) {
+        if (schema_has_column('factures', 'client_id')) {
             $facturesQuery->where('client_id', $client->id);
         } else {
             $facturesQuery->where('client_nom', $client->nom_client);
@@ -446,7 +445,7 @@ class CreancesDettesController extends Controller
     {
         $bonsQuery = BonEntree::where('entreprise_id', $entrepriseId);
         $bonsQuery->when($succursaleId, fn($q) => $q->where('succursale_id', $succursaleId));
-        if (Schema::hasColumn('bon_entrees', 'fournisseur_id')) {
+        if (schema_has_column('bon_entrees', 'fournisseur_id')) {
             $bonsQuery->where('fournisseur_id', $fournisseur->id);
         }
         $bons = $bonsQuery->get();

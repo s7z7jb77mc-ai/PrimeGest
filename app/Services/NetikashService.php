@@ -37,6 +37,7 @@ class NetikashService
         }
 
         $response = Http::withBasicAuth($this->clientId, $this->clientSecret)
+            ->timeout(15)
             ->asForm()
             ->post($this->baseUrl.$this->tokenPath, [
                 'grant_type' => 'client_credentials',

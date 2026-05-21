@@ -16,7 +16,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -335,7 +334,7 @@ class TransfertController extends Controller
             ? $dateOperation->format('Y-m-d')
             : now()->toDateString();
 
-        if (Schema::hasColumn('archives', 'succursale_id')) {
+        if (schema_has_column('archives', 'succursale_id')) {
             // ✅ Une archive par succursale impliquée (from + to)
             // Au central on verra les deux lignes triées par date
             SuccursaleContext::withoutScope(Archive::class)->create([
@@ -482,7 +481,7 @@ class TransfertController extends Controller
             ? $dateOperation->format('Y-m-d')
             : now()->toDateString();
 
-        if (Schema::hasColumn('archives', 'succursale_id')) {
+        if (schema_has_column('archives', 'succursale_id')) {
             SuccursaleContext::withoutScope(Archive::class)->create([
                 'entreprise_id' => $entrepriseId,
                 'succursale_id' => $fromSuccursaleId,

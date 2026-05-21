@@ -34,6 +34,14 @@ createInertiaApp({
 
         app.mount(el)
 
+        // PWA web : démarrer le sync manager (pull initial + auto-sync)
+        if (!isTauri) {
+            import('./composables/useSyncManager').then(({ useSyncManager }) => {
+                const { startAutoSync } = useSyncManager()
+                startAutoSync()
+            })
+        }
+
         // En Tauri hors-ligne : supprimer la modale d'erreur Inertia (le SW sert le cache)
         if (isTauri) {
             import('@inertiajs/vue3').then(({ router }) => {

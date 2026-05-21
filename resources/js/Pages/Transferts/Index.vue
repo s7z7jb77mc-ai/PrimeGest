@@ -3,7 +3,22 @@ import { computed, ref, onMounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
+
+const offlineStore = useOfflineStore()
+const localDB = useLocalDB()
+const localTransferts = ref<any[]>([])
+
+async function loadLocalTransferts() {
+    localTransferts.value = await localDB.getTransferts()
+}
+
+onMounted(async () => {
+    if (!offlineStore.isOnline) await loadLocalTransferts()
+    window.addEventListener('primegest:sync-pulled', loadLocalTransferts)
+})
 
 interface Succursale {
   id: number
@@ -293,8 +308,8 @@ async function rejectTransfer(t: Transfert) {
             <th class="px-4 py-2 text-left">Action</th>
           </tr>
         </thead>
-        <tbody v-if="props.transferts.length">
-          <tr v-for="t in props.transferts" :key="t.id" class="border-t">
+        <tbody v-if="(offlineStore.isOnline ? props.transferts : localTransferts).length">
+          <tr v-for="t in (offlineStore.isOnline ? props.transferts : localTransferts)" :key="t.id" class="border-t">
             <td class="px-4 py-2">{{ formatDateTime(t.date_operation || '') }}</td>
             <td class="px-4 py-2">{{ t.type === 'stock' ? 'Stock' : 'Caisse' }}</td>
             <td class="px-4 py-2">{{ displayFrom(t) }}</td>

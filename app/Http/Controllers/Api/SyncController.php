@@ -66,7 +66,7 @@ class SyncController extends Controller
 
         // Vérifier que succursale_id appartient bien à cette entreprise (anti cross-branch)
         if (isset($payload['succursale_id']) && $payload['succursale_id'] !== null) {
-            $succursaleOk = DB::connection('mysql')->table('succursales')
+            $succursaleOk = DB::connection('mysql_cloud')->table('succursales')
                 ->where('id', (int) $payload['succursale_id'])
                 ->where('entreprise_id', $entrepriseId)
                 ->exists();
@@ -83,7 +83,7 @@ class SyncController extends Controller
             return ['record_uuid' => $uuid, 'status' => 'error', 'message' => 'Checksum invalide'];
         }
 
-        return DB::connection('mysql')->transaction(function () use ($table, $uuid, $operation, $payload, $localTime, $entrepriseId) {
+        return DB::connection('mysql_cloud')->transaction(function () use ($table, $uuid, $operation, $payload, $localTime, $entrepriseId) {
             return match ($operation) {
                 'insert' => $this->handleInsert($table, $uuid, $payload, $entrepriseId),
                 'update' => $this->handleUpdate($table, $uuid, $payload, $localTime, $entrepriseId),
@@ -95,7 +95,7 @@ class SyncController extends Controller
 
     private function handleInsert(string $table, string $uuid, array $payload, int $entrepriseId): array
     {
-        $existing = DB::connection('mysql')->table($table)
+        $existing = DB::connection('mysql_cloud')->table($table)
             ->where('uuid', $uuid)
             ->where('entreprise_id', $entrepriseId)
             ->first();
@@ -105,28 +105,28 @@ class SyncController extends Controller
         }
 
         unset($payload['id']);
-        DB::connection('mysql')->table($table)->insert($payload);
+        DB::connection('mysql_cloud')->table($table)->insert($payload);
 
         return ['record_uuid' => $uuid, 'status' => 'done'];
     }
 
     private function handleUpdate(string $table, string $uuid, array $payload, string $localTime, int $entrepriseId): array
     {
-        $existing = DB::connection('mysql')->table($table)
+        $existing = DB::connection('mysql_cloud')->table($table)
             ->where('uuid', $uuid)
             ->where('entreprise_id', $entrepriseId)
             ->first();
 
         if (! $existing) {
             unset($payload['id']);
-            DB::connection('mysql')->table($table)->insert($payload);
+            DB::connection('mysql_cloud')->table($table)->insert($payload);
 
             return ['record_uuid' => $uuid, 'status' => 'done'];
         }
 
         $cloudUpdatedAt = $existing->updated_at ?? '1970-01-01';
         if ($cloudUpdatedAt > $localTime) {
-            DB::connection('mysql')->table('conflict_log')->insert([
+            DB::connection('mysql_cloud')->table('conflict_log')->insert([
                 'table_name' => $table,
                 'record_uuid' => $uuid,
                 'local_payload' => json_encode($payload),
@@ -142,7 +142,7 @@ class SyncController extends Controller
         }
 
         unset($payload['id']);
-        DB::connection('mysql')->table($table)
+        DB::connection('mysql_cloud')->table($table)
             ->where('uuid', $uuid)
             ->where('entreprise_id', $entrepriseId)
             ->update($payload);
@@ -153,7 +153,7 @@ class SyncController extends Controller
     private function handleDelete(string $table, string $uuid, int $entrepriseId): array
     {
         // Vérifier que l'enregistrement appartient bien à cette entreprise avant suppression
-        $exists = DB::connection('mysql')->table($table)
+        $exists = DB::connection('mysql_cloud')->table($table)
             ->where('uuid', $uuid)
             ->where('entreprise_id', $entrepriseId)
             ->exists();
@@ -162,7 +162,7 @@ class SyncController extends Controller
             return ['record_uuid' => $uuid, 'status' => 'not_found'];
         }
 
-        DB::connection('mysql')->table($table)
+        DB::connection('mysql_cloud')->table($table)
             ->where('uuid', $uuid)
             ->where('entreprise_id', $entrepriseId)
             ->delete();

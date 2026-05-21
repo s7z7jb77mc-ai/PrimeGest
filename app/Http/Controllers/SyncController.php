@@ -85,7 +85,7 @@ class SyncController extends Controller
 
             // Upsert dans la base cloud (MySQL) si table cible connue
             $targetTable = $this->resolveEntityTable($item['table_name']);
-            if ($targetTable && Schema::hasTable($targetTable)) {
+            if ($targetTable && schema_has_table($targetTable)) {
                 $columns = Schema::getColumnListing($targetTable);
                 $payload = array_intersect_key($item['payload'], array_flip($columns));
 

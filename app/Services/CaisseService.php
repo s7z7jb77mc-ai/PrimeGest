@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Caisse;
 use App\Models\Archive;
 use App\Support\SuccursaleContext;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -42,7 +41,7 @@ class CaisseService
 
             $caisse = SuccursaleContext::withoutScope(Caisse::class)->create($data);
 
-            if (Schema::hasTable('archives')) {
+            if (schema_has_table('archives')) {
                 $dateArchive = $caisse->date_operation?->toDateString() ?? $caisse->created_at->toDateString();
                 $archiveWhere = [
                     'entreprise_id' => $caisse->entreprise_id,
@@ -60,7 +59,7 @@ class CaisseService
                         'type_operation' => $caisse->type_operation ?? null,
                     ],
                 ];
-                if (Schema::hasColumn('archives', 'succursale_id')) {
+                if (schema_has_column('archives', 'succursale_id')) {
                     $archiveWhere['succursale_id'] = $succursaleId;
                 }
                 SuccursaleContext::withoutScope(Archive::class)->firstOrCreate($archiveWhere, $archiveData);

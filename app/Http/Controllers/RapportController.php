@@ -18,7 +18,6 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class RapportController extends Controller
 {
@@ -34,12 +33,12 @@ class RapportController extends Controller
     {
         $entrepriseId = Auth::user()->entreprise_id;
         $succursaleId = session('succursale_id');
-        $hasMouvements = Schema::hasColumn('mouvement_stocks', 'succursale_id');
-        $hasJournals = Schema::hasColumn('journals', 'succursale_id');
-        $hasFactures = Schema::hasColumn('factures', 'succursale_id');
-        $hasBons = Schema::hasColumn('bon_entrees', 'succursale_id');
-        $hasCreances = Schema::hasColumn('creances', 'succursale_id');
-        $hasDettes = Schema::hasColumn('dettes', 'succursale_id');
+        $hasMouvements = schema_has_column('mouvement_stocks', 'succursale_id');
+        $hasJournals = schema_has_column('journals', 'succursale_id');
+        $hasFactures = schema_has_column('factures', 'succursale_id');
+        $hasBons = schema_has_column('bon_entrees', 'succursale_id');
+        $hasCreances = schema_has_column('creances', 'succursale_id');
+        $hasDettes = schema_has_column('dettes', 'succursale_id');
         $type = $request->input('type', 'journalier');
         $date = $request->input('date', now()->toDateString());
         $dateDebut = $request->input('date_debut');
@@ -67,7 +66,7 @@ class RapportController extends Controller
             'parametres' => $parametres,
             'reportLogs' => ReportLog::with('user')
                 ->where('entreprise_id', $entrepriseId)
-                ->when($succursaleId && Schema::hasColumn('report_logs', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+                ->when($succursaleId && schema_has_column('report_logs', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
                 ->latest()
                 ->take(50)
                 ->get(),
@@ -428,11 +427,11 @@ class RapportController extends Controller
         $cutoff = Carbon::parse($date)->startOfDay();
         $stocks = Stock::with('produit')
             ->where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && Schema::hasColumn('stocks', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('stocks', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->get();
 
         $mouvementsApres = MouvementStock::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && Schema::hasColumn('mouvement_stocks', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('mouvement_stocks', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->where('created_at', '>=', $cutoff)
             ->get()
             ->groupBy('produit_id');
@@ -469,9 +468,9 @@ class RapportController extends Controller
     private function calculerCaisseResume($entrepriseId, Carbon $debut, Carbon $fin, ?int $succursaleId = null)
     {
         $initial = null;
-        if (Schema::hasColumn('caisses', 'type_operation')) {
+        if (schema_has_column('caisses', 'type_operation')) {
             $initial = Caisse::where('entreprise_id', $entrepriseId)
-                ->when($succursaleId && Schema::hasColumn('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+                ->when($succursaleId && schema_has_column('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
                 ->where('type_operation', 'initial')
                 ->orderBy('created_at')
                 ->first();
@@ -480,20 +479,20 @@ class RapportController extends Controller
         $dateField = DB::raw('COALESCE(date_operation, created_at)');
 
         $entreesPeriode = Caisse::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && Schema::hasColumn('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->whereBetween($dateField, [$debut, $fin])
             ->sum('entree');
 
         $sortiesPeriode = Caisse::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && Schema::hasColumn('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->whereBetween($dateField, [$debut, $fin])
             ->sum('sortie');
 
         $entreesTotal = Caisse::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && Schema::hasColumn('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->sum('entree');
         $sortiesTotal = Caisse::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && Schema::hasColumn('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('caisses', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->sum('sortie');
 
         return [
@@ -526,7 +525,7 @@ class RapportController extends Controller
             'report_type' => $validated['report_type'],
             'report_date' => $validated['report_date'] ?? null,
         ];
-        if (Schema::hasColumn('report_logs', 'succursale_id')) {
+        if (schema_has_column('report_logs', 'succursale_id')) {
             $payload['succursale_id'] = $succursaleId;
         }
         ReportLog::create($payload);

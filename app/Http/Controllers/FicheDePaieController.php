@@ -19,7 +19,7 @@ class FicheDePaieController extends Controller
         // Récupérer les fiches de paie
         $fiches = FicheDePaie::with('employe')
             ->where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && \Illuminate\Support\Facades\Schema::hasColumn('employes', 'succursale_id'), function ($q) use ($succursaleId) {
+            ->when($succursaleId && schema_has_column('employes', 'succursale_id'), function ($q) use ($succursaleId) {
                 $q->whereHas('employe', fn($qe) => $qe->where('succursale_id', $succursaleId));
             })
             ->orderBy('created_at', 'desc')
@@ -27,7 +27,7 @@ class FicheDePaieController extends Controller
 
         // Récupérer tous les employés de l'entreprise pour le select
         $employes = Employe::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && \Illuminate\Support\Facades\Schema::hasColumn('employes', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('employes', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->get();
 
         return Inertia::render('FichesDePaie/Index', [
@@ -54,7 +54,7 @@ class FicheDePaieController extends Controller
 
         // Récupérer le salaire de base depuis l'employé
         $employeQuery = Employe::where('entreprise_id', $entrepriseId);
-        if ($succursaleId && \Illuminate\Support\Facades\Schema::hasColumn('employes', 'succursale_id')) {
+        if ($succursaleId && schema_has_column('employes', 'succursale_id')) {
             $employeQuery->where('succursale_id', $succursaleId);
         }
         $employe = $employeQuery->findOrFail($validated['employe_id']);

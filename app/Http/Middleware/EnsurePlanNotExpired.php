@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Models\Subscription;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsurePlanNotExpired
@@ -19,7 +20,11 @@ class EnsurePlanNotExpired
             return $next($request);
         }
 
-        $entreprise = $user->entreprise;
+        $eid = $user->entreprise_id;
+
+        $entreprise = Cache::remember("inertia.entreprise.{$eid}", 60,
+            fn () => $user->entreprise()->first()
+        );
 
         if (! $entreprise) {
             return $next($request);
@@ -35,10 +40,15 @@ class EnsurePlanNotExpired
                 'plan_expires_at' => null,
             ]);
 
+            Cache::forget("inertia.entreprise.{$eid}");
+
             Subscription::where('entreprise_id', $entreprise->id)
                 ->where('status', 'confirmed')
                 ->update(['status' => 'expired']);
         }
+
+        // Eager-load so HandleInertiaRequests reuses it without a second query
+        $user->setRelation('entreprise', $entreprise);
 
         return $next($request);
     }

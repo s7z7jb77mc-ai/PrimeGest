@@ -20,7 +20,6 @@ use App\Services\MouvementStockService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class MouvementStockController extends Controller
@@ -37,10 +36,10 @@ class MouvementStockController extends Controller
     {
         $entrepriseId    = auth()->user()->entreprise_id;
         $succursaleId    = session('succursale_id');
-        $hasStocks       = Schema::hasColumn('stocks', 'succursale_id');
-        $hasMouvements   = Schema::hasColumn('mouvement_stocks', 'succursale_id');
-        $hasClients      = Schema::hasColumn('clients', 'succursale_id');
-        $hasFournisseurs = Schema::hasColumn('fournisseurs', 'succursale_id');
+        $hasStocks       = schema_has_column('stocks', 'succursale_id');
+        $hasMouvements   = schema_has_column('mouvement_stocks', 'succursale_id');
+        $hasClients      = schema_has_column('clients', 'succursale_id');
+        $hasFournisseurs = schema_has_column('fournisseurs', 'succursale_id');
 
         // ── Aperçu stock ─────────────────────────────────────────────────
         // ✅ Dashboard central (pas de succursale active) :
@@ -163,8 +162,8 @@ class MouvementStockController extends Controller
         $succursaleId    = session('succursale_id');
         $parametres      = Parametre::where('entreprise_id', $entrepriseId)->first();
         $tauxReduction   = (float) ($parametres?->reduction_accordee ?? 0);
-        $hasClients      = Schema::hasColumn('clients', 'succursale_id');
-        $hasFournisseurs = Schema::hasColumn('fournisseurs', 'succursale_id');
+        $hasClients      = schema_has_column('clients', 'succursale_id');
+        $hasFournisseurs = schema_has_column('fournisseurs', 'succursale_id');
 
         $produit = Produit::where('entreprise_id', $entrepriseId)->findOrFail($validated['produit_id']);
 
@@ -202,7 +201,7 @@ class MouvementStockController extends Controller
                 $this->recordReductionUsage($entrepriseId, 'client', $client->id, $reductionUtilisee, (float) $client->reduction_accordee);
                 if ($resteAPayer > 0) {
                     $caisseData = ['entreprise_id' => $entrepriseId, 'description' => "Vente (réduction) : {$produit->nom}", 'date_operation' => now(), 'entree' => $resteAPayer, 'sortie' => 0];
-                    if (Schema::hasColumn('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
+                    if (schema_has_column('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
                     CaisseService::createOperation($caisseData);
                 }
             }
@@ -223,7 +222,7 @@ class MouvementStockController extends Controller
                 $this->recordReductionUsage($entrepriseId, 'fournisseur', $fournisseur->id, $reductionUtilisee, (float) $fournisseur->reduction_obtenue);
                 if ($resteAPayer > 0) {
                     $caisseData = ['entreprise_id' => $entrepriseId, 'description' => "Achat (réduction) : {$produit->nom}", 'date_operation' => now(), 'entree' => 0, 'sortie' => $resteAPayer];
-                    if (Schema::hasColumn('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
+                    if (schema_has_column('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
                     CaisseService::createOperation($caisseData);
                 }
             }
@@ -301,7 +300,7 @@ class MouvementStockController extends Controller
         $parametres    = Parametre::where('entreprise_id', $entrepriseId)->first();
         $tva           = (float) ($parametres?->tva ?? 0);
         $tauxReduction = (float) ($parametres?->reduction_accordee ?? 0);
-        $hasClients    = Schema::hasColumn('clients', 'succursale_id');
+        $hasClients    = schema_has_column('clients', 'succursale_id');
 
         $facture = DB::transaction(function () use ($validated, $entrepriseId, $succursaleId, $userId, $tva, $tauxReduction, $hasClients) {
             $totalTtc     = 0;
@@ -340,16 +339,16 @@ class MouvementStockController extends Controller
                 'date_facture'  => now(),
             ];
 
-            if (Schema::hasColumn('factures', 'succursale_id'))              $facturePayload['succursale_id']    = $succursaleId;
-            if ($client && Schema::hasColumn('factures', 'client_id'))       $facturePayload['client_id']        = $client->id;
-            if ($client && Schema::hasColumn('factures', 'client_nom'))      $facturePayload['client_nom']       = $client->nom_client;
-            if ($client && Schema::hasColumn('factures', 'client_telephone')) $facturePayload['client_telephone'] = $client->numero_telephone;
-            if (!Schema::hasColumn('factures', 'user_id'))  unset($facturePayload['user_id']);
+            if (schema_has_column('factures', 'succursale_id'))              $facturePayload['succursale_id']    = $succursaleId;
+            if ($client && schema_has_column('factures', 'client_id'))       $facturePayload['client_id']        = $client->id;
+            if ($client && schema_has_column('factures', 'client_nom'))      $facturePayload['client_nom']       = $client->nom_client;
+            if ($client && schema_has_column('factures', 'client_telephone')) $facturePayload['client_telephone'] = $client->numero_telephone;
+            if (!schema_has_column('factures', 'user_id'))  unset($facturePayload['user_id']);
             else                                             $facturePayload['user_id'] = $userId;
-            if (!Schema::hasColumn('factures', 'total_montant')) unset($facturePayload['total_montant']);
-            if (!Schema::hasColumn('factures', 'prix_hors_tva')) unset($facturePayload['prix_hors_tva']);
-            if (!Schema::hasColumn('factures', 'montant_paye'))  unset($facturePayload['montant_paye']);
-            if (!Schema::hasColumn('factures', 'date_facture'))  unset($facturePayload['date_facture']);
+            if (!schema_has_column('factures', 'total_montant')) unset($facturePayload['total_montant']);
+            if (!schema_has_column('factures', 'prix_hors_tva')) unset($facturePayload['prix_hors_tva']);
+            if (!schema_has_column('factures', 'montant_paye'))  unset($facturePayload['montant_paye']);
+            if (!schema_has_column('factures', 'date_facture'))  unset($facturePayload['date_facture']);
 
             $facture = Facture::create($facturePayload);
 
@@ -369,7 +368,7 @@ class MouvementStockController extends Controller
                     'prix_ttc'    => $prixTtc,
                     'total'       => $ligneTotalTtc,
                 ];
-                if (Schema::hasColumn('facture_lignes', 'succursale_id')) $lignePayload['succursale_id'] = $succursaleId;
+                if (schema_has_column('facture_lignes', 'succursale_id')) $lignePayload['succursale_id'] = $succursaleId;
                 FactureLigne::create($lignePayload);
 
                 $this->appliquerMouvementStock($entrepriseId, $produit, 'sortie', $quantite, $prixTtc, 'Vente - ' . ($produit->nom ?? 'Produit'), $userId, $paymentType);
@@ -380,8 +379,8 @@ class MouvementStockController extends Controller
             }
 
             $totauxPayload = ['total_ht' => $totalHt, 'total_tva' => $totalTva, 'total_ttc' => $totalTtc, 'total_montant' => $totalTtc, 'prix_hors_tva' => $totalHt];
-            if (!Schema::hasColumn('factures', 'total_montant')) unset($totauxPayload['total_montant']);
-            if (!Schema::hasColumn('factures', 'prix_hors_tva')) unset($totauxPayload['prix_hors_tva']);
+            if (!schema_has_column('factures', 'total_montant')) unset($totauxPayload['total_montant']);
+            if (!schema_has_column('factures', 'prix_hors_tva')) unset($totauxPayload['prix_hors_tva']);
             $facture->update($totauxPayload);
 
             if ($client) {
@@ -396,8 +395,8 @@ class MouvementStockController extends Controller
                     $this->recordReductionUsage($entrepriseId, 'client', $client->id, $reductionUtilisee, (float) $client->reduction_accordee);
                     if ($resteAPayer > 0) {
                         $caisseData = ['entreprise_id' => $entrepriseId, 'description' => "Vente (réduction) : {$client->nom_client}", 'date_operation' => now(), 'entree' => $resteAPayer, 'sortie' => 0];
-                        if (Schema::hasColumn('caisses', 'succursale_id')) $caisseData['succursale_id'] = $succursaleId;
-                        if (Schema::hasColumn('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
+                        if (schema_has_column('caisses', 'succursale_id')) $caisseData['succursale_id'] = $succursaleId;
+                        if (schema_has_column('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
                         CaisseService::createOperation($caisseData);
                     }
                 } else {
@@ -431,7 +430,7 @@ class MouvementStockController extends Controller
 
         $entrepriseId    = auth()->user()->entreprise_id;
         $succursaleId    = session('succursale_id');
-        $hasFournisseurs = Schema::hasColumn('fournisseurs', 'succursale_id');
+        $hasFournisseurs = schema_has_column('fournisseurs', 'succursale_id');
         $useReduction    = (bool) ($validated['use_reduction'] ?? false);
         $paymentType     = $useReduction ? 'reduction' : ($validated['payment_type'] ?? 'cash');
 
@@ -445,7 +444,7 @@ class MouvementStockController extends Controller
                 ->findOrFail($validated['fournisseur_id']);
 
             $bonPayload = ['entreprise_id' => $entrepriseId, 'fournisseur_id' => $fournisseur->id, 'total_montant' => 0, 'date_bon' => now(), 'payment_type' => $paymentType];
-            if (Schema::hasColumn('bon_entrees', 'succursale_id')) $bonPayload['succursale_id'] = $succursaleId;
+            if (schema_has_column('bon_entrees', 'succursale_id')) $bonPayload['succursale_id'] = $succursaleId;
             $bon   = BonEntree::create($bonPayload);
             $total = 0;
 
@@ -456,7 +455,7 @@ class MouvementStockController extends Controller
                 $ligneTotal   = $quantite * $prixUnitaire;
 
                 $lignePayload = ['bon_entree_id' => $bon->id, 'produit_id' => $produit->id, 'quantite' => $quantite, 'prix_unitaire' => $prixUnitaire, 'total' => $ligneTotal];
-                if (Schema::hasColumn('bon_entree_lignes', 'succursale_id')) $lignePayload['succursale_id'] = $succursaleId;
+                if (schema_has_column('bon_entree_lignes', 'succursale_id')) $lignePayload['succursale_id'] = $succursaleId;
                 BonEntreeLigne::create($lignePayload);
 
                 $this->appliquerMouvementStock($entrepriseId, $produit, 'entree', $quantite, $prixUnitaire, "Bon d'entrée " . $bon->numero, null, $paymentType);
@@ -476,8 +475,8 @@ class MouvementStockController extends Controller
                 $this->recordReductionUsage($entrepriseId, 'fournisseur', $fournisseur->id, $reductionUtilisee, (float) $fournisseur->reduction_obtenue);
                 if ($resteAPayer > 0) {
                     $caisseData = ['entreprise_id' => $entrepriseId, 'description' => "Achat (réduction) : {$fournisseur->nom_entreprise_fournisseur}", 'date_operation' => now(), 'entree' => 0, 'sortie' => $resteAPayer];
-                    if (Schema::hasColumn('caisses', 'succursale_id')) $caisseData['succursale_id'] = $succursaleId;
-                    if (Schema::hasColumn('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
+                    if (schema_has_column('caisses', 'succursale_id')) $caisseData['succursale_id'] = $succursaleId;
+                    if (schema_has_column('caisses', 'type_operation')) $caisseData['type_operation'] = 'auto';
                     CaisseService::createOperation($caisseData);
                 }
             } else {
@@ -517,14 +516,14 @@ class MouvementStockController extends Controller
     {
         $succursaleId = session('succursale_id');
         $payload = ['entreprise_id' => $entrepriseId, 'entity_type' => $entityType, 'entity_id' => $entityId, 'montant_utilise' => $utilise, 'reste_apres' => $reste];
-        if (Schema::hasColumn('reduction_usages', 'succursale_id')) $payload['succursale_id'] = $succursaleId;
+        if (schema_has_column('reduction_usages', 'succursale_id')) $payload['succursale_id'] = $succursaleId;
         ReductionUsage::create($payload);
     }
 
     private function archiverFacture(Facture $facture): void
     {
         $exists = Archive::where('entreprise_id', $facture->entreprise_id)
-            ->when(Schema::hasColumn('archives', 'succursale_id') && $facture->succursale_id, fn($q) => $q->where('succursale_id', $facture->succursale_id))
+            ->when(schema_has_column('archives', 'succursale_id') && $facture->succursale_id, fn($q) => $q->where('succursale_id', $facture->succursale_id))
             ->where('type', 'facture')
             ->whereDate('date_archive', $facture->date_facture ?? now())
             ->where('reference_id', (string) $facture->id)
@@ -547,14 +546,14 @@ class MouvementStockController extends Controller
                 'lignes' => $facture->lignes->map(fn($l) => ['designation' => $l->designation, 'quantite' => $l->quantite, 'prix_ttc' => $l->prix_ttc, 'total' => $l->total])->toArray(),
             ],
         ];
-        if (Schema::hasColumn('archives', 'succursale_id')) $archiveData['succursale_id'] = $facture->succursale_id;
+        if (schema_has_column('archives', 'succursale_id')) $archiveData['succursale_id'] = $facture->succursale_id;
         Archive::create($archiveData);
     }
 
     private function archiverBonEntree(BonEntree $bon): void
     {
         $exists = Archive::where('entreprise_id', $bon->entreprise_id)
-            ->when(Schema::hasColumn('archives', 'succursale_id') && $bon->succursale_id, fn($q) => $q->where('succursale_id', $bon->succursale_id))
+            ->when(schema_has_column('archives', 'succursale_id') && $bon->succursale_id, fn($q) => $q->where('succursale_id', $bon->succursale_id))
             ->where('type', 'bon_entree')
             ->whereDate('date_archive', $bon->date_bon ?? now())
             ->where('reference_id', (string) $bon->id)
@@ -574,7 +573,7 @@ class MouvementStockController extends Controller
                 'lignes' => $bon->lignes->map(fn($l) => ['designation' => $l->produit?->nom ?? 'Produit', 'quantite' => $l->quantite, 'prix_unitaire' => $l->prix_unitaire, 'total' => $l->total])->toArray(),
             ],
         ];
-        if (Schema::hasColumn('archives', 'succursale_id')) $archiveData['succursale_id'] = $bon->succursale_id;
+        if (schema_has_column('archives', 'succursale_id')) $archiveData['succursale_id'] = $bon->succursale_id;
         Archive::create($archiveData);
     }
 }

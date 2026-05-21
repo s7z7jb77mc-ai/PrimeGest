@@ -31,41 +31,49 @@ class DashboardController extends Controller
 
         // ── Schema checks — mis en cache 24h (ne changent jamais en prod) ──
         $schemaFlags = Cache::remember("schema_flags_{$entrepriseId}", 86400, fn () => [
-            'stocks' => \Schema::hasColumn('stocks', 'succursale_id'),
-            'mouvement_stocks' => \Schema::hasColumn('mouvement_stocks', 'succursale_id'),
-            'caisses' => \Schema::hasColumn('caisses', 'succursale_id'),
-            'journals' => \Schema::hasColumn('journals', 'succursale_id'),
-            'report_logs' => \Schema::hasColumn('report_logs', 'succursale_id'),
-            'factures' => \Schema::hasColumn('factures', 'succursale_id'),
+            'stocks' => schema_has_column('stocks', 'succursale_id'),
+            'mouvement_stocks' => schema_has_column('mouvement_stocks', 'succursale_id'),
+            'caisses' => schema_has_column('caisses', 'succursale_id'),
+            'journals' => schema_has_column('journals', 'succursale_id'),
+            'report_logs' => schema_has_column('report_logs', 'succursale_id'),
+            'factures' => schema_has_column('factures', 'succursale_id'),
         ]);
 
         $hasSuccursales = Cache::remember("has_succursales_{$entrepriseId}", 300,
             fn () => Succursale::where('entreprise_id', $entrepriseId)->exists()
         );
 
-        // ── KPIs — SUM en SQL, pas en PHP ────────────────────────────────
-        $totalStock = Stock::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && $schemaFlags['stocks'],
-                fn ($q) => $q->where('succursale_id', $succursaleId))
-            ->selectRaw('SUM(quantite * COALESCE(prix_vente, 0)) as total')
-            ->value('total') ?? 0;
+        // ── KPIs — SUM en SQL, mis en cache 2 min ────────────────────────
+        $kpiKey = "dashboard.kpis.{$entrepriseId}.".($succursaleId ?? 'all');
+        [$totalStock, $totalVentes, $totalDepenses, $pendingFactures] = Cache::remember(
+            $kpiKey, 120,
+            function () use ($entrepriseId, $succursaleId, $schemaFlags) {
+                $stock = Stock::where('entreprise_id', $entrepriseId)
+                    ->when($succursaleId && $schemaFlags['stocks'],
+                        fn ($q) => $q->where('succursale_id', $succursaleId))
+                    ->selectRaw('SUM(quantite * COALESCE(prix_vente, 0)) as total')
+                    ->value('total') ?? 0;
 
-        $totalVentes = MouvementStock::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && $schemaFlags['mouvement_stocks'],
-                fn ($q) => $q->where('succursale_id', $succursaleId))
-            ->where('type', 'sortie')
-            ->sum(DB::raw('quantite * prix_unitaire'));
+                $ventes = MouvementStock::where('entreprise_id', $entrepriseId)
+                    ->when($succursaleId && $schemaFlags['mouvement_stocks'],
+                        fn ($q) => $q->where('succursale_id', $succursaleId))
+                    ->where('type', 'sortie')
+                    ->sum(DB::raw('quantite * prix_unitaire'));
 
-        $totalDepenses = Caisse::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && $schemaFlags['caisses'],
-                fn ($q) => $q->where('succursale_id', $succursaleId))
-            ->sum('sortie');
+                $depenses = Caisse::where('entreprise_id', $entrepriseId)
+                    ->when($succursaleId && $schemaFlags['caisses'],
+                        fn ($q) => $q->where('succursale_id', $succursaleId))
+                    ->sum('sortie');
 
-        $pendingFactures = Facture::where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && $schemaFlags['factures'],
-                fn ($q) => $q->where('succursale_id', $succursaleId))
-            ->where('statut', 'en_attente')
-            ->count();
+                $pending = Facture::where('entreprise_id', $entrepriseId)
+                    ->when($succursaleId && $schemaFlags['factures'],
+                        fn ($q) => $q->where('succursale_id', $succursaleId))
+                    ->where('statut', 'en_attente')
+                    ->count();
+
+                return [$stock, $ventes, $depenses, $pending];
+            }
+        );
 
         // ── Activités récentes — eager load succursales en une requête ────
         $succursalesMap = $hasSuccursales
@@ -169,8 +177,10 @@ class DashboardController extends Controller
                 'montant' => (float) $m->total_montant,
             ]);
 
-        // ── Paramètres ────────────────────────────────────────────────────
-        $parametres = Parametre::where('entreprise_id', $entrepriseId)->first();
+        // ── Paramètres — réutilise le cache d'HandleInertiaRequests ─────────
+        $parametres = Cache::remember("inertia.parametres.{$entrepriseId}", 300,
+            fn () => Parametre::where('entreprise_id', $entrepriseId)->first()
+        );
         $devise = $parametres?->devise ?? 'CDF';
         $entrepriseName = $parametres?->nom_entreprise ?? $user->entreprise?->name ?? 'Entreprise';
         $langue = $parametres?->langue ?? 'fr';
@@ -205,7 +215,7 @@ class DashboardController extends Controller
                 ])->values();
         }
 
-        // ── Graphiques — GROUP BY SQL ─────────────────────────────────────
+        // ── Graphiques — GROUP BY SQL, mis en cache 5 min ────────────────
         $year = Carbon::now()->year;
         $monthStart = Carbon::now()->startOfMonth();
         $monthEnd = Carbon::now()->endOfMonth();
@@ -221,51 +231,57 @@ class DashboardController extends Controller
             default => 'DAY(created_at)',
         };
 
-        // Mensuel — une seule requête pour ventes + achats
-        $monthlyData = MouvementStock::selectRaw("{$monthExpression} as mois, type, SUM(quantite * prix_unitaire) as total")
-            ->where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && $schemaFlags['mouvement_stocks'],
-                fn ($q) => $q->where('succursale_id', $succursaleId))
-            ->whereYear('created_at', $year)
-            ->whereIn('type', ['sortie', 'entree'])
-            ->groupBy('mois', 'type')
-            ->get()
-            ->groupBy('type');
+        $chartKey = "dashboard.charts.{$entrepriseId}.".($succursaleId ?? 'all').".{$year}.".Carbon::now()->format('Ym');
+        [$monthlyChart, $dailyChart] = Cache::remember($chartKey, 300, function () use (
+            $entrepriseId, $succursaleId, $schemaFlags, $year, $monthStart, $monthEnd,
+            $monthExpression, $dayExpression
+        ) {
+            $monthlyData = MouvementStock::selectRaw("{$monthExpression} as mois, type, SUM(quantite * prix_unitaire) as total")
+                ->where('entreprise_id', $entrepriseId)
+                ->when($succursaleId && $schemaFlags['mouvement_stocks'],
+                    fn ($q) => $q->where('succursale_id', $succursaleId))
+                ->whereYear('created_at', $year)
+                ->whereIn('type', ['sortie', 'entree'])
+                ->groupBy('mois', 'type')
+                ->get()
+                ->groupBy('type');
 
-        $salesByMonth = $monthlyData->get('sortie', collect())->pluck('total', 'mois');
-        $purchasesByMonth = $monthlyData->get('entree', collect())->pluck('total', 'mois');
+            $salesByMonth = $monthlyData->get('sortie', collect())->pluck('total', 'mois');
+            $purchasesByMonth = $monthlyData->get('entree', collect())->pluck('total', 'mois');
 
-        $months = collect(range(1, 12));
-        $monthlyChart = [
-            'labels' => $months->map(fn ($m) => Carbon::create($year, $m, 1)->translatedFormat('M'))->values(),
-            'sales' => $months->map(fn ($m) => (float) ($salesByMonth[$m] ?? 0))->values(),
-            'purchases' => $months->map(fn ($m) => (float) ($purchasesByMonth[$m] ?? 0))->values(),
-            'year' => $year,
-        ];
+            $months = collect(range(1, 12));
+            $monthly = [
+                'labels' => $months->map(fn ($m) => Carbon::create($year, $m, 1)->translatedFormat('M'))->values(),
+                'sales' => $months->map(fn ($m) => (float) ($salesByMonth[$m] ?? 0))->values(),
+                'purchases' => $months->map(fn ($m) => (float) ($purchasesByMonth[$m] ?? 0))->values(),
+                'year' => $year,
+            ];
 
-        // Journalier — une seule requête
-        $dailyData = MouvementStock::selectRaw("{$dayExpression} as jour, type, SUM(quantite * prix_unitaire) as total")
-            ->where('entreprise_id', $entrepriseId)
-            ->when($succursaleId && $schemaFlags['mouvement_stocks'],
-                fn ($q) => $q->where('succursale_id', $succursaleId))
-            ->whereBetween('created_at', [$monthStart, $monthEnd])
-            ->whereIn('type', ['sortie', 'entree'])
-            ->groupBy('jour', 'type')
-            ->get()
-            ->groupBy('type');
+            $dailyData = MouvementStock::selectRaw("{$dayExpression} as jour, type, SUM(quantite * prix_unitaire) as total")
+                ->where('entreprise_id', $entrepriseId)
+                ->when($succursaleId && $schemaFlags['mouvement_stocks'],
+                    fn ($q) => $q->where('succursale_id', $succursaleId))
+                ->whereBetween('created_at', [$monthStart, $monthEnd])
+                ->whereIn('type', ['sortie', 'entree'])
+                ->groupBy('jour', 'type')
+                ->get()
+                ->groupBy('type');
 
-        $salesByDay = $dailyData->get('sortie', collect())->pluck('total', 'jour');
-        $purchasesByDay = $dailyData->get('entree', collect())->pluck('total', 'jour');
+            $salesByDay = $dailyData->get('sortie', collect())->pluck('total', 'jour');
+            $purchasesByDay = $dailyData->get('entree', collect())->pluck('total', 'jour');
 
-        $daysInMonth = (int) $monthEnd->format('j');
-        $days = collect(range(1, $daysInMonth));
-        $dailyChart = [
-            'labels' => $days->map(fn ($d) => str_pad($d, 2, '0', STR_PAD_LEFT))->values(),
-            'sales' => $days->map(fn ($d) => (float) ($salesByDay[$d] ?? 0))->values(),
-            'purchases' => $days->map(fn ($d) => (float) ($purchasesByDay[$d] ?? 0))->values(),
-            'month' => $monthStart->translatedFormat('F'),
-            'year' => $monthStart->year,
-        ];
+            $daysInMonth = (int) $monthEnd->format('j');
+            $days = collect(range(1, $daysInMonth));
+            $daily = [
+                'labels' => $days->map(fn ($d) => str_pad($d, 2, '0', STR_PAD_LEFT))->values(),
+                'sales' => $days->map(fn ($d) => (float) ($salesByDay[$d] ?? 0))->values(),
+                'purchases' => $days->map(fn ($d) => (float) ($purchasesByDay[$d] ?? 0))->values(),
+                'month' => $monthStart->translatedFormat('F'),
+                'year' => $monthStart->year,
+            ];
+
+            return [$monthly, $daily];
+        });
 
         // ── Succursale active ─────────────────────────────────────────────
         $succursaleName = $succursaleId

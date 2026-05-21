@@ -4,7 +4,6 @@ namespace App\Support;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 
 class SuccursaleContext
 {
@@ -21,7 +20,7 @@ class SuccursaleContext
 
         if (! array_key_exists($table, $cache)) {
             try {
-                $cache[$table] = Schema::hasTable($table) && Schema::hasColumn($table, 'succursale_id');
+                $cache[$table] = schema_has_table($table) && schema_has_column($table, 'succursale_id');
             } catch (\Throwable) {
                 $cache[$table] = false;
             }

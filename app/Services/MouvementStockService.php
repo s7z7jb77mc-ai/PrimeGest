@@ -7,7 +7,6 @@ use App\Models\Produit;
 use App\Models\Stock;
 use App\Support\SuccursaleContext;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class MouvementStockService
@@ -31,8 +30,8 @@ class MouvementStockService
         $prixUnitaireFinal = $prixUnitaire ?? ($type === 'entree' ? $produit->prix_achat : $produit->prix_vente);
         $prixTotal = $quantite * $prixUnitaireFinal;
         $effectiveSuccursaleId = $succursaleId ?? SuccursaleContext::currentId();
-        $hasMouvements = Schema::hasColumn('mouvement_stocks', 'succursale_id');
-        $hasStocks = Schema::hasColumn('stocks', 'succursale_id');
+        $hasMouvements = schema_has_column('mouvement_stocks', 'succursale_id');
+        $hasStocks = schema_has_column('stocks', 'succursale_id');
 
         $payload = [
             'entreprise_id' => $entrepriseId,
@@ -49,11 +48,11 @@ class MouvementStockService
             $payload['succursale_id'] = $effectiveSuccursaleId;
         }
 
-        if (Schema::hasColumn('mouvement_stocks', 'nom_produit')) {
+        if (schema_has_column('mouvement_stocks', 'nom_produit')) {
             $payload['nom_produit'] = $produit->nom ?? $produit->designation ?? 'Produit';
         }
 
-        if (Schema::hasColumn('mouvement_stocks', 'payment_type')) {
+        if (schema_has_column('mouvement_stocks', 'payment_type')) {
             $payload['payment_type'] = $paymentType ?: 'cash';
         }
 

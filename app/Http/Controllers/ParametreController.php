@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\Succursale;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ParametreController extends Controller
@@ -119,7 +118,7 @@ class ParametreController extends Controller
                     'errors' => ['logo' => ['Le fichier logo n’a pas été reçu par le serveur. Essayez un fichier plus petit.']]
                 ], 422);
             }
-            if (!Schema::hasColumn('parametres', 'logo_position')) {
+            if (!schema_has_column('parametres', 'logo_position')) {
                 unset($validated['logo_position']);
             }
 
@@ -210,7 +209,7 @@ class ParametreController extends Controller
                     'errors' => ['logo' => ['Le fichier logo n’a pas été reçu par le serveur. Essayez un fichier plus petit.']]
                 ], 422);
             }
-            if (!Schema::hasColumn('parametres', 'logo_position')) {
+            if (!schema_has_column('parametres', 'logo_position')) {
                 unset($validated['logo_position']);
             }
             $parametre->update($validated);
@@ -245,10 +244,10 @@ class ParametreController extends Controller
         $file->move($destination, $filename);
         $path = 'logos/' . $filename;
 
-        if (Schema::hasColumn('parametres', 'logo_path')) {
+        if (schema_has_column('parametres', 'logo_path')) {
             $validated['logo_path'] = $path;
         }
-        if (Schema::hasColumn('parametres', 'logo')) {
+        if (schema_has_column('parametres', 'logo')) {
             $validated['logo'] = $path;
         }
     }

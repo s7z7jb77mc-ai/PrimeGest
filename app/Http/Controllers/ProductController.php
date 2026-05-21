@@ -8,7 +8,6 @@ use App\Models\Succursale;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
@@ -26,7 +25,7 @@ class ProductController extends Controller
         // ✅ Si une succursale est active, on ne retourne que les produits
         // qui ont un stock associé à cette succursale (produits connus de la succursale).
         // Au dashboard central, on retourne tous les produits de l'entreprise.
-        if ($succursaleId && Schema::hasColumn('stocks', 'succursale_id')) {
+        if ($succursaleId && schema_has_column('stocks', 'succursale_id')) {
             $produitIds = Stock::where('entreprise_id', $entrepriseId)
                 ->where('succursale_id', $succursaleId)
                 ->pluck('produit_id');

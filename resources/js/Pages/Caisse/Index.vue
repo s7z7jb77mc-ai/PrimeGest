@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
 
 const offlineStore = useOfflineStore()
+const localDB = useLocalDB()
+const localCaisses = ref<any[]>([])
+
+async function loadLocalCaisses() {
+    localCaisses.value = await localDB.getCaisses()
+}
+
+onMounted(async () => {
+    if (!offlineStore.isOnline) await loadLocalCaisses()
+    window.addEventListener('primegest:sync-pulled', loadLocalCaisses)
+})
 
 interface CaisseItem {
   id: number
@@ -30,13 +42,17 @@ const props = defineProps<{
   succursale_id?: number | null
 }>()
 
-// Calculs des totaux
-const totalEntree = computed(() => 
-  props.caisses.reduce((sum: number, c: CaisseItem) => sum + (Number(c.entree) || 0), 0)
+const displayCaisses = computed<CaisseItem[]>(() =>
+    offlineStore.isOnline ? props.caisses : (localCaisses.value as CaisseItem[])
 )
 
-const totalSortie = computed(() => 
-  props.caisses.reduce((sum: number, c: CaisseItem) => sum + (Number(c.sortie) || 0), 0)
+// Calculs des totaux
+const totalEntree = computed(() =>
+  displayCaisses.value.reduce((sum: number, c: CaisseItem) => sum + (Number(c.entree) || 0), 0)
+)
+
+const totalSortie = computed(() =>
+  displayCaisses.value.reduce((sum: number, c: CaisseItem) => sum + (Number(c.sortie) || 0), 0)
 )
 
 const soldeTotal = computed(() => totalEntree.value - totalSortie.value)
@@ -121,7 +137,7 @@ function goDashboard(): void {
 
 // Calculer le solde cumulé pour chaque ligne
 function getSoldeAtIndex(index: number): number {
-  return Number(props.caisses[index]?.solde_cumule || 0)
+  return Number(displayCaisses.value[index]?.solde_cumule || 0)
 }
 
 function formatDateTime(value?: string | null): string {
@@ -263,8 +279,8 @@ function formatDateTime(value?: string | null): string {
             <th class="px-4 py-2 text-right">Solde</th>
           </tr>
         </thead>
-        <tbody v-if="caisses.length">
-          <tr v-for="(c, index) in caisses" :key="c.id" class="border-t hover:bg-gray-50">
+        <tbody v-if="displayCaisses.length">
+          <tr v-for="(c, index) in displayCaisses" :key="c.id" class="border-t hover:bg-gray-50">
             <td class="px-4 py-2">
               {{ formatDateTime(c.date_operation || c.created_at) }}
             </td>

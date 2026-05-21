@@ -157,7 +157,7 @@ export interface QueryOptions {
     includeDeleted?: boolean
 }
 
-// ── Fonction générique de lecture ──────────────────────────────────────────────
+// ── Lecture Tauri (SQLite via invoke) ─────────────────────────────────────────
 
 async function queryLocal<T>(entity: string, opts: QueryOptions = {}): Promise<T[]> {
     if (!isTauri) return []
@@ -176,8 +176,6 @@ async function queryLocal<T>(entity: string, opts: QueryOptions = {}): Promise<T
     }
 }
 
-// ── Agrégats ───────────────────────────────────────────────────────────────────
-
 async function queryAggregate(entity: string, aggregate: string): Promise<Record<string, number>> {
     if (!isTauri) return {}
     try {
@@ -191,32 +189,81 @@ async function queryAggregate(entity: string, aggregate: string): Promise<Record
     }
 }
 
+// ── Lecture Dexie (IndexedDB web) ─────────────────────────────────────────────
+
+async function dexieQuery<T>(table: any, opts: QueryOptions = {}): Promise<T[]> {
+    try {
+        let collection = table.filter((row: any) => !row.deleted_at)
+        const all: T[] = await collection.toArray()
+        const limit = opts.limit ?? 200
+        const offset = opts.offset ?? 0
+        let result = all.slice(offset, offset + limit)
+        if (opts.search) {
+            const q = opts.search.toLowerCase()
+            result = result.filter((row: any) =>
+                Object.values(row).some(v => String(v ?? '').toLowerCase().includes(q))
+            )
+        }
+        return result
+    } catch (e) {
+        console.warn('[LocalDB] Erreur Dexie:', e)
+        return []
+    }
+}
+
 // ── API publique ───────────────────────────────────────────────────────────────
 
 export function useLocalDB() {
+    // Disponible dans Tauri ET dans le navigateur web (via Dexie)
+    const isAvailable = true
+
+    if (isTauri) {
+        return {
+            isAvailable,
+            getProduits:       (opts?: QueryOptions) => queryLocal<ProduitLocal>('produits', opts),
+            getClients:        (opts?: QueryOptions) => queryLocal<ClientLocal>('clients', opts),
+            getFournisseurs:   (opts?: QueryOptions) => queryLocal<FournisseurLocal>('fournisseurs', opts),
+            getFactures:       (opts?: QueryOptions) => queryLocal<FactureLocal>('factures', opts),
+            getMouvementsStock:(opts?: QueryOptions) => queryLocal<MouvementStockLocal>('mouvement_stocks', opts),
+            getJournals:       (opts?: QueryOptions) => queryLocal<JournalLocal>('journals', opts),
+            getEmployes:       (opts?: QueryOptions) => queryLocal<EmployeLocal>('employes', opts),
+            getSuccursales:    (opts?: QueryOptions) => queryLocal<SuccursaleLocal>('succursales', opts),
+            getCaisses:        (opts?: QueryOptions) => queryLocal<CaisseLocal>('caisses', opts),
+            getParametres:     (opts?: QueryOptions) => queryLocal<ParametreLocal>('parametres', opts),
+            getTransferts:     (opts?: QueryOptions) => queryLocal<any>('transferts', opts),
+            getProduitsCount:     () => queryAggregate('produits', 'count'),
+            getValeurStock:       () => queryAggregate('produits', 'valeur_stock'),
+            getFacturesTotaux:    () => queryAggregate('factures', 'totaux'),
+            getJournalSumByType:  () => queryAggregate('journals', 'sum_by_type'),
+            getMouvementsSumByType:() => queryAggregate('mouvement_stocks', 'sum_by_type'),
+            getClientsCount:      () => queryAggregate('clients', 'count'),
+            getEmployesCount:     () => queryAggregate('employes', 'count'),
+        }
+    }
+
+    // Web PWA — lecture depuis Dexie
+    // Import dynamique pour éviter que Dexie soit bundlé dans le SW
+    const getDexieDB = () => import('@/db/primegest').then(m => m.db)
+
     return {
-        /** Indique si on est dans Tauri (local DB disponible) */
-        isAvailable: isTauri,
-
-        // Lectures typées par entité
-        getProduits: (opts?: QueryOptions) => queryLocal<ProduitLocal>('produits', opts),
-        getClients: (opts?: QueryOptions) => queryLocal<ClientLocal>('clients', opts),
-        getFournisseurs: (opts?: QueryOptions) => queryLocal<FournisseurLocal>('fournisseurs', opts),
-        getFactures: (opts?: QueryOptions) => queryLocal<FactureLocal>('factures', opts),
-        getMouvementsStock: (opts?: QueryOptions) => queryLocal<MouvementStockLocal>('mouvement_stocks', opts),
-        getJournals: (opts?: QueryOptions) => queryLocal<JournalLocal>('journals', opts),
-        getEmployes: (opts?: QueryOptions) => queryLocal<EmployeLocal>('employes', opts),
-        getSuccursales: (opts?: QueryOptions) => queryLocal<SuccursaleLocal>('succursales', opts),
-        getCaisses: (opts?: QueryOptions) => queryLocal<CaisseLocal>('caisses', opts),
-        getParametres: (opts?: QueryOptions) => queryLocal<ParametreLocal>('parametres', opts),
-
-        // Agrégats pour le dashboard
-        getProduitsCount: () => queryAggregate('produits', 'count'),
-        getValeurStock: () => queryAggregate('produits', 'valeur_stock'),
-        getFacturesTotaux: () => queryAggregate('factures', 'totaux'),
-        getJournalSumByType: () => queryAggregate('journals', 'sum_by_type'),
-        getMouvementsSumByType: () => queryAggregate('mouvement_stocks', 'sum_by_type'),
-        getClientsCount: () => queryAggregate('clients', 'count'),
-        getEmployesCount: () => queryAggregate('employes', 'count'),
+        isAvailable,
+        getProduits:       async (opts?: QueryOptions) => dexieQuery<ProduitLocal>((await getDexieDB()).produits, opts),
+        getClients:        async (opts?: QueryOptions) => dexieQuery<ClientLocal>((await getDexieDB()).clients, opts),
+        getFournisseurs:   async (opts?: QueryOptions) => dexieQuery<FournisseurLocal>((await getDexieDB()).fournisseurs, opts),
+        getFactures:       async (_opts?: QueryOptions) => [] as FactureLocal[],
+        getMouvementsStock:async (opts?: QueryOptions) => dexieQuery<MouvementStockLocal>((await getDexieDB()).mouvement_stocks, opts),
+        getJournals:       async (opts?: QueryOptions) => dexieQuery<JournalLocal>((await getDexieDB()).journals, opts),
+        getEmployes:       async (_opts?: QueryOptions) => [] as EmployeLocal[],
+        getSuccursales:    async (opts?: QueryOptions) => dexieQuery<SuccursaleLocal>((await getDexieDB()).succursales, opts),
+        getCaisses:        async (opts?: QueryOptions) => dexieQuery<CaisseLocal>((await getDexieDB()).caisses, opts),
+        getParametres:     async (_opts?: QueryOptions) => [] as ParametreLocal[],
+        getTransferts:     async (opts?: QueryOptions) => dexieQuery<any>((await getDexieDB()).transferts, opts),
+        getProduitsCount:      async () => ({} as Record<string, number>),
+        getValeurStock:        async () => ({} as Record<string, number>),
+        getFacturesTotaux:     async () => ({} as Record<string, number>),
+        getJournalSumByType:   async () => ({} as Record<string, number>),
+        getMouvementsSumByType:async () => ({} as Record<string, number>),
+        getClientsCount:       async () => ({} as Record<string, number>),
+        getEmployesCount:      async () => ({} as Record<string, number>),
     }
 }

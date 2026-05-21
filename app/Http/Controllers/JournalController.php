@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Models\Caisse;
 use App\Services\CaisseService;
 
@@ -26,7 +25,7 @@ class JournalController extends Controller
 
         $journals = Journal::where('entreprise_id', $entrepriseId)
             ->when(
-                Schema::hasColumn('journals', 'succursale_id') && $succursaleId,
+                schema_has_column('journals', 'succursale_id') && $succursaleId,
                 fn($q) => $q->where('succursale_id', $succursaleId)
             )
             ->whereDate('dateHeure_operation', $today)
@@ -35,7 +34,7 @@ class JournalController extends Controller
 
         // ✅ Au dashboard central (pas de succursale active), préfixer
         // chaque description par le nom de la succursale concernée.
-        if (!$succursaleId && Schema::hasColumn('journals', 'succursale_id')) {
+        if (!$succursaleId && schema_has_column('journals', 'succursale_id')) {
             // Charger les noms de succursales en une seule requête
             $succursaleIds = $journals->pluck('succursale_id')->filter()->unique()->values();
             $succursales   = Succursale::whereIn('id', $succursaleIds)
@@ -104,7 +103,7 @@ class JournalController extends Controller
             // ✅ Préfixer la description par le nom de la succursale
             // pour que les opérations soient identifiables depuis le central
             $description = $data['description'] ?? null;
-            if ($succursaleId && Schema::hasColumn('journals', 'succursale_id')) {
+            if ($succursaleId && schema_has_column('journals', 'succursale_id')) {
                 $nomSucc = Succursale::where('id', $succursaleId)
                     ->where('entreprise_id', $entrepriseId)
                     ->value('nom');
@@ -123,10 +122,10 @@ class JournalController extends Controller
                 'description'         => $description,
                 'montant'             => $data['montant'],
             ];
-            if (Schema::hasColumn('journals', 'succursale_id')) {
+            if (schema_has_column('journals', 'succursale_id')) {
                 $payload['succursale_id'] = $succursaleId;
             }
-            if (Schema::hasColumn('journals', 'user_id')) {
+            if (schema_has_column('journals', 'user_id')) {
                 $payload['user_id'] = auth()->id();
             }
 
@@ -143,10 +142,10 @@ class JournalController extends Controller
                     'entree'         => $entree,
                     'sortie'         => $sortie,
                 ];
-                if (Schema::hasColumn('caisses', 'succursale_id')) {
+                if (schema_has_column('caisses', 'succursale_id')) {
                     $caisseData['succursale_id'] = $succursaleId;
                 }
-                if (Schema::hasColumn('caisses', 'type_operation')) {
+                if (schema_has_column('caisses', 'type_operation')) {
                     $caisseData['type_operation'] = 'journal';
                 }
                 CaisseService::createOperation($caisseData);
@@ -174,7 +173,7 @@ class JournalController extends Controller
         $succursaleId = session('succursale_id');
 
         // ✅ Préfixer par le nom de la succursale si applicable
-        if ($succursaleId && Schema::hasColumn('journals', 'succursale_id')) {
+        if ($succursaleId && schema_has_column('journals', 'succursale_id')) {
             $nomSucc = Succursale::where('id', $succursaleId)
                 ->where('entreprise_id', $entrepriseId)
                 ->value('nom');
@@ -191,7 +190,7 @@ class JournalController extends Controller
             'description'         => $description,
             'montant'             => $montant,
         ];
-        if (Schema::hasColumn('journals', 'succursale_id')) {
+        if (schema_has_column('journals', 'succursale_id')) {
             $payload['succursale_id'] = $succursaleId;
         }
         return Journal::create($payload);

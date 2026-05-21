@@ -1,15 +1,31 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
 
 const offlineStore = useOfflineStore()
+const localDB = useLocalDB()
+const localSuccursales = ref<any[]>([])
+
+async function loadLocalSuccursales() {
+    localSuccursales.value = await localDB.getSuccursales()
+}
+
+onMounted(async () => {
+    if (!offlineStore.isOnline) await loadLocalSuccursales()
+    window.addEventListener('primegest:sync-pulled', loadLocalSuccursales)
+})
 
 const props = defineProps({
   succursales: { type: Array, default: () => [] },
 })
+
+const displaySuccursales = computed<any[]>(() =>
+    offlineStore.isOnline ? (props.succursales as any[]) : localSuccursales.value
+)
 
 const page = usePage()
 const user = computed(() => {
@@ -144,7 +160,7 @@ const confirmDelete = async () => {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div v-for="s in props.succursales" :key="s.id" class="bg-white shadow rounded p-4">
+      <div v-for="s in displaySuccursales" :key="s.id" class="bg-white shadow rounded p-4">
         <div class="text-lg font-semibold">{{ s.nom }}</div>
         <div class="text-sm text-gray-600">{{ s.adresse || '-' }}</div>
         <div class="text-sm text-gray-600 mt-1">Manager: {{ s.manager || '-' }}</div>
@@ -165,7 +181,7 @@ const confirmDelete = async () => {
           </button>
         </div>
       </div>
-      <div v-if="!props.succursales.length" class="text-gray-400">Aucune succursale enregistrée.</div>
+      <div v-if="!displaySuccursales.length" class="text-gray-400">Aucune succursale enregistrée.</div>
     </div>
 
     <div v-if="modalOpen" class="fixed inset-0 bg-black/50 flex items-center justify-center">

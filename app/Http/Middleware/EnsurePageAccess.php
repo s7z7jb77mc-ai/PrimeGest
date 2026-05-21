@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Succursale;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsurePageAccess
@@ -92,9 +93,13 @@ class EnsurePageAccess
         $succursaleId = session('succursale_id');
         if ($succursaleId) {
             try {
-                $succursale = Succursale::where('id', $succursaleId)
-                    ->where('entreprise_id', $user->entreprise_id)
-                    ->first();
+                $succursale = Cache::remember(
+                    "inertia.succursale_obj.{$user->entreprise_id}.{$succursaleId}",
+                    120,
+                    fn () => Succursale::where('id', $succursaleId)
+                        ->where('entreprise_id', $user->entreprise_id)
+                        ->first()
+                );
             } catch (\Throwable) {
                 $succursale = null;
             }

@@ -8,7 +8,6 @@ use App\Models\FactureLigne;
 use App\Models\Produit;
 use App\Models\Parametre;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class FactureController extends Controller
@@ -25,7 +24,7 @@ class FactureController extends Controller
         $factures = Facture::with('lignes')
             ->where('entreprise_id', $entrepriseId)
             ->when(
-                Schema::hasColumn('factures', 'succursale_id') && $succursaleId,
+                schema_has_column('factures', 'succursale_id') && $succursaleId,
                 fn($q) => $q->where('succursale_id', $succursaleId)
             )
             ->orderByDesc('date_facture')
@@ -61,7 +60,7 @@ class FactureController extends Controller
                 'date_facture'  => $request->date_facture ?? now(),
             ];
 
-            if (Schema::hasColumn('factures', 'succursale_id')) {
+            if (schema_has_column('factures', 'succursale_id')) {
                 $payload['succursale_id'] = $succursaleId;
             }
 
@@ -80,7 +79,7 @@ class FactureController extends Controller
                     'prix_ttc'    => $produit->prix_ttc,
                 ];
 
-                if (Schema::hasColumn('facture_lignes', 'succursale_id')) {
+                if (schema_has_column('facture_lignes', 'succursale_id')) {
                     $lignePayload['succursale_id'] = $succursaleId;
                 }
 
@@ -138,14 +137,14 @@ class FactureController extends Controller
 
         $query = Facture::where('entreprise_id', $entrepriseId)
             ->when(
-                Schema::hasColumn('factures', 'succursale_id') && $succursaleId,
+                schema_has_column('factures', 'succursale_id') && $succursaleId,
                 fn($q) => $q->where('succursale_id', $succursaleId)
             );
 
         if ($clientPhone !== '') {
-            if (Schema::hasColumn('factures', 'client_telephone')) {
+            if (schema_has_column('factures', 'client_telephone')) {
                 $query->where('client_telephone', 'like', "%{$clientPhone}%");
-            } elseif (Schema::hasColumn('factures', 'client_id')) {
+            } elseif (schema_has_column('factures', 'client_id')) {
                 $query->whereHas('client', fn($q) => $q->where('numero_telephone', 'like', "%{$clientPhone}%"));
             }
         }

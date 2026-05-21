@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Archive;
 use App\Models\Journal;
 use App\Models\MouvementStock;
-use Illuminate\Support\Facades\Schema;
 
 class MouvementStockWorkflowService
 {
@@ -45,7 +44,7 @@ class MouvementStockWorkflowService
             'description' => $label . " : {$produit->nom} - Quantité: {$mouvement->quantite}",
             'montant' => $montantTotal,
         ];
-        if (Schema::hasColumn('journals', 'succursale_id')) {
+        if (schema_has_column('journals', 'succursale_id')) {
             $journalData['succursale_id'] = $mouvement->succursale_id;
         }
         Journal::create($journalData);
@@ -62,10 +61,10 @@ class MouvementStockWorkflowService
             'sortie' => $montantTotal,
         ];
 
-        if (Schema::hasColumn('caisses', 'type_operation')) {
+        if (schema_has_column('caisses', 'type_operation')) {
             $data['type_operation'] = 'auto';
         }
-        if (Schema::hasColumn('caisses', 'succursale_id')) {
+        if (schema_has_column('caisses', 'succursale_id')) {
             $data['succursale_id'] = $mouvement->succursale_id;
         }
 
@@ -89,7 +88,7 @@ class MouvementStockWorkflowService
             'description' => $label . " : {$produit->nom} - Quantité: {$mouvement->quantite}",
             'montant' => $montantTotal,
         ];
-        if (Schema::hasColumn('journals', 'succursale_id')) {
+        if (schema_has_column('journals', 'succursale_id')) {
             $journalData['succursale_id'] = $mouvement->succursale_id;
         }
         Journal::create($journalData);
@@ -106,10 +105,10 @@ class MouvementStockWorkflowService
             'sortie' => 0,
         ];
 
-        if (Schema::hasColumn('caisses', 'type_operation')) {
+        if (schema_has_column('caisses', 'type_operation')) {
             $data['type_operation'] = 'auto';
         }
-        if (Schema::hasColumn('caisses', 'succursale_id')) {
+        if (schema_has_column('caisses', 'succursale_id')) {
             $data['succursale_id'] = $mouvement->succursale_id;
         }
 
@@ -123,7 +122,7 @@ class MouvementStockWorkflowService
             'type' => 'mouvement_stock',
             'reference_id' => (string) $mouvement->id,
         ];
-        if (Schema::hasColumn('archives', 'succursale_id')) {
+        if (schema_has_column('archives', 'succursale_id')) {
             $archiveWhere['succursale_id'] = $mouvement->succursale_id;
         }
 

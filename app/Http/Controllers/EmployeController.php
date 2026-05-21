@@ -22,7 +22,7 @@ class EmployeController extends Controller
         $employes = Employe::query()
             ->with('succursale')
             ->where('entreprise_id', $entrepriseId) // On filtre par entreprise
-            ->when($succursaleId && \Illuminate\Support\Facades\Schema::hasColumn('employes', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
+            ->when($succursaleId && schema_has_column('employes', 'succursale_id'), fn($q) => $q->where('succursale_id', $succursaleId))
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('nom', 'like', "%{$search}%")

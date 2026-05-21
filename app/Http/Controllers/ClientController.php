@@ -9,7 +9,6 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ClientController extends Controller
@@ -56,7 +55,7 @@ class ClientController extends Controller
         $validated['entreprise_id'] = $entrepriseId;
 
         // Succursale_id gardée pour traçabilité uniquement
-        if ($succursaleId && Schema::hasColumn('clients', 'succursale_id')) {
+        if ($succursaleId && schema_has_column('clients', 'succursale_id')) {
             $validated['succursale_id'] = $succursaleId;
         }
 

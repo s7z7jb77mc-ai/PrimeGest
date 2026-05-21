@@ -6,7 +6,6 @@ use App\Models\Archive;
 use App\Models\Succursale;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 //use App\Support\SuccursaleContext;
 
@@ -19,7 +18,7 @@ class ArchiveController extends Controller
     private function archiveColumns(): array
     {
         $cols = ['id', 'date_archive', 'reference_id'];
-        if (Schema::hasColumn('archives', 'succursale_id')) {
+        if (schema_has_column('archives', 'succursale_id')) {
             $cols[] = 'succursale_id';
         }
         return $cols;
@@ -37,19 +36,19 @@ class ArchiveController extends Controller
     {
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
-        $hasSuccCol   = Schema::hasColumn('archives', 'succursale_id');
+        $hasSuccCol   = schema_has_column('archives', 'succursale_id');
 
     //   dd([
     //'succursale_id_session' => session('succursale_id'),
     //'sql_complet' => Archive::withoutGlobalScopes()
       //  ->where('entreprise_id', auth()->user()->entreprise_id)
         //->when(
-          //  Schema::hasColumn('archives', 'succursale_id') && session('succursale_id'),
+          //  schema_has_column('archives', 'succursale_id') && session('succursale_id'),
             //fn($q) => $q->where('succursale_id', session('succursale_id'))
         //)
         //->where('type', 'journal')
         //->toSql(),
-    //'has_succursale_col' => Schema::hasColumn('archives', 'succursale_id'),
+    //'has_succursale_col' => schema_has_column('archives', 'succursale_id'),
 //]);
 
         return Archive::withoutGlobalScopes()
@@ -69,7 +68,7 @@ class ArchiveController extends Controller
     {
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
-        $hasSuccCol   = Schema::hasColumn('archives', 'succursale_id');
+        $hasSuccCol   = schema_has_column('archives', 'succursale_id');
         $type         = $request->input('type', 'journal');
         $year         = $request->input('year', now()->year);
 
@@ -127,7 +126,7 @@ class ArchiveController extends Controller
     {
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
-        $hasSuccCol   = Schema::hasColumn('archives', 'succursale_id');
+        $hasSuccCol   = schema_has_column('archives', 'succursale_id');
 
         $query = $this->baseQuery($type)
             ->whereYear('date_archive', $year)
@@ -168,7 +167,7 @@ class ArchiveController extends Controller
     {
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
-        $hasSuccCol   = Schema::hasColumn('archives', 'succursale_id');
+        $hasSuccCol   = schema_has_column('archives', 'succursale_id');
         $dateObj      = Carbon::parse($date)->toDateString();
 
         $query = $this->baseQuery($type)
@@ -204,7 +203,7 @@ class ArchiveController extends Controller
     {
         $entrepriseId = auth()->user()->entreprise_id;
         $succursaleId = session('succursale_id');
-        $hasSuccCol   = Schema::hasColumn('archives', 'succursale_id');
+        $hasSuccCol   = schema_has_column('archives', 'succursale_id');
         $dateObj      = Carbon::parse($date)->toDateString();
 
         $query = $this->baseQuery($type)
@@ -311,7 +310,7 @@ class ArchiveController extends Controller
 
     private function formatArchives(string $type, $archives, int $entrepriseId, ?int $succursaleId)
     {
-        $hasSuccCol = Schema::hasColumn('archives', 'succursale_id');
+        $hasSuccCol = schema_has_column('archives', 'succursale_id');
 
         // Charger les noms de succursales pour le préfixage au central
         $succursaleMap = [];

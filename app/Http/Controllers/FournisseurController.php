@@ -7,7 +7,6 @@ use App\Models\Succursale;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class FournisseurController extends Controller
@@ -45,7 +44,7 @@ class FournisseurController extends Controller
         $validated['entreprise_id'] = $entrepriseId;
 
         // Succursale_id gardée pour traçabilité uniquement
-        if ($succursaleId && Schema::hasColumn('fournisseurs', 'succursale_id')) {
+        if ($succursaleId && schema_has_column('fournisseurs', 'succursale_id')) {
             $validated['succursale_id'] = $succursaleId;
         }
 

@@ -6,7 +6,6 @@ use App\Models\FicheDePaie;
 use App\Models\Journal;
 use App\Models\Caisse;
 use App\Services\CaisseService;
-use Illuminate\Support\Facades\Schema;
 
 class FicheDePaieObserver
 {
@@ -52,7 +51,7 @@ class FicheDePaieObserver
             'sortie' => $montantPaiement,
         ];
 
-        if (Schema::hasColumn('caisses', 'type_operation')) {
+        if (schema_has_column('caisses', 'type_operation')) {
             $data['type_operation'] = 'auto';
         }
 

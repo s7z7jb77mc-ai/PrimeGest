@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -13,12 +13,16 @@ class CheckPlanLimit
 {
     public function handle(Request $request, Closure $next, string $feature): Response
     {
-        $user       = $request->user();
-        $entreprise = $user?->entreprise;
+        $user = $request->user();
+        $eid  = $user?->entreprise_id;
+
+        $entreprise = $eid
+            ? Cache::remember("inertia.entreprise.{$eid}", 60, fn () => $user->entreprise()->first())
+            : null;
 
         // Compatibilité avec les bases plus anciennes: si l'infrastructure
         // des plans n'est pas encore migrée, on ne doit pas bloquer les écritures.
-        if (!Schema::hasColumn('entreprises', 'plan')) {
+        if (!schema_has_column('entreprises', 'plan')) {
             return $next($request);
         }
 

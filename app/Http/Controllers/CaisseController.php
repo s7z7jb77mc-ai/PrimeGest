@@ -9,7 +9,6 @@ use App\Services\CaisseService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 
 class CaisseController extends Controller
 {
@@ -20,7 +19,7 @@ class CaisseController extends Controller
 
         $caissesAsc = Caisse::where('entreprise_id', $entrepriseId)
             ->when(
-                Schema::hasColumn('caisses', 'succursale_id') && $succursaleId,
+                schema_has_column('caisses', 'succursale_id') && $succursaleId,
                 fn($q) => $q->where('succursale_id', $succursaleId)
             )
             ->orderByRaw('COALESCE(date_operation, created_at) ASC')
@@ -28,7 +27,7 @@ class CaisseController extends Controller
 
         // ✅ Au dashboard central, préfixer chaque description par le nom
         // de la succursale pour identifier l'origine de chaque opération.
-        if (!$succursaleId && Schema::hasColumn('caisses', 'succursale_id')) {
+        if (!$succursaleId && schema_has_column('caisses', 'succursale_id')) {
             $succursaleIds = $caissesAsc->pluck('succursale_id')->filter()->unique()->values();
             $succursales   = Succursale::whereIn('id', $succursaleIds)
                 ->where('entreprise_id', $entrepriseId)
@@ -57,10 +56,10 @@ class CaisseController extends Controller
         $caisses = $caissesAsc->reverse()->values();
 
         $caisseInitiale = null;
-        if (Schema::hasColumn('caisses', 'type_operation')) {
+        if (schema_has_column('caisses', 'type_operation')) {
             $caisseInitiale = Caisse::where('entreprise_id', $entrepriseId)
                 ->when(
-                    Schema::hasColumn('caisses', 'succursale_id') && $succursaleId,
+                    schema_has_column('caisses', 'succursale_id') && $succursaleId,
                     fn($q) => $q->where('succursale_id', $succursaleId)
                 )
                 ->where('type_operation', 'initial')
@@ -91,7 +90,7 @@ class CaisseController extends Controller
             ], 422);
         }
 
-        if (!Schema::hasColumn('caisses', 'type_operation')) {
+        if (!schema_has_column('caisses', 'type_operation')) {
             return response()->json([
                 'message' => 'Veuillez exécuter la migration pour activer le solde initial.',
             ], 500);
@@ -99,7 +98,7 @@ class CaisseController extends Controller
 
         $initialExiste = Caisse::where('entreprise_id', $entrepriseId)
             ->when(
-                Schema::hasColumn('caisses', 'succursale_id') && $succursaleId,
+                schema_has_column('caisses', 'succursale_id') && $succursaleId,
                 fn($q) => $q->where('succursale_id', $succursaleId)
             )
             ->where('type_operation', 'initial')
@@ -125,7 +124,7 @@ class CaisseController extends Controller
             'sortie'         => 0,
             'type_operation' => 'initial',
         ];
-        if (Schema::hasColumn('caisses', 'succursale_id')) {
+        if (schema_has_column('caisses', 'succursale_id')) {
             $payload['succursale_id'] = $succursaleId;
         }
         CaisseService::createOperation($payload);
