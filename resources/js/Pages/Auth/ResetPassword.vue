@@ -28,7 +28,7 @@
     <div class="relative z-10 w-full max-w-md p-8 rounded-2xl border border-white/30 bg-black/40 backdrop-blur-md shadow-xl">
 
       <div class="text-center mb-6">
-        <img src="/images/primegest.png" alt="PrimeGest Logo" class="h-20 w-20 mx-auto mb-3"/>
+        <img src="/images/primegest.webp" alt="PrimeGest Logo" class="h-20 w-20 mx-auto mb-3"/>
         <h1 class="text-2xl font-bold text-white">
           {{ currentLang === 'fr' ? 'Nouveau mot de passe' : 'New password' }}
         </h1>

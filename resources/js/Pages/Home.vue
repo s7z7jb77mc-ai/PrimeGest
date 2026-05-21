@@ -289,7 +289,7 @@ const content = {
 
     <header class="pg-header">
       <div class="pg-header__brand">
-        <img src="/images/primegest.png" alt="PrimeGest" class="pg-header__logo" />
+        <img src="/images/primegest.webp" alt="PrimeGest" class="pg-header__logo" />
         <div class="pg-header__wordmark">
           <span>Prime</span>Gest
         </div>
@@ -377,7 +377,7 @@ const content = {
 
         <div class="pg-hero__visual">
           <div class="pg-hero__frame">
-            <img src="/images/pris.png" alt="PrimeGest dashboard preview" class="pg-hero__image" />
+            <img src="/images/pris.webp" alt="PrimeGest dashboard preview" class="pg-hero__image" />
           </div>
 
           <aside class="pg-floating-card pg-floating-card--left">
@@ -467,7 +467,7 @@ const content = {
 
     <footer class="pg-footer">
       <div class="pg-footer__brand">
-        <img src="/images/primegest.png" alt="PrimeGest" class="pg-footer__logo" />
+        <img src="/images/primegest.webp" alt="PrimeGest" class="pg-footer__logo" />
         <div>
           <div class="pg-footer__name">PrimeGest</div>
           <p>© {{ year }} · {{ copy.footer.rights }}</p>

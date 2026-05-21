@@ -17,7 +17,7 @@
           </div>
           <div class="text-xs text-gray-400 font-mono tracking-widest text-right">GESTION PME</div>
         </div>
-        <img src="/images/primegest.png"
+        <img src="/images/primegest.webp"
           class="h-10 w-10 rounded-full object-cover ring-2 ring-gold/40 shadow-md shadow-yellow-200" />
       </div>
     </header>

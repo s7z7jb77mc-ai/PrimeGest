@@ -466,7 +466,7 @@ export default {
       this.lang = getStoredLang();
     },
     getLogoUrl() {
-      return this.$page?.props?.parametres?.logo_url || '/build/assets/primegest.png';
+      return this.$page?.props?.parametres?.logo_url || '/images/primegest.webp';
     },
     changeType(type) {
       this.selectedType = type;

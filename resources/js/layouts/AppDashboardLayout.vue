@@ -26,7 +26,7 @@ const lang = useLang()
 const sidebarOpen = ref(true)
 const drawerOpen = ref(false)
 
-const primegestLogo = '/images/primegest.png'
+const primegestLogo = '/images/primegest.webp'
 
 const pageProps = computed(() => (page.props as any) ?? {})
 const authUser = computed(() => pageProps.value.auth?.user || null)

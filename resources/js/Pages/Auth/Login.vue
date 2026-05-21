@@ -25,7 +25,7 @@
     <div class="relative z-10 w-full max-w-md p-8 rounded-2xl border border-white/30 bg-black/40 backdrop-blur-md shadow-xl">
 
       <div class="text-center mb-6">
-        <img src="/images/primegest.png" alt="PrimeGest Logo" class="h-24 w-24 mx-auto mb-3"/>
+        <img src="/images/primegest.webp" alt="PrimeGest Logo" class="h-24 w-24 mx-auto mb-3"/>
         <h1 class="text-2xl font-bold text-white">
           {{ t('login') }} — PrimeGest
         </h1>
