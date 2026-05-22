@@ -25,17 +25,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup PHP 8.3
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: fileinfo, mbstring, openssl, pdo, tokenizer, xml
-          tools: composer:v2
-          coverage: none
-
-      - name: Install Composer dependencies
-        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs
-
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -47,7 +36,7 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Cache Cargo registry
+      - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
@@ -56,12 +45,14 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Build Vue/Vite frontend
-        run: npm run build
-        env:
-          NODE_ENV: production
+      # laravel-vite-plugin a besoin d'APP_URL pour le build
+      - name: Créer .env pour Vite
+        shell: bash
+        run: |
+          echo "APP_URL=https://primegest.app" > .env
+          echo "VITE_APP_URL=https://primegest.app" >> .env
 
-      - name: Set version tag
+      - name: Déterminer le tag de version
         id: version
         shell: bash
         run: |
@@ -75,18 +66,20 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_URL: https://primegest.app
+          VITE_APP_URL: https://primegest.app
         with:
           tagName: ${{ steps.version.outputs.tag }}
           releaseName: 'PrimeGest ${{ steps.version.outputs.tag }}'
           releaseBody: |
             ## PrimeGest pour Windows
 
-            Installateur Windows (NSIS) — application de gestion commerciale.
+            Installateur Windows (NSIS) — application de gestion commerciale pour PME.
 
             ### Installation
             1. Télécharger `PrimeGest_*_x64-setup.exe`
             2. Lancer l'installateur et suivre les étapes
-            3. Au premier lancement, une connexion internet est requise
+            3. Une connexion internet est requise pour utiliser l'application
 
             ### Notes
             - L'application se connecte à primegest.app
@@ -95,11 +88,10 @@ jobs:
           prerelease: false
           includeUpdaterJson: false
 
-      - name: Upload .exe as artifact
+      - name: Upload .exe (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: PrimeGest-Windows-Setup
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
+          path: src-tauri/target/release/bundle/nsis/*.exe
           retention-days: 30
           if-no-files-found: warn
