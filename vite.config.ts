@@ -42,7 +42,6 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
-            'ziggy-js': fileURLToPath(new URL('./node_modules/ziggy-js/dist/index.esm.js', import.meta.url)),
             '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
         },
     },
