@@ -4,8 +4,22 @@ import laravel from 'laravel-vite-plugin'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Sur Windows, ziggy-js peut tenter de charger depuis le chemin PHP vendor
+// (POSIX absolu /vendor/tightenco/ziggy → D:\vendor\... sur Windows).
+// Ce plugin intercepte ce chemin et le redirige vers le package npm.
+const ziggyVendorRedirect = {
+    name: 'ziggy-vendor-redirect',
+    resolveId(id: string) {
+        if (id.includes('tightenco/ziggy')) {
+            return this.resolve('ziggy-js')
+        }
+        return null
+    },
+}
+
 export default defineConfig({
     plugins: [
+        ziggyVendorRedirect,
         laravel({
             input: 'resources/js/app.ts',
             refresh: true,
