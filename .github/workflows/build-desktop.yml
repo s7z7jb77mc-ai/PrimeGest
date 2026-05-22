@@ -45,6 +45,14 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      # Vite sur Windows cherche ziggy depuis le chemin PHP vendor (inexistant sur CI).
+      # On copie le package npm à cet emplacement pour que le fichier existe physiquement.
+      - name: Créer vendor/tightenco/ziggy (compatibilité Windows)
+        shell: bash
+        run: |
+          mkdir -p vendor/tightenco
+          cp -r node_modules/ziggy-js vendor/tightenco/ziggy
+
       # laravel-vite-plugin a besoin d'APP_URL pour le build
       - name: Créer .env pour Vite
         shell: bash

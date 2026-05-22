@@ -1,17 +1,26 @@
 import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'url'
+import { readFileSync } from 'fs'
 import laravel from 'laravel-vite-plugin'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Sur Windows, ziggy-js peut tenter de charger depuis le chemin PHP vendor
-// (POSIX absolu /vendor/tightenco/ziggy → D:\vendor\... sur Windows).
-// Ce plugin intercepte ce chemin et le redirige vers le package npm.
+// Sur Windows CI, Vite tente de charger ziggy-js depuis /vendor/tightenco/ziggy
+// (chemin PHP inexistant). Ce plugin intercepte les phases resolveId ET load.
+const ziggyJsDistPath = fileURLToPath(new URL('./node_modules/ziggy-js/dist/index.js', import.meta.url))
+
 const ziggyVendorRedirect = {
     name: 'ziggy-vendor-redirect',
+    enforce: 'pre' as const,
     resolveId(id: string) {
-        if (id.includes('tightenco/ziggy')) {
-            return this.resolve('ziggy-js')
+        if (id.replace(/\\/g, '/').includes('vendor/tightenco/ziggy')) {
+            return { id: ziggyJsDistPath }
+        }
+        return null
+    },
+    load(id: string) {
+        if (id.replace(/\\/g, '/').includes('vendor/tightenco/ziggy')) {
+            return readFileSync(ziggyJsDistPath, 'utf-8')
         }
         return null
     },
