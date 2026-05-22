@@ -25,7 +25,7 @@
     <!-- En-tête fixe -->
     <header class="fixed top-0 left-0 w-full z-20 bg-black/50 backdrop-blur-md border-b border-white/20 shadow-md p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <img src="/images/primegest.webp" alt="PrimeGest Logo" class="h-16 w-16 object-contain">
+        <img src="/images/primegest.webp" alt="PrimeGest Logo" class="h-28 w-28 object-contain">
         <div>
           <h1 class="text-xl font-bold text-white">PrimeGest</h1>
           <p class="text-sm text-gray-300">

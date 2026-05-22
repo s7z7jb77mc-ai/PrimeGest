@@ -125,7 +125,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
       drawerOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0',
     ]">
       <div class="flex flex-col items-center pt-6 pb-4 px-3 border-b border-white/10">
-        <img :src="primegestLogo" :class="['rounded-full object-cover ring-2 ring-yellow-400/60 transition-all duration-300 shadow-lg mb-3', (sidebarOpen || drawerOpen) ? 'h-16 w-16' : 'h-10 w-10']" />
+        <img :src="primegestLogo" :class="['rounded-full object-cover ring-2 ring-yellow-400/60 transition-all duration-300 shadow-lg mb-3', (sidebarOpen || drawerOpen) ? 'h-28 w-28' : 'h-16 w-16']" />
         <Transition name="fade-slide">
           <div v-if="sidebarOpen || drawerOpen" class="text-center select-none">
             <div class="primgest-logo-text">
@@ -300,7 +300,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 
 .sidebar-bg { background: linear-gradient(180deg, #0f0f0f 0%, #111827 60%, #0a0a0a 100%); }
 .font-display { font-family: 'Playfair Display', Georgia, serif; font-weight: 900; letter-spacing: -0.02em; }
-.primgest-logo-text { font-size: 1.4rem; line-height: 1; }
+.primgest-logo-text { font-size: 1.6rem; line-height: 1; }
 .text-gold { color: #D4AF37; text-shadow: 0 0 12px rgba(212,175,55,0.5); }
 
 /* ── Plan badge ── */

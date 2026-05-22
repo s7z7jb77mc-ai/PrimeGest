@@ -18,7 +18,7 @@
             :src="primegestLogo"
             :class="[
               'rounded-full object-cover ring-2 ring-yellow-400/60 transition-all duration-300 shadow-lg shadow-yellow-500/20',
-              sidebarOpen ? 'h-20 w-20' : 'h-10 w-10 ring-4 ring-yellow-400/80'
+              sidebarOpen ? 'h-28 w-28' : 'h-14 w-14 ring-4 ring-yellow-400/80'
             ]"
           />
           <span v-if="sidebarOpen" class="absolute inset-0 rounded-full animate-pulse-ring"></span>
