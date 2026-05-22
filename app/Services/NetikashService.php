@@ -10,28 +10,38 @@ use Illuminate\Support\Facades\Log;
 
 class NetikashService
 {
+    private bool $sandbox;
+
     private string $baseUrl;
+
+    private string $authUrl;
 
     private string $clientId;
 
     private string $clientSecret;
 
-    private string $tokenPath;
-
     private string $paymentPath;
 
     public function __construct()
     {
-        $this->baseUrl = (string) config('services.netikash.base_url', 'https://gateway.netikash.com');
-        $this->clientId = (string) config('services.netikash.client_id', '');
+        $this->sandbox      = (bool) config('services.netikash.sandbox', false);
+        $this->baseUrl      = (string) config('services.netikash.base_url', 'https://gateway.netikash.com');
+        $this->authUrl      = (string) config('services.netikash.auth_url', 'https://gateway.netikash.com/oauth/token');
+        $this->clientId     = (string) config('services.netikash.client_id', '');
         $this->clientSecret = (string) config('services.netikash.client_secret', '');
-        $this->tokenPath = (string) config('services.netikash.token_path', '/oauth/token');
-        $this->paymentPath = (string) config('services.netikash.payment_path', '/api/v1/payment/initiate');
+        $this->paymentPath  = (string) config('services.netikash.payment_path', '/api/v1/payment/initiate');
+    }
+
+    public function isSandbox(): bool
+    {
+        return $this->sandbox;
     }
 
     public function getAccessToken(): string
     {
-        $cached = Cache::get('netikash_access_token');
+        $cacheKey = $this->sandbox ? 'netikash_token_sandbox' : 'netikash_token_prod';
+
+        $cached = Cache::get($cacheKey);
         if ($cached !== null) {
             return (string) $cached;
         }
@@ -39,20 +49,25 @@ class NetikashService
         $response = Http::withBasicAuth($this->clientId, $this->clientSecret)
             ->timeout(15)
             ->asForm()
-            ->post($this->baseUrl.$this->tokenPath, [
+            ->post($this->authUrl, [
                 'grant_type' => 'client_credentials',
             ]);
 
         if (! $response->successful()) {
-            Log::error('Netikash: échec token OAuth2', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::error('Netikash: échec token OAuth2', [
+                'sandbox'  => $this->sandbox,
+                'auth_url' => $this->authUrl,
+                'status'   => $response->status(),
+                'body'     => $response->body(),
+            ]);
             throw new \RuntimeException('Netikash: impossible d\'obtenir le token d\'accès.');
         }
 
-        $token = (string) $response->json('access_token');
+        $token     = (string) $response->json('access_token');
         $expiresIn = (int) ($response->json('expires_in') ?? 3600);
-        $ttl = max(60, $expiresIn - 60);
+        $ttl       = max(60, $expiresIn - 60);
 
-        Cache::put('netikash_access_token', $token, $ttl);
+        Cache::put($cacheKey, $token, $ttl);
 
         return $token;
     }
@@ -64,24 +79,34 @@ class NetikashService
         string $reference,
         string $description,
     ): array {
+        if ($this->sandbox) {
+            Log::info('Netikash [SANDBOX] initiation paiement', [
+                'phone'     => $this->normalizePhone($phone),
+                'amount'    => $amount,
+                'currency'  => $currency,
+                'reference' => $reference,
+            ]);
+        }
+
         $token = $this->getAccessToken();
 
         $response = Http::withToken($token)
             ->timeout(30)
             ->post($this->baseUrl.$this->paymentPath, [
-                'phone' => $this->normalizePhone($phone),
-                'amount' => $amount,
-                'currency' => $currency,
-                'reference' => $reference,
-                'description' => $description,
+                'phone'        => $this->normalizePhone($phone),
+                'amount'       => $amount,
+                'currency'     => $currency,
+                'reference'    => $reference,
+                'description'  => $description,
                 'callback_url' => url('/api/v1/payment/webhook'),
             ]);
 
         if (! $response->successful()) {
             Log::error('Netikash: échec initiation paiement', [
+                'sandbox'   => $this->sandbox,
                 'reference' => $reference,
-                'status' => $response->status(),
-                'body' => $response->body(),
+                'status'    => $response->status(),
+                'body'      => $response->body(),
             ]);
             throw new \RuntimeException('Netikash: échec de l\'initiation du paiement — '.$response->body());
         }
