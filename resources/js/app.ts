@@ -52,6 +52,23 @@ createInertiaApp({
                 })
             })
         }
+
+        // Pré-cache toutes les routes Inertia dès que l'user est en ligne (Tauri et PWA)
+        // Garantit la navigation offline même pour les pages jamais visitées
+        if ('serviceWorker' in navigator && navigator.onLine) {
+            const version = (props as any).initialPage?.version || ''
+            navigator.serviceWorker.ready.then((reg) => {
+                reg.active?.postMessage({
+                    type: 'PRECACHE_INERTIA',
+                    routes: [
+                        '/dashboard', '/produits', '/mouvement-stocks',
+                        '/caisse', '/journals', '/tiers', '/creances-dettes',
+                        '/rapports', '/transferts', '/succursales', '/entreprises',
+                    ],
+                    version,
+                })
+            })
+        }
     },
 
     progress: { color: '#4B5563' },

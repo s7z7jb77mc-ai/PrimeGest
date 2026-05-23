@@ -1,6 +1,6 @@
-const SHELL_CACHE   = 'primegest-shell-v4'
-const INERTIA_CACHE = 'primegest-inertia-v5'
-const ASSET_CACHE   = 'primegest-assets-v3'
+const SHELL_CACHE   = 'primegest-shell-v7'
+const INERTIA_CACHE = 'primegest-inertia-v8'
+const ASSET_CACHE   = 'primegest-assets-v6'
 
 const INERTIA_ROUTES = [
   '/dashboard',
@@ -18,11 +18,25 @@ const INERTIA_ROUTES = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) =>
-      cache.addAll(['/', '/offline.html'])
-    )
+    Promise.all([
+      caches.open(SHELL_CACHE).then((cache) =>
+        cache.addAll(['/', '/offline.html'])
+      ),
+      precacheViteAssets(),
+    ])
   )
   self.skipWaiting()
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+  if (event.data?.type === 'PRECACHE_INERTIA') {
+    event.waitUntil(
+      precacheInertiaRoutes(event.data.routes || INERTIA_ROUTES, event.data.version || '')
+    )
+  }
 })
 
 self.addEventListener('activate', (event) => {
@@ -66,7 +80,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isInertia && isInertiaRoute) {
-    // Network-first pour éviter les boucles de reload dues au mismatch de version Inertia
     event.respondWith(inertiaNetworkFirst(request))
     return
   }
@@ -77,7 +90,53 @@ self.addEventListener('fetch', (event) => {
   }
 })
 
-// NetworkFirst pour les requêtes Inertia — évite les boucles de mismatch de version
+// Pré-cache tous les chunks JS/CSS depuis le manifest Vite au démarrage du SW
+async function precacheViteAssets() {
+  try {
+    const res = await fetch('/build/manifest.json')
+    if (!res.ok) return
+    const manifest = await res.json()
+    const cache = await caches.open(ASSET_CACHE)
+
+    const urls = []
+    for (const entry of Object.values(manifest)) {
+      if (entry.file) urls.push(`/build/${entry.file}`)
+      for (const css of (entry.css || [])) urls.push(`/build/${css}`)
+      for (const asset of (entry.assets || [])) urls.push(`/build/${asset}`)
+    }
+
+    // Batches de 5 pour ne pas saturer le réseau
+    for (let i = 0; i < urls.length; i += 5) {
+      await Promise.all(
+        urls.slice(i, i + 5).map((url) =>
+          fetch(url)
+            .then((r) => { if (r.ok) cache.put(url, r) })
+            .catch(() => {})
+        )
+      )
+    }
+  } catch {}
+}
+
+// Pré-cache les réponses Inertia de toutes les routes métier (appelé depuis app.ts)
+async function precacheInertiaRoutes(routes, version) {
+  const cache = await caches.open(INERTIA_CACHE)
+  for (const route of routes) {
+    try {
+      const headers = {
+        'X-Inertia': 'true',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      }
+      if (version) headers['X-Inertia-Version'] = version
+      const req = new Request(route, { headers, credentials: 'include' })
+      const resp = await fetch(req)
+      if (resp.ok) cache.put(req, resp.clone())
+    } catch {}
+  }
+}
+
+// NetworkFirst pour les requêtes Inertia — cache en cas de succès, fallback cache sinon
 async function inertiaNetworkFirst(request) {
   const cache = await caches.open(INERTIA_CACHE)
   try {
@@ -132,36 +191,6 @@ async function cacheFirst(request) {
   }
 }
 
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(INERTIA_CACHE)
-  const cached = await cache.match(request)
-
-  const fetchPromise = fetch(request)
-    .then((response) => {
-      const ct = response.headers.get('content-type') || ''
-      if (response.ok && ct.includes('application/json')) {
-        cache.put(request, response.clone())
-        self.clients.matchAll().then((clients) =>
-          clients.forEach((client) =>
-            client.postMessage({ type: 'INERTIA_CACHE_UPDATED', url: request.url })
-          )
-        )
-      }
-      return response
-    })
-    .catch(() => null)
-
-  if (cached) {
-    fetchPromise
-    return cached
-  }
-
-  const network = await fetchPromise
-  if (network) return network
-
-  return caches.match('/offline.html')
-}
-
 async function navigateFallback(request) {
   const cache = await caches.open(SHELL_CACHE)
   try {
@@ -172,8 +201,6 @@ async function navigateFallback(request) {
     }
     throw new Error()
   } catch {
-    // Chercher uniquement le cache de CETTE route — jamais servir '/' pour une autre URL
-    // (évite de montrer la Home page à la place de /login, /dashboard, etc.)
     const routeCached = await cache.match(request)
     if (routeCached) return routeCached
     return (await cache.match('/offline.html')) || new Response('Hors ligne', { status: 503 })

@@ -24,12 +24,32 @@
     @inertia
 
     <script>
-      // N'enregistre le SW que si on n'est pas dans Tauri (Tauri gère son propre contexte)
-      if (!('__TAURI_INTERNALS__' in window) && 'serviceWorker' in navigator) {
+      // Enregistrer le SW dans tous les contextes — Tauri inclus (offline navigation via cache)
+      if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js', { scope: '/' })
-            .then(r => console.log('[SW] scope:', r.scope))
+            .then(reg => {
+              // Forcer l'activation immédiate d'un nouveau SW en attente
+              reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing
+                if (!newWorker) return
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' })
+                  }
+                })
+              })
+            })
             .catch(e => console.warn('[SW] erreur:', e))
+
+          // Recharger la page quand un nouveau SW prend le contrôle
+          let refreshing = false
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+              refreshing = true
+              window.location.reload()
+            }
+          })
         })
       }
     </script>
