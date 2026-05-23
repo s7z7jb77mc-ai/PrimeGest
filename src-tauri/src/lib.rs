@@ -1460,11 +1460,15 @@ pub fn run() {
             let app_dir = app
                 .path()
                 .app_config_dir()
-                .expect("Pas de dossier config app");
-            std::fs::create_dir_all(&app_dir).ok();
-            let db_path = format!("sqlite:{}/primegest.db", app_dir.to_str().unwrap());
+                .map_err(|e| format!("Dossier config introuvable: {}", e))?;
+            std::fs::create_dir_all(&app_dir)
+                .map_err(|e| format!("Impossible de créer le dossier config: {}", e))?;
+            let db_path = format!(
+                "sqlite:{}/primegest.db",
+                app_dir.to_str().ok_or("Chemin DB non-UTF8")?
+            );
             let pool = tauri::async_runtime::block_on(SqlitePool::connect(&db_path))
-                .expect("Impossible d'ouvrir SQLite");
+                .map_err(|e| format!("Impossible d'ouvrir la base de données: {}", e))?;
 
             tauri::async_runtime::block_on(sqlx::query(MIGRATIONS).execute(&pool)).ok();
             // Colonne ajoutée en v2 — .ok() absorbe l'erreur si elle existe déjà
@@ -1487,5 +1491,5 @@ pub fn run() {
             query_local_aggregate,
         ])
         .run(tauri::generate_context!())
-        .expect("Erreur au démarrage de Tauri");
+        .unwrap_or_else(|e| eprintln!("Erreur au démarrage de Tauri: {:?}", e));
 }
