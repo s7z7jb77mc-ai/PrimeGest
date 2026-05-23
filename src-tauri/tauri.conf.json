@@ -49,9 +49,5 @@
       }
     }
   },
-  "plugins": {
-    "sql": {
-      "preloadConnections": ["sqlite:primegest.db"]
-    }
-  }
+  "plugins": {}
 }

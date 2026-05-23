@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Sqlite, SqlitePool};
+use sqlx::{Pool, Sqlite, SqlitePool, sqlite::SqliteConnectOptions};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -1463,11 +1463,21 @@ pub fn run() {
                 .map_err(|e| format!("Dossier config introuvable: {}", e))?;
             std::fs::create_dir_all(&app_dir)
                 .map_err(|e| format!("Impossible de créer le dossier config: {}", e))?;
-            let db_path = format!(
-                "sqlite:{}/primegest.db",
-                app_dir.to_str().ok_or("Chemin DB non-UTF8")?
-            );
-            let pool = tauri::async_runtime::block_on(SqlitePool::connect(&db_path))
+
+            // Forcer l'icône PrimeGest sur la fenêtre principale
+            if let Some(window) = app.get_webview_window("main") {
+                if let Some(icon) = app.default_window_icon() {
+                    window.set_icon(icon.clone()).ok();
+                }
+            }
+
+            // SqliteConnectOptions évite les problèmes de backslashes Windows
+            // et crée le fichier DB s'il n'existe pas encore (premier lancement)
+            let connect_opts = SqliteConnectOptions::new()
+                .filename(app_dir.join("primegest.db"))
+                .create_if_missing(true);
+
+            let pool = tauri::async_runtime::block_on(SqlitePool::connect_with(connect_opts))
                 .map_err(|e| format!("Impossible d'ouvrir la base de données: {}", e))?;
 
             tauri::async_runtime::block_on(sqlx::query(MIGRATIONS).execute(&pool)).ok();
