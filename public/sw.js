@@ -1,6 +1,6 @@
-const SHELL_CACHE   = 'primegest-shell-v7'
-const INERTIA_CACHE = 'primegest-inertia-v8'
-const ASSET_CACHE   = 'primegest-assets-v6'
+const SHELL_CACHE   = 'primegest-shell-v8'
+const INERTIA_CACHE = 'primegest-inertia-v9'
+const ASSET_CACHE   = 'primegest-assets-v7'
 
 const INERTIA_ROUTES = [
   '/dashboard',
@@ -20,7 +20,11 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all([
       caches.open(SHELL_CACHE).then((cache) =>
-        cache.addAll(['/', '/offline.html'])
+        // Résilient : une URL indisponible ne bloque pas l'installation du SW
+        Promise.allSettled([
+          cache.add('/').catch(() => {}),
+          cache.add('/offline.html').catch(() => {}),
+        ])
       ),
       precacheViteAssets(),
     ])
@@ -197,10 +201,11 @@ async function navigateFallback(request) {
     const response = await fetch(request)
     if (response.ok) {
       cache.put(request, response.clone())
-      return response
     }
-    throw new Error()
+    // Toujours retourner la réponse du serveur (500, 404...) — ne pas masquer les vraies erreurs
+    return response
   } catch {
+    // Fallback uniquement sur vraie coupure réseau (fetch lève une exception)
     const routeCached = await cache.match(request)
     if (routeCached) return routeCached
     return (await cache.match('/offline.html')) || new Response('Hors ligne', { status: 503 })
