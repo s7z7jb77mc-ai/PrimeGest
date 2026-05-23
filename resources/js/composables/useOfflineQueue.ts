@@ -35,15 +35,20 @@ export function useOfflineQueue() {
 
         try {
             if (isTauri) {
+                const token = await getTauriSyncToken()
+                if (!token) {
+                    offlineStore.setSyncError('Non authentifié — impossible de synchroniser')
+                    return
+                }
                 const { invoke } = await import('@tauri-apps/api/core')
                 const result = await invoke<{ synced: number; conflicts: number; errors: number }>('sync_push', {
                     apiUrl:   window.location.origin,
-                    apiToken: localStorage.getItem('api_token') ?? '',
+                    apiToken: token,
                     deviceId: getDeviceId(),
                 })
                 await invoke<number>('sync_pull', {
                     apiUrl:     window.location.origin,
-                    apiToken:   localStorage.getItem('api_token') ?? '',
+                    apiToken:   token,
                     deviceId:   getDeviceId(),
                     lastSyncTs: offlineStore.lastSyncAt,
                 })
@@ -115,6 +120,35 @@ export function useOfflineQueue() {
     }
 
     return { queueOperation, syncPending }
+}
+
+/**
+ * Récupère le token Sanctum pour la sync Tauri.
+ * Utilise le cache mémoire (Pinia) — le webview a la session cookie, donc
+ * POST /api/auth/tauri-token fonctionne sans credential supplémentaire.
+ */
+async function getTauriSyncToken(): Promise<string> {
+    const offlineStore = useOfflineStore()
+    if (offlineStore.syncToken) return offlineStore.syncToken
+
+    try {
+        const res = await fetch('/api/auth/tauri-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type':     'application/json',
+                'X-CSRF-TOKEN':     getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json',
+            },
+            body: JSON.stringify({ device_id: getDeviceId() }),
+        })
+        if (!res.ok) return ''
+        const data = await res.json()
+        offlineStore.setSyncToken(data.token)
+        return data.token
+    } catch {
+        return ''
+    }
 }
 
 function getCsrfToken(): string {

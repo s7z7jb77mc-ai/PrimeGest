@@ -15,6 +15,16 @@ const copy = computed(() => content[(lang.value === 'en' ? 'en' : 'fr') as Lang]
 const year = new Date().getFullYear()
 
 const menuOuvert = ref(false)
+const toastVisible = ref(false)
+const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(message: string): void {
+  if (toastTimer) clearTimeout(toastTimer)
+  toastMessage.value = message
+  toastVisible.value = true
+  toastTimer = setTimeout(() => { toastVisible.value = false }, 3000)
+}
 
 function fermerMenu(): void {
     menuOuvert.value = false
@@ -144,6 +154,19 @@ const content = {
       ],
       badge: 'Le plus choisi',
     },
+    download: {
+      title: 'Téléchargez PrimeGest',
+      subtitle: 'Disponible sur tous vos appareils. La version desktop fonctionne même sans connexion internet.',
+      soon: 'Bientôt disponible',
+      downloadBtn: 'Télécharger',
+      openBtn: "Ouvrir l'app",
+      apps: [
+        { name: 'Windows', desc: 'Windows 10 / 11', url: '/downloads/PrimeGest-Setup.exe', available: true, type: 'download', icon: 'windows' },
+        { name: 'Android', desc: 'Android 8.0 et plus', url: '/downloads/PrimeGest.apk', available: true, type: 'download', icon: 'android' },
+        { name: 'Application Web', desc: 'Chrome, Firefox, Safari', url: '/register-entreprise', available: true, type: 'open', icon: 'web' },
+        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.AppImage', available: false, type: 'download', icon: 'mac' },
+      ],
+    },
     cta: {
       title: 'Prêt à prendre le contrôle de votre gestion ?',
       subtitle: 'Rejoignez des entrepreneurs qui font confiance à PrimeGest pour piloter leur activité — chaque jour, sur tous leurs écrans.',
@@ -267,6 +290,19 @@ const content = {
         },
       ],
       badge: 'Most popular',
+    },
+    download: {
+      title: 'Download PrimeGest',
+      subtitle: 'Available on all your devices. The desktop version works even without an internet connection.',
+      soon: 'Coming soon',
+      downloadBtn: 'Download',
+      openBtn: 'Open app',
+      apps: [
+        { name: 'Windows', desc: 'Windows 10 / 11', url: '/downloads/PrimeGest-Setup.exe', available: true, type: 'download', icon: 'windows' },
+        { name: 'Android', desc: 'Android 8.0 and above', url: '/downloads/PrimeGest.apk', available: true, type: 'download', icon: 'android' },
+        { name: 'Web App', desc: 'Chrome, Firefox, Safari', url: '/register-entreprise', available: true, type: 'open', icon: 'web' },
+        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.AppImage', available: false, type: 'download', icon: 'mac' },
+      ],
     },
     cta: {
       title: 'Ready to take control of your operations?',
@@ -454,6 +490,59 @@ const content = {
         </div>
       </section>
 
+      <section id="download" class="pg-section pg-section--download">
+        <div class="pg-section__header">
+          <span class="pg-section__eyebrow">{{ lang === 'fr' ? 'Téléchargement' : 'Download' }}</span>
+          <h2>{{ copy.download.title }}</h2>
+          <p>{{ copy.download.subtitle }}</p>
+        </div>
+
+        <div class="pg-download-grid">
+          <article
+            v-for="app in copy.download.apps"
+            :key="app.name"
+            class="pg-download-card"
+            :class="{ 'is-soon': !app.available }"
+          >
+            <div class="pg-download-card__icon">
+              <svg v-if="app.icon === 'windows'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M3 5.557l7.357-1.002.003 7.096-7.354.042L3 5.557zm7.354 6.913l.004 7.103-7.354-1.013v-6.14l7.35.05zm.892-8.046L21.001 3v8.562l-9.755.077-.001-7.215zm9.758 8.316l-.001 8.408-9.755-1.375-.013-7.059 9.769.026z"/>
+              </svg>
+              <svg v-else-if="app.icon === 'android'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M17.523 15.341c-.551 0-.999-.449-.999-1s.448-.999.999-.999.999.448.999.999-.448 1-.999 1zm-11.046 0c-.551 0-.999-.449-.999-1s.448-.999.999-.999.999.448.999.999-.448 1-.999 1zm11.404-6.025l2-3.462-1.3-.75-2.064 3.573A11.533 11.533 0 0012 7.547c-1.781 0-3.462.426-4.992 1.129L4.948 5.104l-1.301.75 2 3.462A11.493 11.493 0 001 18.698h22c0-3.884-1.935-7.31-4.517-9.382z"/>
+              </svg>
+              <svg v-else-if="app.icon === 'web'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+              </svg>
+              <svg v-else-if="app.icon === 'mac'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+              </svg>
+            </div>
+
+            <h3>{{ app.name }}</h3>
+            <p>{{ app.desc }}</p>
+
+            <span v-if="!app.available" class="pg-soon-badge">{{ copy.download.soon }}</span>
+            <a
+              v-else-if="app.type === 'download'"
+              :href="app.url"
+              class="pg-link-button pg-link-button--outline pg-download-card__btn"
+              download
+            >
+              ↓ {{ copy.download.downloadBtn }}
+            </a>
+            <a
+              v-else
+              :href="app.url"
+              class="pg-link-button pg-link-button--primary pg-download-card__btn"
+            >
+              {{ copy.download.openBtn }} →
+            </a>
+          </article>
+        </div>
+      </section>
+
       <section class="pg-cta-section">
         <div class="pg-cta-section__content">
           <h2>{{ copy.cta.title }}</h2>
@@ -464,6 +553,12 @@ const content = {
         </a>
       </section>
     </main>
+
+    <Transition name="pg-toast-fade">
+      <div v-if="toastVisible" class="pg-toast" role="status" aria-live="polite">
+        {{ toastMessage }}
+      </div>
+    </Transition>
 
     <footer class="pg-footer">
       <div class="pg-footer__brand">
@@ -585,10 +680,13 @@ const content = {
   padding: 0.9rem 1rem 0.9rem 1.15rem;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--glass);
-  backdrop-filter: blur(26px);
-  -webkit-backdrop-filter: blur(26px);
+  background: var(--surface-solid);
   box-shadow: var(--shadow);
+}
+
+.pg-home[data-theme='dark'] .pg-header {
+  background: #0e1825;
+  border-color: rgba(227, 176, 88, 0.22);
 }
 
 .pg-header__brand,
@@ -600,19 +698,19 @@ const content = {
 
 .pg-header__logo,
 .pg-footer__logo {
-  width: 2.45rem;
-  height: 2.45rem;
+  width: 3rem;
+  height: 3rem;
   object-fit: contain;
   border-radius: 999px;
   background: rgba(10, 16, 24, 0.85);
-  padding: 0.38rem;
+  padding: 0.42rem;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .pg-header__wordmark,
 .pg-footer__name {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 1.6rem;
+  font-size: 1.85rem;
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -1359,5 +1457,153 @@ const content = {
 
 .pg-mobile-menu__cta:hover {
     background: #0B2D5E !important;
+}
+
+.pg-home[data-theme='dark'] .pg-mobile-menu__nav {
+    background: #0e1825;
+    border: 1px solid rgba(227, 176, 88, 0.18);
+}
+
+.pg-home[data-theme='dark'] .pg-mobile-menu__nav a {
+    color: #f3eadc;
+}
+
+.pg-home[data-theme='dark'] .pg-mobile-menu__nav a:hover {
+    background: rgba(240, 187, 69, 0.1);
+}
+
+/* ── Section téléchargement ── */
+.pg-download-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.pg-download-card {
+  border-radius: 1.6rem;
+  padding: 1.8rem 1.2rem 1.4rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.7rem;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.pg-download-card:not(.is-soon):hover {
+  transform: translateY(-3px);
+  box-shadow: 0 32px 80px rgba(52, 33, 9, 0.18);
+}
+
+.pg-download-card.is-soon {
+  opacity: 0.68;
+}
+
+.pg-download-card__icon {
+  width: 3.6rem;
+  height: 3.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1.1rem;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.pg-download-card__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.pg-download-card h3 {
+  margin: 0;
+  font-size: 1.12rem;
+  color: var(--text);
+}
+
+.pg-download-card p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.pg-download-card__btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ── Badge "Bientôt disponible" ── */
+.pg-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.42rem 0.9rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+/* ── Toast ── */
+.pg-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  padding: 0.9rem 1.8rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--page-bg);
+  font-size: 0.92rem;
+  font-weight: 600;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.pg-toast-fade-enter-active,
+.pg-toast-fade-leave-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.pg-toast-fade-enter-from,
+.pg-toast-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+}
+
+@media (max-width: 1100px) {
+  .pg-download-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .pg-download-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .pg-download-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pg-header__wordmark {
+    font-size: 1.5rem;
+  }
 }
 </style>

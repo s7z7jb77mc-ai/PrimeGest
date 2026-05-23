@@ -40,7 +40,11 @@ const getStoredAppearance = () => {
         return null;
     }
 
-    return localStorage.getItem('appearance') as Appearance | null;
+    try {
+        return localStorage.getItem('appearance') as Appearance | null;
+    } catch {
+        return null;
+    }
 };
 
 const handleSystemThemeChange = () => {
@@ -66,18 +70,19 @@ const appearance = ref<Appearance>('system');
 
 export function useAppearance() {
     onMounted(() => {
-        const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-
-        if (savedAppearance) {
-            appearance.value = savedAppearance;
-        }
+        try {
+            const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
+            if (savedAppearance) {
+                appearance.value = savedAppearance;
+            }
+        } catch { /* localStorage inaccessible */ }
     });
 
     function updateAppearance(value: Appearance) {
         appearance.value = value;
 
         // Store in localStorage for client-side persistence...
-        localStorage.setItem('appearance', value);
+        try { localStorage.setItem('appearance', value); } catch { /* ignore */ }
 
         // Store in cookie for SSR...
         setCookie('appearance', value);

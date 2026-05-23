@@ -3,6 +3,9 @@
   "identifier": "default",
   "description": "Permissions PrimeGest",
   "windows": ["main"],
+  "remote": {
+    "urls": ["https://primegest.app/*"]
+  },
   "permissions": [
     "core:default",
     "shell:allow-open",

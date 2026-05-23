@@ -12,6 +12,7 @@ export const useOfflineStore = defineStore('offline', () => {
     const lastSyncError   = ref<string | null>(null)
     const conflicts       = ref<number>(0)
     const isTauri         = ref<boolean>(false)
+    const syncToken       = ref<string | null>(null)
 
     // ── Getters ──────────────────────────────────────────────────────────────
 
@@ -78,6 +79,14 @@ export const useOfflineStore = defineStore('offline', () => {
         isTauri.value = value
     }
 
+    function setSyncToken(token: string) {
+        syncToken.value = token
+    }
+
+    function clearSyncToken() {
+        syncToken.value = null
+    }
+
     // Initialiser les listeners réseau
     function initNetworkListeners() {
         const handleOnline = async () => {
@@ -113,6 +122,7 @@ export const useOfflineStore = defineStore('offline', () => {
         lastSyncError,
         conflicts,
         isTauri,
+        syncToken,
         // getters
         hasPending,
         syncStatusLabel,
@@ -126,6 +136,8 @@ export const useOfflineStore = defineStore('offline', () => {
         setSyncError,
         incrementPending,
         setTauri,
+        setSyncToken,
+        clearSyncToken,
         initNetworkListeners,
     }
 })

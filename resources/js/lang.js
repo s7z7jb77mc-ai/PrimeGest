@@ -411,15 +411,20 @@ const messages = {
 };
 
 export function getStoredLang() {
-  if (typeof localStorage === 'undefined') return 'fr';
-  const value = localStorage.getItem(LANG_KEY);
-  return value === 'en' ? 'en' : 'fr';
+  try {
+    const value = localStorage.getItem(LANG_KEY);
+    return value === 'en' ? 'en' : 'fr';
+  } catch {
+    return 'fr';
+  }
 }
 
 export function setLang(lang) {
   const value = lang === 'en' ? 'en' : 'fr';
-  if (typeof localStorage !== 'undefined') {
+  try {
     localStorage.setItem(LANG_KEY, value);
+  } catch {
+    // localStorage inaccessible (iOS Safari private mode, etc.)
   }
   if (typeof document !== 'undefined') {
     document.documentElement.lang = value;
