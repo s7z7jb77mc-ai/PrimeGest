@@ -24,7 +24,9 @@ const props = defineProps({
 })
 
 const displaySuccursales = computed<any[]>(() =>
-    offlineStore.isOnline ? (props.succursales as any[]) : localSuccursales.value
+    offlineStore.isOnline
+        ? (props.succursales as any[])
+        : (localSuccursales.value.length > 0 ? localSuccursales.value : (props.succursales as any[]))
 )
 
 const page = usePage()

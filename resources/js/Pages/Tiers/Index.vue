@@ -39,10 +39,14 @@ onMounted(async () => {
 })
 
 const displayClients = computed<any[]>(() =>
-    offlineStore.isOnline ? (props.clients as any[]) : localClients.value
+    offlineStore.isOnline
+        ? (props.clients as any[])
+        : (localClients.value.length > 0 ? localClients.value : (props.clients as any[]))
 )
 const displayFournisseurs = computed<any[]>(() =>
-    offlineStore.isOnline ? (props.fournisseurs as any[]) : localFournisseurs.value
+    offlineStore.isOnline
+        ? (props.fournisseurs as any[])
+        : (localFournisseurs.value.length > 0 ? localFournisseurs.value : (props.fournisseurs as any[]))
 )
 const _isSuperAdmin = computed(() => {
   const propsObj = page.props?.value ?? page.props ?? {}

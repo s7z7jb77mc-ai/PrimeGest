@@ -34,8 +34,15 @@ createInertiaApp({
 
         app.mount(el)
 
-        // PWA web : démarrer le sync manager (pull initial + auto-sync)
-        if (!isTauri) {
+        if (isTauri) {
+            // Tauri : sync initial + périodique pour peupler la base SQLite locale dès le démarrage
+            import('./composables/useOfflineQueue').then(async ({ useOfflineQueue }) => {
+                const { syncPending } = useOfflineQueue()
+                if (offlineStore.isOnline) syncPending()
+                setInterval(() => { if (offlineStore.isOnline) syncPending() }, 5 * 60 * 1000)
+            })
+        } else {
+            // PWA web : pull initial + auto-sync via SyncManager
             import('./composables/useSyncManager').then(({ useSyncManager }) => {
                 const { startAutoSync } = useSyncManager()
                 startAutoSync()

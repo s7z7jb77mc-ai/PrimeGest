@@ -11,6 +11,12 @@ const offlineStore = useOfflineStore()
 const localDB = useLocalDB()
 const localTransferts = ref<any[]>([])
 
+const displayTransferts = computed<any[]>(() =>
+    offlineStore.isOnline
+        ? (props.transferts as any[])
+        : (localTransferts.value.length > 0 ? localTransferts.value : (props.transferts as any[]))
+)
+
 async function loadLocalTransferts() {
     localTransferts.value = await localDB.getTransferts()
 }
@@ -308,8 +314,8 @@ async function rejectTransfer(t: Transfert) {
             <th class="px-4 py-2 text-left">Action</th>
           </tr>
         </thead>
-        <tbody v-if="(offlineStore.isOnline ? props.transferts : localTransferts).length">
-          <tr v-for="t in (offlineStore.isOnline ? props.transferts : localTransferts)" :key="t.id" class="border-t">
+        <tbody v-if="displayTransferts.length">
+          <tr v-for="t in displayTransferts" :key="t.id" class="border-t">
             <td class="px-4 py-2">{{ formatDateTime(t.date_operation || '') }}</td>
             <td class="px-4 py-2">{{ t.type === 'stock' ? 'Stock' : 'Caisse' }}</td>
             <td class="px-4 py-2">{{ displayFrom(t) }}</td>

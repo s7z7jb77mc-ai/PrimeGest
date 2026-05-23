@@ -56,7 +56,9 @@ onMounted(async () => {
 })
 
 const displayProduits = computed<any[]>(() =>
-    offlineStore.isOnline ? (props.produits as any[]) : localProduits.value
+    offlineStore.isOnline
+        ? (props.produits as any[])
+        : (localProduits.value.length > 0 ? localProduits.value : (props.produits as any[]))
 )
 
 function openModal(produit = null) {

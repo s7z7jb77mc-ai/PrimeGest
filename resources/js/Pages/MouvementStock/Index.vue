@@ -68,16 +68,24 @@ async function loadLocalMvt() {
 }
 
 const displayMouvements = computed<any[]>(() =>
-    offlineStore.isOnline ? ((props.mouvements as any[]) ?? []) : localMouvements.value
+    offlineStore.isOnline
+        ? ((props.mouvements as any[]) ?? [])
+        : (localMouvements.value.length > 0 ? localMouvements.value : ((props.mouvements as any[]) ?? []))
 )
 const displayProduits = computed<any[]>(() =>
-    offlineStore.isOnline ? ((props.produits as any[]) ?? []) : localProduits.value
+    offlineStore.isOnline
+        ? ((props.produits as any[]) ?? [])
+        : (localProduits.value.length > 0 ? localProduits.value : ((props.produits as any[]) ?? []))
 )
 const displayClients = computed<any[]>(() =>
-    offlineStore.isOnline ? ((props.clients as any[]) ?? []) : localClients.value
+    offlineStore.isOnline
+        ? ((props.clients as any[]) ?? [])
+        : (localClients.value.length > 0 ? localClients.value : ((props.clients as any[]) ?? []))
 )
 const displayFournisseurs = computed<any[]>(() =>
-    offlineStore.isOnline ? ((props.fournisseurs as any[]) ?? []) : localFournisseurs.value
+    offlineStore.isOnline
+        ? ((props.fournisseurs as any[]) ?? [])
+        : (localFournisseurs.value.length > 0 ? localFournisseurs.value : ((props.fournisseurs as any[]) ?? []))
 )
 
 const clientTrouve = computed(() => {

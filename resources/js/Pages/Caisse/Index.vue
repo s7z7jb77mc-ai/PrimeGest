@@ -43,7 +43,9 @@ const props = defineProps<{
 }>()
 
 const displayCaisses = computed<CaisseItem[]>(() =>
-    offlineStore.isOnline ? props.caisses : (localCaisses.value as CaisseItem[])
+    offlineStore.isOnline
+        ? props.caisses
+        : (localCaisses.value.length > 0 ? (localCaisses.value as CaisseItem[]) : props.caisses)
 )
 
 // Calculs des totaux

@@ -36,7 +36,9 @@ onMounted(async () => {
 })
 
 const displayJournals = computed<any[]>(() =>
-    offlineStore.isOnline ? (props.journals as any[]) : localJournals.value
+    offlineStore.isOnline
+        ? (props.journals as any[])
+        : (localJournals.value.length > 0 ? localJournals.value : (props.journals as any[]))
 )
 
 // Date format pour datetime-local
