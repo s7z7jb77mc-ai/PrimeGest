@@ -244,35 +244,24 @@ class LegacySyncController extends Controller
             class_uses_recursive($modelClass)
         );
 
-        $existingQuery = $usesSoftDeletes
-            ? $modelClass::withTrashed()
-            : $modelClass::query();
-
-        $existing = $existingQuery->where('uuid', $op['record_id'])->first();
-
-        if ($existing && ($existing->sync_version ?? 0) > $op['client_sync_version']) {
-            return [
-                'status' => 'conflict',
-                'sync_version' => $existing->sync_version ?? 0,
-            ];
-        }
-
         $fields = $this->resolveFields($tableName ?? '');
         $payload = collect($op['payload'])->only($fields)->toArray();
         $payload['entreprise_id'] = $entrepriseId;
+        $payload['succursale_id'] = auth()->user()->succursale_id;
         $payload['uuid'] = $op['record_id'];
 
         $mergedPayload = $usesSoftDeletes
             ? array_merge($payload, ['deleted_at' => null])
             : $payload;
 
+        // LWW : withoutGlobalScopes() pour bypasser succursaleScoped et trouver l'enregistrement par UUID seul
         $model = $usesSoftDeletes
-            ? $modelClass::withTrashed()->updateOrCreate(['uuid' => $op['record_id']], $mergedPayload)
-            : $modelClass::updateOrCreate(['uuid' => $op['record_id']], $mergedPayload);
+            ? $modelClass::withoutGlobalScopes()->withTrashed()->updateOrCreate(['uuid' => $op['record_id']], $mergedPayload)
+            : $modelClass::withoutGlobalScopes()->updateOrCreate(['uuid' => $op['record_id']], $mergedPayload);
 
         return [
             'status' => 'synced',
-            'sync_version' => $model->fresh()->sync_version ?? 0,
+            'sync_version' => $model->fresh()?->sync_version ?? 0,
         ];
     }
 
@@ -285,16 +274,13 @@ class LegacySyncController extends Controller
             return ['status' => 'ignored'];
         }
 
-        $model = $modelClass::where('uuid', $op['record_id'])
+        $model = $modelClass::withoutGlobalScopes()
+            ->where('uuid', $op['record_id'])
             ->where('entreprise_id', $entrepriseId)
             ->first();
 
         if (! $model) {
             return ['status' => 'not_found'];
-        }
-
-        if (($model->sync_version ?? 0) > $op['client_sync_version']) {
-            return ['status' => 'conflict', 'sync_version' => $model->sync_version ?? 0];
         }
 
         $model->delete();

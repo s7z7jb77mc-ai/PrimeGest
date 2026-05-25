@@ -3,6 +3,62 @@ import { useOfflineStore } from '@/stores/useOfflineStore'
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
+// Map tableName → table Dexie pour le write-through local
+const DEXIE_TABLE_MAP: Record<string, any> = {
+    produits:        null, // initialisé lazily après import de db
+    clients:         null,
+    fournisseurs:    null,
+    journals:        null,
+    mouvement_stocks:null,
+    caisses:         null,
+    transferts:      null,
+    succursales:     null,
+}
+
+function getDexieTable(tableName: string): any | null {
+    const tableMap: Record<string, any> = {
+        produits:         db.produits,
+        clients:          db.clients,
+        fournisseurs:     db.fournisseurs,
+        journals:         db.journals,
+        mouvement_stocks: db.mouvement_stocks,
+        caisses:          db.caisses,
+        transferts:       db.transferts,
+        succursales:      db.succursales,
+    }
+    return tableMap[tableName] ?? null
+}
+
+/**
+ * Write-through : reflète immédiatement l'opération dans Dexie
+ * pour que l'UI se rafraîchisse sans attendre la sync.
+ */
+async function writeThrough(
+    tableName: string,
+    recordId: string,
+    operation: 'create' | 'update' | 'delete',
+    payload: Record<string, any>,
+): Promise<void> {
+    const table = getDexieTable(tableName)
+    if (!table) return
+    try {
+        if (operation === 'delete') {
+            await table.update(recordId, { deleted_at: Math.floor(Date.now() / 1000) })
+        } else {
+            await table.put({
+                ...payload,
+                uuid:       recordId,
+                updated_at: Math.floor(Date.now() / 1000),
+                deleted_at: null,
+            })
+        }
+        // Notifier les pages pour qu'elles relisent Dexie
+        window.dispatchEvent(new CustomEvent('primegest:local-write', { detail: { tableName, recordId, operation } }))
+    } catch (e) {
+        console.warn('[OfflineQueue] write-through échoué:', e)
+    }
+}
+
 export function useOfflineQueue() {
     const offlineStore = useOfflineStore()
 
@@ -25,6 +81,8 @@ export function useOfflineQueue() {
                 client_sync_version: 0,
                 created_at:          Date.now(),
             })
+            // Refléter immédiatement dans Dexie pour une UI réactive offline
+            await writeThrough(tableName, recordId, operation, payload)
         }
         offlineStore.incrementPending()
     }
@@ -83,6 +141,7 @@ export function useOfflineQueue() {
             redirect: 'manual',
             headers:  {
                 'Content-Type':     'application/json',
+                // Bug fix : X-CSRF-TOKEN attend le token brut (meta tag), pas la valeur chiffrée du cookie
                 'X-CSRF-TOKEN':     getCsrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept':           'application/json',
@@ -92,6 +151,10 @@ export function useOfflineQueue() {
 
         if (res.type === 'opaqueredirect' || res.status === 302) {
             window.location.reload()
+            return
+        }
+        if (res.status === 401) {
+            offlineStore.setSyncError('Session expirée — reconnectez-vous')
             return
         }
         if (!res.ok) {
@@ -112,6 +175,8 @@ export function useOfflineQueue() {
                 await db.sync_queue.update(op.id, { status: 'synced' })
                 synced++
             } else if (result.status === 'conflict') {
+                // Marquer quand même comme synced pour vider la queue — le serveur a appliqué LWW
+                await db.sync_queue.update(op.id, { status: 'synced' })
                 conflicts++
             }
         }
@@ -124,8 +189,6 @@ export function useOfflineQueue() {
 
 /**
  * Récupère le token Sanctum pour la sync Tauri.
- * Utilise le cache mémoire (Pinia) — le webview a la session cookie, donc
- * POST /api/auth/tauri-token fonctionne sans credential supplémentaire.
  */
 async function getTauriSyncToken(): Promise<string> {
     const offlineStore = useOfflineStore()
@@ -140,6 +203,7 @@ async function getTauriSyncToken(): Promise<string> {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept':           'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({ device_id: getDeviceId() }),
         })
         if (!res.ok) return ''
@@ -151,9 +215,11 @@ async function getTauriSyncToken(): Promise<string> {
     }
 }
 
+/**
+ * Retourne le token CSRF brut depuis la balise meta.
+ * X-CSRF-TOKEN attend le token de session brut, PAS la valeur chiffrée du cookie XSRF-TOKEN.
+ */
 function getCsrfToken(): string {
-    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/)
-    if (match) return decodeURIComponent(match[1])
     return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
 }
 

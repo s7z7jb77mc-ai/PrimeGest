@@ -321,7 +321,7 @@ onMounted(async () => {
   <div class="p-4 sm:p-6 space-y-6" :key="lang">
     <!-- Bannière hors-ligne -->
     <div v-if="!offlineStore.isOnline" class="px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
-      Mode hors-ligne — données locales (lecture seule)
+      Mode hors-ligne — modifications sauvegardées localement, sync dès la reconnexion
     </div>
 
     <!-- HEADER -->

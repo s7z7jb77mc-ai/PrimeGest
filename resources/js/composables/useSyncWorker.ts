@@ -136,10 +136,7 @@ export function useSyncWorker() {
         if (localStorage.getItem('api_token')) return
 
         const deviceId = getDeviceId()
-        const csrfMatch = document.cookie.match(/XSRF-TOKEN=([^;]+)/)
-        const csrf = csrfMatch
-            ? decodeURIComponent(csrfMatch[1])
-            : document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+        const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
 
         try {
             const res = await fetch('/api/auth/tauri-token', {

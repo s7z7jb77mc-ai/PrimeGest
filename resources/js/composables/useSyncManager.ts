@@ -20,10 +20,12 @@ function toUnix(val: string | number | null | undefined): number {
 }
 
 function normalizePull(table: string, row: Record<string, any>): Record<string, any> {
+    const { payload, updated_at_ts, sync_version, ...meta } = row
     return {
-        ...row,
-        updated_at: toUnix(row.updated_at),
-        deleted_at: row.deleted_at ? toUnix(row.deleted_at) : null,
+        ...(typeof payload === 'object' && payload !== null ? payload : {}),
+        uuid: meta.uuid,
+        updated_at: toUnix(updated_at_ts ?? meta.updated_at),
+        deleted_at: meta.deleted_at ? toUnix(meta.deleted_at) : null,
     }
 }
 
