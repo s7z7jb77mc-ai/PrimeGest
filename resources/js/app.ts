@@ -59,20 +59,24 @@ createInertiaApp({
             })
         }
 
-        // En Tauri hors-ligne : supprimer la modale d'erreur Inertia (le SW sert le cache)
-        if (isTauri) {
-            import('@inertiajs/vue3').then(({ router }) => {
-                router.on('exception', (event) => {
-                    if (!offlineStore.isOnline) {
-                        event.preventDefault()
-                    }
-                })
+        // Supprimer la modale d'erreur Inertia quand offline (Tauri et PWA web/mobile)
+        import('@inertiajs/vue3').then(({ router }) => {
+            router.on('exception', (event) => {
+                if (!offlineStore.isOnline) {
+                    event.preventDefault()
+                }
             })
-        }
+            // Erreur réseau lors d'une navigation Inertia offline → silencieuse
+            router.on('error', (event) => {
+                if (!offlineStore.isOnline) {
+                    event.preventDefault()
+                }
+            })
+        })
 
         // Pré-cache toutes les routes Inertia dès que l'user est en ligne (Tauri et PWA)
-        // Garantit la navigation offline même pour les pages jamais visitées
-        if ('serviceWorker' in navigator && navigator.onLine) {
+        // La navigation offline fonctionne même sans precache grâce au fallback synthétique du SW
+        if ('serviceWorker' in navigator) {
             const version = (props as any).initialPage?.version || ''
             navigator.serviceWorker.ready.then((reg) => {
                 reg.active?.postMessage({
