@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { router, usePage, useForm } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
@@ -65,14 +65,13 @@ const pageProps = computed(() => page.props?.value ?? page.props ?? {})
 const multiSuccursales = computed(() => !!pageProps.value.parametres?.multi_succursales || !!pageProps.value.has_succursales)
 const isDecentralized = computed(() => !!props.succursale_id || !!pageProps.value?.succursale_id || !!pageProps.value?.succursale_name)
 
-const initialForm = ref({
-  montant: '',
+const initialForm = useForm({
+  montant: '' as string | number,
   description: 'Solde initial (manuel)',
   date_operation: new Date().toISOString().split('T')[0],
 })
 
-const isSaving = ref(false)
-const errorMsg = ref('')
+const errorMsg  = ref('')
 const successMsg = ref('')
 
 // Formater les montants avec la devise du prop
@@ -85,51 +84,29 @@ function formatCurrency(value: number | undefined): string {
   }).format(value || 0)
 }
 
-async function enregistrerSoldeInitial(): Promise<void> {
+function enregistrerSoldeInitial(): void {
   if (props.hasInitial) return
   if (!offlineStore.isOnline) {
     errorMsg.value = 'Connexion requise pour enregistrer en caisse.'
     return
   }
 
-  errorMsg.value = ''
+  errorMsg.value  = ''
   successMsg.value = ''
-  isSaving.value = true
 
-  try {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-    const response = await fetch('/caisse/initial', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': csrfToken || '',
-      },
-      body: JSON.stringify({
-        montant: Number(initialForm.value.montant),
-        description: initialForm.value.description,
-        date_operation: initialForm.value.date_operation || null,
-      }),
-    })
-    const text = await response.text()
-    let data = {}
-    try {
-      data = JSON.parse(text)
-    } catch {
-      data = {}
-    }
-
-    if (!response.ok) {
-      errorMsg.value = data.message || text || 'Impossible d’enregistrer le solde initial.'
-      return
-    }
-
-    successMsg.value = data.message || 'Solde initial enregistré.'
-    router.reload({ only: ['caisses', 'hasInitial', 'caisseInitiale'] })
-  } catch (error: any) {
-    errorMsg.value = error?.message || 'Erreur lors de l’enregistrement.'
-  } finally {
-    isSaving.value = false
-  }
+  initialForm.transform(data => ({
+    ...data,
+    montant: Number(data.montant),
+    date_operation: data.date_operation || null,
+  })).post('/caisse/initial', {
+    preserveScroll: true,
+    onSuccess: () => {
+      successMsg.value = 'Solde initial enregistré.'
+    },
+    onError: (errors) => {
+      errorMsg.value = errors.montant || errors.message || 'Impossible d\'enregistrer le solde initial.'
+    },
+  })
 }
 
 // Aller au dashboard
@@ -164,16 +141,16 @@ function formatDateTime(value?: string | null): string {
 </script>
 
 <template>
-  <div class="p-6" :key="lang">
+  <div class="p-4 sm:p-6" :key="lang">
     <!-- Bannière hors-ligne -->
     <div v-if="!offlineStore.isOnline" class="mb-4 px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
       Mode hors-ligne — données en cache (lecture seule). Les enregistrements nécessitent une connexion.
     </div>
 
     <!-- Header -->
-    <div class="flex justify-between mb-4">
+    <div class="flex flex-wrap justify-between gap-3 mb-4">
       <h1 class="text-2xl font-bold">{{ t('cash_title') }}</h1>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <button
           v-if="multiSuccursales"
           type="button"
@@ -241,7 +218,7 @@ function formatDateTime(value?: string | null): string {
         <div class="md:col-span-4">
           <button
             type="submit"
-            :disabled="isSaving || !offlineStore.isOnline"
+            :disabled="initialForm.processing || !offlineStore.isOnline"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
             {{ offlineStore.isOnline ? 'Enregistrer le solde initial' : 'Connexion requise' }}
@@ -253,7 +230,7 @@ function formatDateTime(value?: string | null): string {
     </div>
 
     <!-- Résumé des totaux -->
-    <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
       <div class="bg-green-50 p-4 rounded border border-green-200">
         <p class="text-gray-600 text-sm">Total Entrées</p>
         <p class="text-2xl font-bold text-green-600">{{ formatCurrency(totalEntree) }}</p>

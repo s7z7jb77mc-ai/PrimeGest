@@ -125,7 +125,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
       drawerOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0',
     ]">
       <div class="flex flex-col items-center pt-6 pb-4 px-3 border-b border-white/10">
-        <img :src="primegestLogo" :class="['rounded-full object-cover ring-2 ring-yellow-400/60 transition-all duration-300 shadow-lg mb-3', (sidebarOpen || drawerOpen) ? 'h-28 w-28' : 'h-16 w-16']" />
+        <img :src="primegestLogo" :class="['rounded-full object-cover ring-2 ring-yellow-400/60 transition-all duration-300 shadow-lg mb-3', drawerOpen ? 'h-24 w-24' : sidebarOpen ? 'h-36 w-36' : 'h-16 w-16']" />
         <Transition name="fade-slide">
           <div v-if="sidebarOpen || drawerOpen" class="text-center select-none">
             <div class="primgest-logo-text">

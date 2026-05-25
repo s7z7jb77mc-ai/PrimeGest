@@ -137,16 +137,16 @@ function goDashboard() {
 </script>
 
 <template>
-  <div class="p-6" :key="lang">
+  <div class="p-4 sm:p-6" :key="lang">
     <!-- Bannière hors-ligne -->
     <div v-if="!offlineStore.isOnline" class="mb-4 px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
       Mode hors-ligne — données locales (lecture seule)
     </div>
 
     <!-- Header -->
-    <div class="flex justify-between mb-4">
+    <div class="flex flex-wrap justify-between gap-3 mb-4">
       <h1 class="text-2xl font-bold">{{ t('products') }}</h1>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-wrap">
         <button type="button" @click="openModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
           Ajouter un produit
         </button>

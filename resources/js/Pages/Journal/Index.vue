@@ -131,16 +131,16 @@ const hasErrors = computed(() => Object.keys(form.errors).length > 0)
 </script>
 
 <template>
-  <div class="p-6 space-y-6" :key="lang">
+  <div class="p-4 sm:p-6 space-y-6" :key="lang">
     <!-- Bannière hors-ligne -->
     <div v-if="!offlineStore.isOnline" class="px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
       Mode hors-ligne — données locales (lecture seule)
     </div>
 
     <!-- Header -->
-    <div class="flex justify-between items-center">
+    <div class="flex flex-wrap justify-between items-center gap-3">
       <h1 class="text-2xl font-bold">{{ t('journal') }}</h1>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-wrap">
         <button type="button" @click="openModal" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
           Nouvelle opération
         </button>

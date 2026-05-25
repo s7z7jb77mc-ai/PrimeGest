@@ -1,6 +1,6 @@
-const SHELL_CACHE   = 'primegest-shell-v8'
-const INERTIA_CACHE = 'primegest-inertia-v9'
-const ASSET_CACHE   = 'primegest-assets-v7'
+const SHELL_CACHE   = 'primegest-shell-v9'
+const INERTIA_CACHE = 'primegest-inertia-v10'
+const ASSET_CACHE   = 'primegest-assets-v8'
 
 const INERTIA_ROUTES = [
   '/dashboard',
@@ -197,17 +197,26 @@ async function cacheFirst(request) {
 
 async function navigateFallback(request) {
   const cache = await caches.open(SHELL_CACHE)
-  try {
-    const response = await fetch(request)
-    if (response.ok) {
-      cache.put(request, response.clone())
-    }
-    // Toujours retourner la réponse du serveur (500, 404...) — ne pas masquer les vraies erreurs
+
+  const tryNetwork = async () => {
+    const response = await fetch(request.clone())
+    if (response.ok) cache.put(request, response.clone())
     return response
+  }
+
+  try {
+    return await tryNetwork()
   } catch {
-    // Fallback uniquement sur vraie coupure réseau (fetch lève une exception)
-    const routeCached = await cache.match(request)
-    if (routeCached) return routeCached
-    return (await cache.match('/offline.html')) || new Response('Hors ligne', { status: 503 })
+    // Premier échec réseau — peut être un faux-positif au démarrage Tauri (race condition WebView/réseau).
+    // On attend 2 s et on retente avant de basculer en mode hors-ligne.
+    await new Promise(r => setTimeout(r, 2000))
+    try {
+      return await tryNetwork()
+    } catch {
+      // Vraie coupure réseau : servir le cache ou offline.html
+      const routeCached = await cache.match(request)
+      if (routeCached) return routeCached
+      return (await cache.match('/offline.html')) || new Response('Hors ligne', { status: 503 })
+    }
   }
 }

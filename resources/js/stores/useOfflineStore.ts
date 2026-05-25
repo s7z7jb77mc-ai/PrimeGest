@@ -109,8 +109,11 @@ export const useOfflineStore = defineStore('offline', () => {
         }
         window.addEventListener('online',  handleOnline)
         window.addEventListener('offline', handleOffline)
-        // État initial
-        isOnline.value = navigator.onLine
+
+        // navigator.onLine peut être incorrect dans le WebView Tauri au démarrage.
+        // On part du principe qu'on est en ligne ; app.ts confirmera via un ping réel.
+        const isTauriCtx = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+        isOnline.value = isTauriCtx ? true : navigator.onLine
     }
 
     return {

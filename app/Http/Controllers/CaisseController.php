@@ -85,15 +85,15 @@ class CaisseController extends Controller
         $succursaleId = session('succursale_id');
 
         if ($succursaleId) {
-            return response()->json([
-                'message' => 'Le solde initial se définit uniquement au niveau central.',
-            ], 422);
+            return back()->withErrors([
+                'montant' => 'Le solde initial se définit uniquement au niveau central.',
+            ]);
         }
 
         if (!schema_has_column('caisses', 'type_operation')) {
-            return response()->json([
-                'message' => 'Veuillez exécuter la migration pour activer le solde initial.',
-            ], 500);
+            return back()->withErrors([
+                'montant' => 'Veuillez exécuter la migration pour activer le solde initial.',
+            ]);
         }
 
         $initialExiste = Caisse::where('entreprise_id', $entrepriseId)
@@ -105,9 +105,9 @@ class CaisseController extends Controller
             ->exists();
 
         if ($initialExiste) {
-            return response()->json([
-                'message' => 'Le solde initial est déjà défini pour cette entreprise.',
-            ], 422);
+            return back()->withErrors([
+                'montant' => 'Le solde initial est déjà défini pour cette entreprise.',
+            ]);
         }
 
         $validated = $request->validate([
@@ -129,6 +129,7 @@ class CaisseController extends Controller
         }
         CaisseService::createOperation($payload);
 
-        return response()->json(['message' => 'Solde initial enregistré avec succès.']);
+        return redirect()->route('caisse.index')
+            ->with('success', 'Solde initial enregistré avec succès.');
     }
 }

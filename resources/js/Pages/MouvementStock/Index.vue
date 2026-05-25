@@ -318,16 +318,16 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-6 space-y-6" :key="lang">
+  <div class="p-4 sm:p-6 space-y-6" :key="lang">
     <!-- Bannière hors-ligne -->
     <div v-if="!offlineStore.isOnline" class="px-4 py-2 bg-amber-50 border border-amber-300 text-amber-800 rounded text-sm">
       Mode hors-ligne — données locales (lecture seule)
     </div>
 
     <!-- HEADER -->
-    <div class="flex justify-between items-center">
+    <div class="flex flex-wrap justify-between items-center gap-3">
       <h1 class="text-2xl font-bold">{{ t('stock_moves_title') }}</h1>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-wrap">
         <button type="button" @click="openModalAs('entree')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
           Entrée
         </button>
@@ -422,8 +422,8 @@ onMounted(async () => {
     </div>
 
     <!-- MODAL FORMULAIRE -->
-    <div v-if="modalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start pt-12 z-50">
-      <div class="bg-white p-6 rounded w-full max-w-3xl max-h-[80vh] overflow-y-auto">
+    <div v-if="modalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start pt-4 sm:pt-12 z-50 px-2 sm:px-4">
+      <div class="bg-white p-4 sm:p-6 rounded w-full max-w-3xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold">
             {{ mode === 'entree' ? 'Formulaire d\'achat (Entrée)' : 'Formulaire de vente (Sortie)' }}

@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-screen bg-gray-100" :key="lang">
     <!-- Sidebar -->
-    <aside class="w-64 bg-black text-white p-4">
+    <aside class="hidden lg:flex flex-col w-64 bg-black text-white p-4">
       <div class="flex items-center space-x-3 mb-8">
         <img :src="getLogoUrl()" class="h-12 w-12"/>
         <h1 class="font-bold text-xl">PrimeGest</h1>
@@ -26,12 +26,12 @@
     <div class="flex-1 flex flex-col">
       <!-- Header -->
       <header class="bg-white shadow p-4 print-hide">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-wrap justify-between items-center gap-3">
           <div>
-            <h1 class="text-2xl font-bold text-gray-800">{{ getTitreRapport() }}</h1>
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-800">{{ getTitreRapport() }}</h1>
             <p class="text-gray-600 text-sm" v-if="rapport">{{ rapport.periode_detaillee }}</p>
           </div>
-          <div class="flex space-x-3">
+          <div class="flex flex-wrap gap-2">
             <button @click="imprimerRapport" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center space-x-2">
               <Icon name="print" />
               <span>Imprimer</span>
@@ -46,7 +46,7 @@
 
       <!-- Onglets -->
       <div class="bg-white shadow print-hide">
-        <div class="flex border-b">
+        <div class="flex border-b overflow-x-auto">
           <button
             v-for="tab in tabs"
             :key="tab.value"
@@ -63,7 +63,7 @@
         </div>
 
         <!-- Sélecteur de date selon le type -->
-        <div class="px-6 py-4 border-b bg-gray-50 flex items-center space-x-4">
+        <div class="px-4 sm:px-6 py-4 border-b bg-gray-50 flex flex-wrap items-center gap-3">
           <label class="text-sm font-medium text-gray-700" v-if="selectedType === 'journalier'">
             📅 Sélectionner une date:
           </label>
@@ -122,7 +122,7 @@
       </div>
 
       <!-- Contenu -->
-      <main v-if="rapport" class="space-y-6">
+      <main v-if="rapport" class="space-y-6 p-4 sm:p-6">
 
         <!-- Entête du rapport -->
         <section class="bg-white shadow rounded-lg p-6">

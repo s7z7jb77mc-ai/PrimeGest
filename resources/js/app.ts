@@ -35,12 +35,22 @@ createInertiaApp({
         app.mount(el)
 
         if (isTauri) {
-            // Tauri : sync initial + périodique pour peupler la base SQLite locale dès le démarrage
-            import('./composables/useOfflineQueue').then(async ({ useOfflineQueue }) => {
+            // Tauri : navigator.onLine peut être faux au démarrage (race condition WebView).
+            // On vérifie la vraie connectivité via un ping HTTP avant de lancer la sync.
+            const verifyAndSync = async () => {
+                try {
+                    const r = await fetch('/up', { method: 'HEAD', cache: 'no-store' })
+                    offlineStore.setOnline(r.ok)
+                } catch {
+                    offlineStore.setOnline(false)
+                }
+                const { useOfflineQueue } = await import('./composables/useOfflineQueue')
                 const { syncPending } = useOfflineQueue()
                 if (offlineStore.isOnline) syncPending()
                 setInterval(() => { if (offlineStore.isOnline) syncPending() }, 5 * 60 * 1000)
-            })
+            }
+            // Petit délai pour laisser le réseau Tauri s'initialiser avant le premier ping
+            setTimeout(verifyAndSync, 1500)
         } else {
             // PWA web : pull initial + auto-sync via SyncManager
             import('./composables/useSyncManager').then(({ useSyncManager }) => {
