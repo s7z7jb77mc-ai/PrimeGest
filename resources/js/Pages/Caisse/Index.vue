@@ -6,6 +6,7 @@ import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
 import { useLocalDB } from '@/composables/useLocalDB'
+import { useOfflineQueue } from '@/composables/useOfflineQueue'
 defineOptions({ layout: AppDashboardLayout })
 
 const offlineStore = useOfflineStore()
@@ -84,10 +85,18 @@ function formatCurrency(value: number | undefined): string {
   }).format(value || 0)
 }
 
-function enregistrerSoldeInitial(): void {
+async function enregistrerSoldeInitial(): Promise<void> {
   if (props.hasInitial) return
   if (!offlineStore.isOnline) {
-    errorMsg.value = 'Connexion requise pour enregistrer en caisse.'
+    const { queueOperation } = useOfflineQueue()
+    await queueOperation('caisses', crypto.randomUUID(), 'create', {
+      description: initialForm.description,
+      date_operation: initialForm.date_operation || new Date().toISOString().split('T')[0],
+      entree: Number(initialForm.montant),
+      sortie: 0,
+      type_operation: 'initial',
+    })
+    successMsg.value = 'Sauvegardé localement — sync dès la reconnexion.'
     return
   }
 

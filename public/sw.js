@@ -1,6 +1,6 @@
-const SHELL_CACHE   = 'primegest-shell-v9'
-const INERTIA_CACHE = 'primegest-inertia-v10'
-const ASSET_CACHE   = 'primegest-assets-v8'
+const SHELL_CACHE   = 'primegest-shell-v10'
+const INERTIA_CACHE = 'primegest-inertia-v11'
+const ASSET_CACHE   = 'primegest-assets-v9'
 
 const INERTIA_ROUTES = [
   '/dashboard',
@@ -12,15 +12,40 @@ const INERTIA_ROUTES = [
   '/tiers',
   '/creances-dettes',
   '/rapports',
+  '/rapport',
   '/transferts',
   '/succursales',
 ]
+
+// Map URL → composant Inertia + props vides pour le fallback hors-ligne.
+// Ordre important : routes spécifiques avant les génériques.
+// Les pages chargent leur data depuis Dexie via onMounted quand offlineStore.isOnline === false.
+const OFFLINE_ROUTES = [
+  { re: /^\/dashboard$/,              component: 'Dashboard',             props: {} },
+  { re: /^\/produits/,                component: 'Produits/Index',        props: { produits: [] } },
+  { re: /^\/mouvement-stocks/,        component: 'MouvementStock/Index',  props: { mouvements: [], produits: [] } },
+  { re: /^\/caisse/,                  component: 'Caisse/Index',          props: { caisses: [], devise: 'USD', hasInitial: false } },
+  { re: /^\/journals/,                component: 'Journal/Index',         props: { journals: [] } },
+  { re: /^\/tiers/,                   component: 'Tiers/Index',           props: { clients: [], fournisseurs: [] } },
+  { re: /^\/creances-dettes\/[^/]+/,  component: 'CreancesDettes/Detail', props: { creance: null } },
+  { re: /^\/creances-dettes/,         component: 'CreancesDettes/Index',  props: { creances: [], dettes: [] } },
+  { re: /^\/rapports?\/[^/]+/,        component: 'Rapports/Show',         props: {} },
+  { re: /^\/rapports/,                component: 'Rapports/Index',        props: { rapports: [] } },
+  { re: /^\/rapport/,                 component: 'Rapport/Index',         props: {} },
+  { re: /^\/transferts/,              component: 'Transferts/Index',      props: { transferts: [], succursales: [] } },
+  { re: /^\/succursales\/[^/]+/,      component: 'Succursales/Show',      props: { succursale: {} } },
+  { re: /^\/succursales/,             component: 'Succursales/Index',     props: { succursales: [] } },
+]
+
+function getOfflinePage(pathname) {
+  const match = OFFLINE_ROUTES.find(({ re }) => re.test(pathname))
+  return match ? { component: match.component, props: match.props } : null
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all([
       caches.open(SHELL_CACHE).then((cache) =>
-        // Résilient : une URL indisponible ne bloque pas l'installation du SW
         Promise.allSettled([
           cache.add('/').catch(() => {}),
           cache.add('/offline.html').catch(() => {}),
@@ -109,7 +134,6 @@ async function precacheViteAssets() {
       for (const asset of (entry.assets || [])) urls.push(`/build/${asset}`)
     }
 
-    // Batches de 5 pour ne pas saturer le réseau
     for (let i = 0; i < urls.length; i += 5) {
       await Promise.all(
         urls.slice(i, i + 5).map((url) =>
@@ -140,7 +164,9 @@ async function precacheInertiaRoutes(routes, version) {
   }
 }
 
-// NetworkFirst pour les requêtes Inertia — cache en cas de succès, fallback cache sinon
+// NetworkFirst pour les requêtes Inertia (X-Inertia: true).
+// Fallback 1 : réponse Inertia mise en cache lors d'une visite précédente.
+// Fallback 2 : réponse Inertia synthétique avec props vides → la page charge depuis Dexie.
 async function inertiaNetworkFirst(request) {
   const cache = await caches.open(INERTIA_CACHE)
   try {
@@ -152,10 +178,31 @@ async function inertiaNetworkFirst(request) {
   } catch {
     const cached = await cache.match(request)
     if (cached) return cached
-    return new Response(
-      JSON.stringify({ error: 'Hors ligne', message: 'Données non disponibles hors connexion' }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } }
-    )
+
+    // Réponse Inertia synthétique — Inertia rend le bon composant,
+    // qui charge ses données depuis Dexie via onMounted (offlineStore.isOnline === false).
+    const url = new URL(request.url)
+    const page = getOfflinePage(url.pathname)
+    if (page) {
+      return new Response(
+        JSON.stringify({
+          component: page.component,
+          props: page.props,
+          url: url.pathname + url.search,
+          version: 'offline',
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Inertia': 'true',
+            'Vary': 'X-Inertia',
+          },
+        }
+      )
+    }
+
+    return new Response('Hors ligne', { status: 503 })
   }
 }
 
@@ -195,6 +242,9 @@ async function cacheFirst(request) {
   }
 }
 
+// Navigation HTML (hard refresh ou premier chargement).
+// Fallback 1 : réponse réseau fraîche.
+// Fallback 2 : shell HTML patché avec les données de page correctes → Inertia monte le bon composant.
 async function navigateFallback(request) {
   const cache = await caches.open(SHELL_CACHE)
 
@@ -207,15 +257,38 @@ async function navigateFallback(request) {
   try {
     return await tryNetwork()
   } catch {
-    // Premier échec réseau — peut être un faux-positif au démarrage Tauri (race condition WebView/réseau).
-    // On attend 2 s et on retente avant de basculer en mode hors-ligne.
+    // Possible faux-positif au démarrage Tauri — on retente après 2s
     await new Promise(r => setTimeout(r, 2000))
     try {
       return await tryNetwork()
     } catch {
-      // Vraie coupure réseau : servir le cache ou offline.html
+      // Vraie coupure réseau
       const routeCached = await cache.match(request)
       if (routeCached) return routeCached
+
+      // Patcher le shell HTML avec les données du bon composant Inertia
+      const url = new URL(request.url)
+      const page = getOfflinePage(url.pathname)
+      const shell = await cache.match('/')
+
+      if (page && shell) {
+        const html = await shell.text()
+        const pageJson = JSON.stringify({
+          component: page.component,
+          props: page.props,
+          url: url.pathname,
+          version: 'offline',
+        }).replace(/"/g, '&quot;')
+
+        // Remplace la valeur de data-page dans le premier div#app trouvé
+        const patched = html.replace(/data-page="[^"]*"/, `data-page="${pageJson}"`)
+        if (patched !== html) {
+          return new Response(patched, {
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          })
+        }
+      }
+
       return (await cache.match('/offline.html')) || new Response('Hors ligne', { status: 503 })
     }
   }
