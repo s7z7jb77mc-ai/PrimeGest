@@ -3,20 +3,28 @@
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold">{{ title }}</h1>
       <div v-if="type !== 'facture' && type !== 'transfert'" class="flex gap-2">
-        <button @click="downloadPdf(true)" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Imprimer PDF
-        </button>
-        <button @click="downloadPdf(false)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-          Télécharger PDF
-        </button>
+        <FeatureGate feature="exports" mode="inline">
+          <button @click="downloadPdf(true)" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            Imprimer PDF
+          </button>
+        </FeatureGate>
+        <FeatureGate feature="exports" mode="inline">
+          <button @click="downloadPdf(false)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+            Télécharger PDF
+          </button>
+        </FeatureGate>
       </div>
       <div v-else class="flex gap-2">
-        <button @click="downloadFacturesPdf(true)" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Imprimer PDF
-        </button>
-        <button @click="downloadFacturesPdf(false)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-          Télécharger PDF
-        </button>
+        <FeatureGate feature="exports" mode="inline">
+          <button @click="downloadFacturesPdf(true)" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            Imprimer PDF
+          </button>
+        </FeatureGate>
+        <FeatureGate feature="exports" mode="inline">
+          <button @click="downloadFacturesPdf(false)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+            Télécharger PDF
+          </button>
+        </FeatureGate>
       </div>
     </div>
 
@@ -226,6 +234,7 @@
 <script setup lang="ts">
 
 import { computed, ref } from 'vue'
+import FeatureGate from '@/components/FeatureGate.vue'
 
 const props = defineProps({
   type: String,

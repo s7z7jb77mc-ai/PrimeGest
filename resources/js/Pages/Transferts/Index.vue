@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
 import { useLocalDB } from '@/composables/useLocalDB'
+import FeatureGate from '@/components/FeatureGate.vue'
 defineOptions({ layout: AppDashboardLayout })
 
 const offlineStore = useOfflineStore()
@@ -24,6 +25,14 @@ async function loadLocalTransferts() {
 onMounted(async () => {
     if (!offlineStore.isOnline) await loadLocalTransferts()
     window.addEventListener('primegest:sync-pulled', loadLocalTransferts)
+    window.addEventListener('primegest:offline', loadLocalTransferts)
+    window.addEventListener('primegest:local-write', loadLocalTransferts)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('primegest:sync-pulled', loadLocalTransferts)
+    window.removeEventListener('primegest:offline', loadLocalTransferts)
+    window.removeEventListener('primegest:local-write', loadLocalTransferts)
 })
 
 interface Succursale {
@@ -219,82 +228,84 @@ async function rejectTransfer(t: Transfert) {
       <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded" @click="goDashboard">Dashboard</button>
     </div>
 
-    <div v-if="!hasSuccursales" class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded mb-6">
-      Ajoutez au moins une succursale pour activer les transferts.
-    </div>
-    <div v-else-if="!succursaleActive" class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded mb-6">
-      Mode centralisé : vous pouvez transférer vers une succursale.
-    </div>
+    <FeatureGate feature="succursales">
+      <div v-if="!hasSuccursales" class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded mb-6">
+        Ajoutez au moins une succursale pour activer les transferts.
+      </div>
+      <div v-else-if="!succursaleActive" class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded mb-6">
+        Mode centralisé : vous pouvez transférer vers une succursale.
+      </div>
 
-    <div class="flex items-center gap-3 mb-4">
-      <button
-        type="button"
-        class="px-4 py-2 rounded"
-        :class="activeTab === 'caisse' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'"
-        @click="activeTab = 'caisse'"
-      >
-        Caisse
-      </button>
-      <button
-        type="button"
-        class="px-4 py-2 rounded"
-        :class="activeTab === 'stock' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'"
-        @click="activeTab = 'stock'"
-      >
-        Stock
-      </button>
-    </div>
+      <div class="flex items-center gap-3 mb-4">
+        <button
+          type="button"
+          class="px-4 py-2 rounded"
+          :class="activeTab === 'caisse' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'"
+          @click="activeTab = 'caisse'"
+        >
+          Caisse
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 rounded"
+          :class="activeTab === 'stock' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'"
+          @click="activeTab = 'stock'"
+        >
+          Stock
+        </button>
+      </div>
 
-    <div v-if="activeTab === 'caisse'" class="bg-white shadow rounded p-4 mb-8">
-      <h2 class="font-semibold mb-3">Transfert de caisse</h2>
-      <form @submit.prevent="submitCaisse" class="space-y-3">
-        <div>
-          <label class="block text-sm text-gray-700 mb-1">Succursale de destination</label>
-          <select v-model="formCaisse.to_succursale_id" class="w-full border rounded px-3 py-2" :disabled="!canTransfer">
-            <option value="" disabled>Choisir...</option>
-            <option v-for="s in filteredSuccursales" :key="s.id" :value="s.id">{{ s.nom }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm text-gray-700 mb-1">Montant</label>
-          <input v-model="formCaisse.montant" type="number" min="0" step="0.01" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
-        </div>
-        <div>
-          <label class="block text-sm text-gray-700 mb-1">Date et heure</label>
-          <input v-model="formCaisse.date_operation" type="datetime-local" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
-        </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="!canTransfer">Transférer</button>
-      </form>
-    </div>
+      <div v-if="activeTab === 'caisse'" class="bg-white shadow rounded p-4 mb-8">
+        <h2 class="font-semibold mb-3">Transfert de caisse</h2>
+        <form @submit.prevent="submitCaisse" class="space-y-3">
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Succursale de destination</label>
+            <select v-model="formCaisse.to_succursale_id" class="w-full border rounded px-3 py-2" :disabled="!canTransfer">
+              <option value="" disabled>Choisir...</option>
+              <option v-for="s in filteredSuccursales" :key="s.id" :value="s.id">{{ s.nom }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Montant</label>
+            <input v-model="formCaisse.montant" type="number" min="0" step="0.01" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Date et heure</label>
+            <input v-model="formCaisse.date_operation" type="datetime-local" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
+          </div>
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="!canTransfer">Transférer</button>
+        </form>
+      </div>
 
-    <div v-if="activeTab === 'stock'" class="bg-white shadow rounded p-4 mb-8">
-      <h2 class="font-semibold mb-3">Transfert de stock</h2>
-      <form @submit.prevent="submitStock" class="space-y-3">
-        <div>
-          <label class="block text-sm text-gray-700 mb-1">Succursale de destination</label>
-          <select v-model="formStock.to_succursale_id" class="w-full border rounded px-3 py-2" :disabled="!canTransfer">
-            <option value="" disabled>Choisir...</option>
-            <option v-for="s in filteredSuccursales" :key="s.id" :value="s.id">{{ s.nom }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm text-gray-700 mb-1">Produit</label>
-          <select v-model="formStock.produit_id" class="w-full border rounded px-3 py-2" :disabled="!canTransfer">
-            <option value="" disabled>Choisir...</option>
-            <option v-for="p in props.produits" :key="p.id" :value="p.id">{{ p.nom }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm text-gray-700 mb-1">Quantité</label>
-          <input v-model="formStock.quantite" type="number" min="0" step="0.01" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
-        </div>
-        <div>
-          <label class="block text-sm text-gray-700 mb-1">Date et heure</label>
-          <input v-model="formStock.date_operation" type="datetime-local" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
-        </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="!canTransfer">Transférer</button>
-      </form>
-    </div>
+      <div v-if="activeTab === 'stock'" class="bg-white shadow rounded p-4 mb-8">
+        <h2 class="font-semibold mb-3">Transfert de stock</h2>
+        <form @submit.prevent="submitStock" class="space-y-3">
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Succursale de destination</label>
+            <select v-model="formStock.to_succursale_id" class="w-full border rounded px-3 py-2" :disabled="!canTransfer">
+              <option value="" disabled>Choisir...</option>
+              <option v-for="s in filteredSuccursales" :key="s.id" :value="s.id">{{ s.nom }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Produit</label>
+            <select v-model="formStock.produit_id" class="w-full border rounded px-3 py-2" :disabled="!canTransfer">
+              <option value="" disabled>Choisir...</option>
+              <option v-for="p in props.produits" :key="p.id" :value="p.id">{{ p.nom }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Quantité</label>
+            <input v-model="formStock.quantite" type="number" min="0" step="0.01" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Date et heure</label>
+            <input v-model="formStock.date_operation" type="datetime-local" class="w-full border rounded px-3 py-2" :disabled="!canTransfer" />
+          </div>
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="!canTransfer">Transférer</button>
+        </form>
+      </div>
+    </FeatureGate>
 
     <div v-if="errorMsg" class="text-red-600 mb-4">{{ errorMsg }}</div>
     <div v-if="successMsg" class="text-green-600 mb-4">{{ successMsg }}</div>
@@ -327,8 +338,12 @@ async function rejectTransfer(t: Transfert) {
             </td>
             <td class="px-4 py-2">
               <div v-if="t.status === 'pending' && canValidate(t)" class="flex items-center gap-2">
-                <button class="text-green-600 hover:underline" type="button" @click="approveTransfer(t)">Valider</button>
-                <button class="text-red-600 hover:underline" type="button" @click="rejectTransfer(t)">Rejeter</button>
+                <FeatureGate feature="succursales" mode="inline">
+                  <button class="text-green-600 hover:underline" type="button" @click="approveTransfer(t)">Valider</button>
+                </FeatureGate>
+                <FeatureGate feature="succursales" mode="inline">
+                  <button class="text-red-600 hover:underline" type="button" @click="rejectTransfer(t)">Rejeter</button>
+                </FeatureGate>
               </div>
               <span v-else class="text-gray-400">-</span>
             </td>

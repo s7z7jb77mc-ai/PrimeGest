@@ -44,14 +44,25 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profil', [ProfileController::class, 'index'])->name('profil.index');
     Route::get('/tiers', [TiersController::class, 'index'])->name('tiers.index');
     // Route::post('/sync', [SyncController::class, 'store'])->name('sync.store'); // désactivée — table sync_inbox inexistante, utiliser /api/sync/push
-    Route::post('/succursales', [SuccursaleController::class, 'store'])->middleware('plan:succursales')->name('succursales.store');
+
+    // Succursales — lecture libre pour tous les rôles authentifiés
     Route::get('/succursales', [SuccursaleController::class, 'index'])->name('succursales.index');
     Route::get('/succursales/{succursale}', [SuccursaleController::class, 'show'])->name('succursales.show');
     Route::get('/succursales-exit', [SuccursaleController::class, 'exit'])->name('succursales.exit');
+
+    // Transferts — lecture libre
+    Route::get('/transferts', [TransfertController::class, 'index'])->name('transferts.index');
+});
+
+// Succursales — écriture réservée au plan Pro
+Route::middleware(['auth', 'plan:succursales'])->group(function () {
+    Route::post('/succursales', [SuccursaleController::class, 'store'])->name('succursales.store');
     Route::put('/succursales/{succursale}', [SuccursaleController::class, 'update'])->name('succursales.update');
     Route::delete('/succursales/{succursale}', [SuccursaleController::class, 'destroy'])->name('succursales.destroy');
+});
 
-    Route::get('/transferts', [TransfertController::class, 'index'])->name('transferts.index');
+// Transferts — écriture réservée au plan Pro (fonctionnalité succursales)
+Route::middleware(['auth', 'plan:succursales'])->group(function () {
     Route::post('/transferts/caisse', [TransfertController::class, 'storeCaisse'])->name('transferts.caisse');
     Route::post('/transferts/stock', [TransfertController::class, 'storeStock'])->name('transferts.stock');
     Route::post('/transferts/{transfert}/approve', [TransfertController::class, 'approve'])->name('transferts.approve');

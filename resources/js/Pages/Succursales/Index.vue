@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
 import { useLocalDB } from '@/composables/useLocalDB'
+import FeatureGate from '@/components/FeatureGate.vue'
 defineOptions({ layout: AppDashboardLayout })
 
 const offlineStore = useOfflineStore()
@@ -17,6 +18,14 @@ async function loadLocalSuccursales() {
 onMounted(async () => {
     if (!offlineStore.isOnline) await loadLocalSuccursales()
     window.addEventListener('primegest:sync-pulled', loadLocalSuccursales)
+    window.addEventListener('primegest:offline', loadLocalSuccursales)
+    window.addEventListener('primegest:local-write', loadLocalSuccursales)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('primegest:sync-pulled', loadLocalSuccursales)
+    window.removeEventListener('primegest:offline', loadLocalSuccursales)
+    window.removeEventListener('primegest:local-write', loadLocalSuccursales)
 })
 
 const props = defineProps({
@@ -152,9 +161,11 @@ const confirmDelete = async () => {
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Succursales</h1>
       <div class="flex gap-2">
-        <button v-if="isSuperAdmin" type="button" @click="openModal" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Nouvelle succursale
-        </button>
+        <FeatureGate feature="succursales">
+          <button v-if="isSuperAdmin" type="button" @click="openModal" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            Nouvelle succursale
+          </button>
+        </FeatureGate>
         <button type="button" @click="goDashboard" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
           Dashboard
         </button>
@@ -175,12 +186,16 @@ const confirmDelete = async () => {
           <button type="button" @click="openSuccursale(s.id)" class="text-blue-600 hover:underline">
             Ouvrir
           </button>
-          <button v-if="isSuperAdmin" type="button" @click="openModal(s)" class="text-gray-700 hover:underline">
-            Modifier
-          </button>
-          <button v-if="isSuperAdmin" type="button" @click="openDelete(s.id)" class="text-red-600 hover:underline">
-            Supprimer
-          </button>
+          <FeatureGate feature="succursales" mode="inline">
+            <button v-if="isSuperAdmin" type="button" @click="openModal(s)" class="text-gray-700 hover:underline">
+              Modifier
+            </button>
+          </FeatureGate>
+          <FeatureGate feature="succursales" mode="inline">
+            <button v-if="isSuperAdmin" type="button" @click="openDelete(s.id)" class="text-red-600 hover:underline">
+              Supprimer
+            </button>
+          </FeatureGate>
         </div>
       </div>
       <div v-if="!displaySuccursales.length" class="text-gray-400">Aucune succursale enregistrée.</div>

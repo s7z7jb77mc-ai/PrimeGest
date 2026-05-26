@@ -9,6 +9,7 @@ use App\Mail\SubscriptionExpiringSoon;
 use App\Models\Entreprise;
 use App\Models\Subscription;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 
 class CheckSubscriptionsExpiration extends Command
@@ -41,6 +42,9 @@ class CheckSubscriptionsExpiration extends Command
                 'plan' => 'free',
                 'plan_expires_at' => null,
             ]);
+
+            Cache::forget("inertia.entreprise.{$entreprise->id}");
+            Cache::forget("inertia.has_succursales.{$entreprise->id}");
 
             Subscription::where('entreprise_id', $entreprise->id)
                 ->whereIn('status', ['confirmed', 'trial'])

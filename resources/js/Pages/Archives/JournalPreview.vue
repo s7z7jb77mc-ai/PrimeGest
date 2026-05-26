@@ -8,9 +8,11 @@
           <button @click="printPage" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
             Imprimer
           </button>
-          <button @click="downloadPdf" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-            PDF
-          </button>
+          <FeatureGate feature="exports" mode="inline">
+            <button @click="downloadPdf" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+              PDF
+            </button>
+          </FeatureGate>
           <button @click="goBack" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
             Retour
           </button>
@@ -81,6 +83,7 @@
 
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
+import FeatureGate from '@/components/FeatureGate.vue'
 
 const _props = defineProps({
   date: String,

@@ -7,6 +7,7 @@ namespace App\Actions\Subscription;
 use App\Mail\SubscriptionConfirmed;
 use App\Models\Entreprise;
 use App\Models\Subscription;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -25,6 +26,9 @@ class ConfirmerPaiementWebhookAction
                 'plan_expires_at' => $subscription->expires_at,
             ]);
         });
+
+        Cache::forget("inertia.entreprise.{$entreprise->id}");
+        Cache::forget("inertia.has_succursales.{$entreprise->id}");
 
         $this->sendConfirmationEmail($subscription, $entreprise);
     }

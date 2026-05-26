@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
@@ -7,6 +7,7 @@ import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineQueue } from '@/composables/useOfflineQueue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
 import { useLocalDB } from '@/composables/useLocalDB'
+import FeatureGate from '@/components/FeatureGate.vue'
 defineOptions({ layout: AppDashboardLayout })
 
 const { queueOperation } = useOfflineQueue()
@@ -36,6 +37,14 @@ async function loadLocalTiers() {
 onMounted(async () => {
     if (!offlineStore.isOnline) await loadLocalTiers()
     window.addEventListener('primegest:sync-pulled', loadLocalTiers)
+    window.addEventListener('primegest:offline', loadLocalTiers)
+    window.addEventListener('primegest:local-write', loadLocalTiers)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('primegest:sync-pulled', loadLocalTiers)
+    window.removeEventListener('primegest:offline', loadLocalTiers)
+    window.removeEventListener('primegest:local-write', loadLocalTiers)
 })
 
 const displayClients = computed<any[]>(() =>
@@ -73,6 +82,7 @@ const clientDeleteTargetId = ref(null)
 const clientDeletePassword = ref('')
 const emptyClient = {
   id: null,
+  uuid: null as string | null,
   nom_client: '',
   numero_telephone: '',
   adresse: '',
@@ -86,6 +96,7 @@ function openClientModal(client = null) {
   clientForm.reset()
   if (client) {
     clientForm.id = client.id
+    clientForm.uuid = client.uuid ?? null
     clientForm.nom_client = client.nom_client ?? ''
     clientForm.numero_telephone = client.numero_telephone ?? ''
     clientForm.adresse = client.adresse ?? ''
@@ -99,9 +110,9 @@ function openClientModal(client = null) {
 
 async function submitClientForm() {
   if (!offlineStore.isOnline) {
-    // Offline : mise en file d'attente
-    const recordId  = clientForm.id ? String(clientForm.id) : crypto.randomUUID()
-    const operation = clientForm.id ? 'update' : 'create'
+    const isUpdate = !!clientForm.id
+    const recordId = isUpdate ? (clientForm.uuid ?? crypto.randomUUID()) : crypto.randomUUID()
+    const operation: 'create' | 'update' = isUpdate ? 'update' : 'create'
     await queueOperation('clients', recordId, operation, { ...clientForm.data() })
     clientModalOpen.value = false
     alert('Hors ligne — opération sauvegardée, elle sera synchronisée dès la reconnexion.')
@@ -152,6 +163,7 @@ const fournisseurDeleteTargetId = ref(null)
 const fournisseurDeletePassword = ref('')
 const emptyFournisseur = {
   id: null,
+  uuid: null as string | null,
   nom_entreprise_fournisseur: '',
   adresse: '',
   reduction_pourcentage: 0,
@@ -164,6 +176,7 @@ function openFournisseurModal(fournisseur = null) {
   fournisseurForm.reset()
   if (fournisseur) {
     fournisseurForm.id = fournisseur.id
+    fournisseurForm.uuid = fournisseur.uuid ?? null
     fournisseurForm.nom_entreprise_fournisseur = fournisseur.nom_entreprise_fournisseur ?? ''
     fournisseurForm.adresse = fournisseur.adresse ?? ''
     fournisseurForm.reduction_pourcentage = fournisseur.reduction_pourcentage ?? 0
@@ -176,9 +189,9 @@ function openFournisseurModal(fournisseur = null) {
 
 async function submitFournisseurForm() {
   if (!offlineStore.isOnline) {
-    // Offline : mise en file d'attente
-    const recordId  = fournisseurForm.id ? String(fournisseurForm.id) : crypto.randomUUID()
-    const operation = fournisseurForm.id ? 'update' : 'create'
+    const isUpdate = !!fournisseurForm.id
+    const recordId = isUpdate ? (fournisseurForm.uuid ?? crypto.randomUUID()) : crypto.randomUUID()
+    const operation: 'create' | 'update' = isUpdate ? 'update' : 'create'
     await queueOperation('fournisseurs', recordId, operation, { ...fournisseurForm.data() })
     fournisseurModalOpen.value = false
     alert('Hors ligne — opération sauvegardée, elle sera synchronisée dès la reconnexion.')
@@ -288,7 +301,9 @@ function goDashboard() {
                   <template v-if="offlineStore.isOnline">
                     <button type="button" @click="openClientModal(c)" class="text-blue-600 hover:underline">Modifier</button>
                     <button type="button" @click="deleteClient((c as any).id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
-                    <button type="button" @click="goClientDetail((c as any).id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                    <FeatureGate feature="dette_tracking" mode="inline">
+                      <button type="button" @click="goClientDetail((c as any).id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                    </FeatureGate>
                   </template>
                   <span v-else class="text-gray-400 text-xs">hors-ligne</span>
                 </td>
@@ -344,7 +359,9 @@ function goDashboard() {
                   <template v-if="offlineStore.isOnline">
                     <button type="button" @click="openFournisseurModal(f)" class="text-blue-600 hover:underline">Modifier</button>
                     <button type="button" @click="deleteFournisseur((f as any).id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
-                    <button type="button" @click="goFournisseurDetail((f as any).id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                    <FeatureGate feature="dette_tracking" mode="inline">
+                      <button type="button" @click="goFournisseurDetail((f as any).id)" class="text-gray-700 hover:underline ml-3">Détail</button>
+                    </FeatureGate>
                   </template>
                   <span v-else class="text-gray-400 text-xs">hors-ligne</span>
                 </td>
