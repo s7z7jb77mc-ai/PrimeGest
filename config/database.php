@@ -33,7 +33,7 @@ return [
 
         'sqlite' => [
             'driver' => 'sqlite',
-            'database' => storage_path('app/primegest.db'),
+            'database' => env('DB_DATABASE', storage_path('app/primegest.db')),
             'prefix' => '',
             'foreign_key_constraints' => true,
         ],

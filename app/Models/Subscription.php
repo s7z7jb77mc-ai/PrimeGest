@@ -12,6 +12,7 @@ class Subscription extends Model
     protected $fillable = [
         'entreprise_id', 'plan', 'amount',
         'payment_method', 'payment_reference',
+        'netikash_transaction_id', 'netikash_order_id', 'netikash_payload',
         'status', 'starts_at', 'expires_at', 'confirmed_by',
         'warning_sent_at',
     ];

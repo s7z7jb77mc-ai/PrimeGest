@@ -17,36 +17,48 @@ class InitierPaiementAction
         private readonly NetikashService $netikash,
     ) {}
 
-    public function execute(Entreprise $entreprise, string $plan, int $duree, string $phone, string $devise): Subscription
+    public function execute(Entreprise $entreprise, string $plan, int $duree, string $devise): array
     {
-        $montant = $this->pricing->calculate($plan, $duree, $devise);
+        $montant   = $this->pricing->calculate($plan, $duree, $devise);
         $reference = $this->generateUniqueReference($entreprise->id);
 
         $subscription = Subscription::create([
-            'entreprise_id' => $entreprise->id,
-            'plan' => $plan,
-            'amount' => $montant,
-            'payment_method' => 'netikash',
+            'entreprise_id'     => $entreprise->id,
+            'plan'              => $plan,
+            'amount'            => $montant,
+            'payment_method'    => 'netikash',
             'payment_reference' => $reference,
-            'status' => 'pending',
-            'starts_at' => now(),
-            'expires_at' => now()->addMonths($duree),
+            'status'            => 'pending',
+            'starts_at'         => now(),
+            'expires_at'        => now()->addMonths($duree),
         ]);
 
         try {
-            $this->netikash->initiatePayment(
-                phone: $phone,
-                amount: $montant,
-                currency: $devise,
+            $result = $this->netikash->initiatePayment(
+                amount:    $montant,
+                currency:  $devise,
                 reference: $reference,
-                description: 'Abonnement PrimeGest '.ucfirst($plan).' '.$duree.' mois',
+                label:     'Abonnement PrimeGest '.ucfirst($plan).' '.$duree.' mois',
             );
         } catch (\Throwable $e) {
             $subscription->update(['status' => 'failed']);
             throw $e;
         }
 
-        return $subscription;
+        // Extraire l'ID de la requête Netikash depuis le link pour le polling
+        $link      = $result['link'] ?? '';
+        $requestId = $link ? basename(parse_url($link, PHP_URL_PATH)) : null;
+
+        $subscription->update([
+            'netikash_transaction_id' => $result['trans'] ?? null,
+            'netikash_order_id'       => $requestId,
+        ]);
+
+        return [
+            'subscription' => $subscription,
+            'checkout_url' => $link,
+            'request_id'   => $requestId,
+        ];
     }
 
     private function generateUniqueReference(int $entrepriseId): string

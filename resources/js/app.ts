@@ -84,7 +84,7 @@ createInertiaApp({
                     routes: [
                         '/dashboard', '/produits', '/mouvement-stocks',
                         '/caisse', '/journals', '/tiers', '/creances-dettes',
-                        '/rapports', '/transferts', '/succursales', '/entreprises',
+                        '/transferts', '/succursales', '/entreprises',
                     ],
                     version,
                 })

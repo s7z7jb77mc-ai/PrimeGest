@@ -16,9 +16,8 @@ class InitierPaiementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'plan' => ['required', 'in:premium,pro'],
+            'plan'  => ['required', 'in:premium,pro'],
             'duree' => ['required', 'integer', 'min:1', 'max:12'],
-            'phone' => ['required', 'string', 'min:9', 'max:20'],
             'devise' => ['required', 'in:USD,CDF'],
         ];
     }

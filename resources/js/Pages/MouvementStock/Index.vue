@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
@@ -58,19 +58,26 @@ const localMouvements = ref<any[]>([])
 const localProduits = ref<any[]>([])
 const localClients = ref<any[]>([])
 const localFournisseurs = ref<any[]>([])
+const localStocks = ref<any[]>([])
 
 async function loadLocalMvt() {
     if (!localDB.isAvailable) return
     localMouvements.value = await localDB.getMouvementsStock()
-    localProduits.value = await localDB.getProduits()
-    localClients.value = await localDB.getClients()
-    localFournisseurs.value = await localDB.getFournisseurs()
+    localStocks.value = await localDB.getStocks()
+    // Produits/clients/fournisseurs intentionnellement exclus : ils n'ont pas d'id entier
+    // dans Dexie et le formulaire en a besoin pour les FK serveur.
+    // Le fallback sur props.xxx (cache SW) est suffisant pour les sélecteurs.
 }
 
 const displayMouvements = computed<any[]>(() =>
     offlineStore.isOnline
         ? ((props.mouvements as any[]) ?? [])
         : (localMouvements.value.length > 0 ? localMouvements.value : ((props.mouvements as any[]) ?? []))
+)
+const displayStocks = computed<any[]>(() =>
+    offlineStore.isOnline
+        ? ((props.stocks as any[]) ?? [])
+        : (localStocks.value.length > 0 ? localStocks.value : ((props.stocks as any[]) ?? []))
 )
 const displayProduits = computed<any[]>(() =>
     offlineStore.isOnline
@@ -122,10 +129,10 @@ function openModalAs(m: string) {
   modalOpen.value = true
 }
 
-// ✅ Récupère la quantité en stock du produit sélectionné
+// ✅ Récupère la quantité en stock du produit sélectionné (online → props.stocks, offline → Dexie)
 function getStock(produitId: number | null): number {
   if (!produitId) return 0
-  const s = (props.stocks || []).find((s: any) => Number(s.produit_id) === Number(produitId))
+  const s = displayStocks.value.find((s: any) => Number(s.produit_id) === Number(produitId))
   return s ? (Number((s as any).quantite) ?? 0) : 0
 }
 
@@ -314,6 +321,14 @@ onMounted(async () => {
   if (phone) { clientPhone.value = phone; mode.value = 'sortie'; modalOpen.value = true }
   if (!offlineStore.isOnline) await loadLocalMvt()
   window.addEventListener('primegest:sync-pulled', loadLocalMvt)
+  window.addEventListener('primegest:offline', loadLocalMvt)
+  window.addEventListener('primegest:local-write', loadLocalMvt)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('primegest:sync-pulled', loadLocalMvt)
+  window.removeEventListener('primegest:offline', loadLocalMvt)
+  window.removeEventListener('primegest:local-write', loadLocalMvt)
 })
 </script>
 
@@ -374,7 +389,7 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in stocks" :key="(s as any).produit_id ?? (s as any).id" class="border-t">
+            <tr v-for="s in displayStocks" :key="(s as any).produit_id ?? (s as any).id ?? (s as any).uuid" class="border-t">
               <td class="px-3 py-2 w-40">{{ (s as any).produit?.nom ?? '-' }}</td>
               <td class="px-3 py-2 w-24 text-right">{{ (s as any).quantite }}</td>
               <td class="px-3 py-2 w-32 text-right">{{ (s as any).prix_achat }}</td>

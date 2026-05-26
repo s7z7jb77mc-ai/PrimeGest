@@ -23,8 +23,7 @@ class LegacySyncController extends Controller
             return null;
         }
 
-        $count = Entreprise::withTrashed()
-            ->where('id', $entrepriseId)
+        $count = Entreprise::where('id', $entrepriseId)
             ->count();
 
         if ($count >= $quota) {
@@ -113,6 +112,7 @@ class LegacySyncController extends Controller
         $entities = [
             'parametres' => \App\Models\Parametre::class,
             'produits' => \App\Models\Produit::class,
+            'stocks' => \App\Models\Stock::class,
             'clients' => \App\Models\Client::class,
             'fournisseurs' => \App\Models\Fournisseur::class,
             'factures' => \App\Models\Facture::class,

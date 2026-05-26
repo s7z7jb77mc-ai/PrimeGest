@@ -7,14 +7,14 @@ namespace Tests\Feature;
 use App\Models\Entreprise;
 use App\Models\Subscription;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class PaymentWebhookNetikashTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private Entreprise $entreprise;
 
@@ -59,7 +59,7 @@ class PaymentWebhookNetikashTest extends TestCase
     {
         return array_merge([
             'event' => 'payment.success',
-            'reference' => 'PG-1-WEBHTEST',
+            'ref' => 'PG-1-WEBHTEST',
             'transaction_id' => 'TXN-NETIKASH-999',
             'amount' => 7.0,
             'currency' => 'USD',
@@ -71,12 +71,16 @@ class PaymentWebhookNetikashTest extends TestCase
     private function signedPost(array $payload): \Illuminate\Testing\TestResponse
     {
         $body = json_encode($payload);
-        $signature = hash_hmac('sha256', $body, $this->secret);
+        $timestamp = (string) time();
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, $this->secret);
 
         return $this->postJson(
             '/api/v1/payment/webhook',
             $payload,
-            ['X-Netikash-Signature' => $signature],
+            [
+                'X-Signature'  => $signature,
+                'X-Timestamp'  => $timestamp,
+            ],
         );
     }
 
@@ -131,7 +135,7 @@ class PaymentWebhookNetikashTest extends TestCase
 
     public function test_webhook_reference_inconnue_retourne_404(): void
     {
-        $this->signedPost($this->buildPayload(['reference' => 'PG-99-UNKNOWN']))
+        $this->signedPost($this->buildPayload(['ref' => 'PG-99-UNKNOWN']))
             ->assertNotFound();
     }
 

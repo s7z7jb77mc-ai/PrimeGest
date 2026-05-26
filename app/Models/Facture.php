@@ -7,6 +7,7 @@ use App\Traits\HasUuid;
 use App\Traits\SyncObservable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Facture extends Model
 {
@@ -86,12 +87,13 @@ class Facture extends Model
      */
     public static function genererNumero(int $entrepriseId): string
     {
-        // withoutGlobalScopes() ignore HasSuccursaleScope et tout autre scope
-        // global → on voit TOUTES les factures de l'entreprise, toutes
-        // succursales confondues, ce qui garantit une séquence unique.
+        // Verrouiller la ligne entreprise (toujours existante) pour sérialiser
+        // les inserts concurrents — lockForUpdate() sur la dernière facture ne
+        // protège pas le cas "table vide" (pas de ligne à verrouiller).
+        DB::table('entreprises')->where('id', $entrepriseId)->lockForUpdate()->first();
+
         $last = self::withoutGlobalScopes()
             ->where('entreprise_id', $entrepriseId)
-            ->lockForUpdate()
             ->orderByDesc('id')
             ->first();
 

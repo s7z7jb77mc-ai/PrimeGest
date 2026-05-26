@@ -30,7 +30,6 @@ const props = defineProps<{
 const form = ref({
     plan:   'premium' as 'premium' | 'pro',
     duree:  1,
-    phone:  '',
     devise: 'USD' as 'USD' | 'CDF',
 })
 
@@ -39,6 +38,22 @@ onMounted(() => {
     const planParam = params.get('plan')
     if (planParam === 'premium' || planParam === 'pro') {
         form.value.plan = planParam
+    }
+    // Retour depuis Netikash checkout — vérifier le statut avant d'afficher succès
+    if (params.get('payment') === 'return') {
+        const ref = params.get('ref')
+        if (ref) {
+            reference.value = ref
+            attenteMsg.value = {
+                titre: 'Vérification du paiement…',
+                corps: 'Votre paiement est en cours de confirmation.\nCela peut prendre quelques secondes.',
+            }
+            etape.value = 'attente'
+            tentatives  = 0
+            demarrerPolling()
+        } else {
+            etape.value = 'succes'
+        }
     }
 })
 
@@ -51,6 +66,7 @@ const erreurMsg  = ref('')
 const reference  = ref('')
 let   pollingId: ReturnType<typeof setInterval> | null = null
 let   tentatives = 0
+const attenteMsg = ref({ titre: 'Redirection en cours…', corps: 'Vous allez être redirigé vers la page de paiement Netikash.\nChoisissez votre opérateur mobile money et confirmez.' })
 
 // ── Calcul du montant ────────────────────────────────────────────────────────
 
@@ -109,11 +125,15 @@ async function payer(): Promise<void> {
         const { data } = await axios.post('/abonnement/payer', {
             plan:   form.value.plan,
             duree:  form.value.duree,
-            phone:  form.value.phone,
             devise: form.value.devise,
         })
         reference.value = data.reference
-        demarrerPolling()
+        // Redirect vers Netikash checkout
+        if (data.checkout_url) {
+            window.location.href = data.checkout_url
+        } else {
+            demarrerPolling()
+        }
     } catch (err: any) {
         erreurMsg.value = err.response?.data?.message ?? 'Erreur lors de l\'initiation du paiement.'
         etape.value     = 'erreur'
@@ -242,15 +262,6 @@ onUnmounted(arreterPolling)
                         </p>
                     </div>
 
-                    <!-- Téléphone -->
-                    <div>
-                        <label class="pg-label">Numéro Mobile Money</label>
-                        <input v-model="form.phone" type="tel" required
-                               placeholder="Ex : 243 812 345 678"
-                               class="pg-input" />
-                        <p class="pg-hint">MTN MoMo, Airtel Money, Orange Money, M-Pesa</p>
-                    </div>
-
                     <!-- Récap montant -->
                     <div class="pg-recap">
                         <div class="pg-recap__row">
@@ -265,8 +276,8 @@ onUnmounted(arreterPolling)
                         </p>
                     </div>
 
-                    <button type="submit" :disabled="!form.phone" class="pg-btn-primary">
-                        Payer {{ montantAffiche }} avec Netikash
+                    <button type="submit" class="pg-btn-primary">
+                        Payer {{ montantAffiche }} avec Netikash →
                     </button>
 
                 </form>
@@ -278,12 +289,8 @@ onUnmounted(arreterPolling)
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
-                <h3 class="pg-heading">Confirmez sur votre téléphone</h3>
-                <p class="pg-muted text-sm">
-                    Un message USSD a été envoyé sur votre numéro.<br>
-                    Acceptez le paiement pour activer votre abonnement.
-                </p>
-                <p class="pg-hint">Vérification automatique en cours…</p>
+                <h3 class="pg-heading">{{ attenteMsg.titre }}</h3>
+                <p class="pg-muted text-sm" style="white-space: pre-line">{{ attenteMsg.corps }}</p>
             </div>
 
             <!-- ── SUCCÈS ── -->
@@ -629,4 +636,31 @@ onUnmounted(arreterPolling)
 .pg-status { font-size: 0.76rem; letter-spacing: 0.04em; }
 .pg-status--ok    { color: var(--accent-strong); font-weight: 600; }
 .pg-status--muted { color: var(--soft); }
+
+/* ── Opérateur ── */
+.pg-operator-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.pg-operator-btn {
+  padding: 0.6rem 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.18s, background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+.pg-operator-btn:hover { border-color: var(--border-strong); }
+.pg-operator-btn.is-active {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(214, 154, 26, 0.08), var(--surface-solid));
+  color: var(--accent-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 </style>

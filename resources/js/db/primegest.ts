@@ -99,6 +99,21 @@ export interface SuccursaleRow {
     [key: string]: any
 }
 
+export interface StockRow {
+    uuid: string
+    produit_id: number
+    quantite: number
+    prix_achat?: number | null
+    prix_vente?: number | null
+    total_achat?: number | null
+    total_vente?: number | null
+    seuil_stock?: number
+    succursale_id?: number | null
+    updated_at: number
+    deleted_at?: number | null
+    [key: string]: any
+}
+
 export interface SyncQueueItem {
     id?: number
     table_name: string
@@ -126,6 +141,7 @@ class PrimeGestDB extends Dexie {
     mouvement_stocks!: Table<MouvementStockRow, string>
     transferts!: Table<TransfertRow, string>
     succursales!: Table<SuccursaleRow, string>
+    stocks!: Table<StockRow, string>
     sync_queue!: Table<SyncQueueItem, number>
     sync_meta!: Table<SyncMeta, string>
 
@@ -149,6 +165,21 @@ class PrimeGestDB extends Dexie {
             mouvement_stocks:'uuid, produit_id, succursale_id, updated_at',
             transferts:      'uuid, statut, updated_at',
             succursales:     'uuid, updated_at',
+        })
+
+        // v3 : ajout table stocks pour affichage hors-ligne dans MouvementStock
+        this.version(3).stores({
+            sync_queue:      '++id, status, table_name, created_at',
+            sync_meta:       'table_name',
+            produits:        'uuid, updated_at, deleted_at',
+            clients:         'uuid, updated_at, deleted_at',
+            fournisseurs:    'uuid, updated_at, deleted_at',
+            caisses:         'uuid, date_operation, succursale_id, updated_at',
+            journals:        'uuid, dateHeure_operation, succursale_id, updated_at',
+            mouvement_stocks:'uuid, produit_id, succursale_id, updated_at',
+            transferts:      'uuid, statut, updated_at',
+            succursales:     'uuid, updated_at',
+            stocks:          'uuid, produit_id, succursale_id, updated_at',
         })
     }
 }

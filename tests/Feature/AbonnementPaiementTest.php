@@ -8,13 +8,13 @@ use App\Actions\Subscription\InitierPaiementAction;
 use App\Models\Entreprise;
 use App\Models\Subscription;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AbonnementPaiementTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private User $user;
 
@@ -58,7 +58,11 @@ class AbonnementPaiementTest extends TestCase
                 'expires_at' => now()->addMonth(),
             ]);
             $sub->save();
-            $mock->shouldReceive('execute')->once()->andReturn($sub);
+            $mock->shouldReceive('execute')->once()->andReturn([
+                'subscription' => $sub,
+                'checkout_url' => 'https://checkout.netikash.com/test',
+                'request_id'   => 'test-request-id',
+            ]);
         });
 
         $response = $this->actingAs($this->user)
@@ -97,7 +101,11 @@ class AbonnementPaiementTest extends TestCase
                 'expires_at' => now()->addMonths(6),
             ]);
             $sub->save();
-            $mock->shouldReceive('execute')->once()->andReturn($sub);
+            $mock->shouldReceive('execute')->once()->andReturn([
+                'subscription' => $sub,
+                'checkout_url' => 'https://checkout.netikash.com/test',
+                'request_id'   => 'test-request-id',
+            ]);
         });
 
         $this->actingAs($this->user)

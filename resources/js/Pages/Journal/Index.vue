@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
@@ -33,6 +33,14 @@ async function loadLocalJournals() {
 onMounted(async () => {
     if (!offlineStore.isOnline) await loadLocalJournals()
     window.addEventListener('primegest:sync-pulled', loadLocalJournals)
+    window.addEventListener('primegest:offline', loadLocalJournals)
+    window.addEventListener('primegest:local-write', loadLocalJournals)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('primegest:sync-pulled', loadLocalJournals)
+    window.removeEventListener('primegest:offline', loadLocalJournals)
+    window.removeEventListener('primegest:local-write', loadLocalJournals)
 })
 
 const displayJournals = computed<any[]>(() =>

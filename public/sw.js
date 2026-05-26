@@ -1,7 +1,8 @@
 const SHELL_CACHE   = 'primegest-shell-v10'
-const INERTIA_CACHE = 'primegest-inertia-v11'
+const INERTIA_CACHE = 'primegest-inertia-v12'
 const ASSET_CACHE   = 'primegest-assets-v9'
 
+// Pages offline-first uniquement — rapport, users, parametres, archives restent online-only
 const INERTIA_ROUTES = [
   '/dashboard',
   '/entreprises',
@@ -11,8 +12,6 @@ const INERTIA_ROUTES = [
   '/journals',
   '/tiers',
   '/creances-dettes',
-  '/rapports',
-  '/rapport',
   '/transferts',
   '/succursales',
 ]
@@ -29,9 +28,6 @@ const OFFLINE_ROUTES = [
   { re: /^\/tiers/,                   component: 'Tiers/Index',           props: { clients: [], fournisseurs: [] } },
   { re: /^\/creances-dettes\/[^/]+/,  component: 'CreancesDettes/Detail', props: { creance: null } },
   { re: /^\/creances-dettes/,         component: 'CreancesDettes/Index',  props: { creances: [], dettes: [] } },
-  { re: /^\/rapports?\/[^/]+/,        component: 'Rapports/Show',         props: {} },
-  { re: /^\/rapports/,                component: 'Rapports/Index',        props: { rapports: [] } },
-  { re: /^\/rapport/,                 component: 'Rapport/Index',         props: {} },
   { re: /^\/transferts/,              component: 'Transferts/Index',      props: { transferts: [], succursales: [] } },
   { re: /^\/succursales\/[^/]+/,      component: 'Succursales/Show',      props: { succursale: {} } },
   { re: /^\/succursales/,             component: 'Succursales/Index',     props: { succursales: [] } },

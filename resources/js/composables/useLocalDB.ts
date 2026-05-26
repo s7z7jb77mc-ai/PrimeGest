@@ -258,10 +258,30 @@ export function useLocalDB() {
         getCaisses:        async (opts?: QueryOptions) => dexieQuery<CaisseLocal>((await getDexieDB()).caisses, opts),
         getParametres:     async (_opts?: QueryOptions) => [] as ParametreLocal[],
         getTransferts:     async (opts?: QueryOptions) => dexieQuery<any>((await getDexieDB()).transferts, opts),
-        getProduitsCount:      async () => ({} as Record<string, number>),
-        getValeurStock:        async () => ({} as Record<string, number>),
+        getStocks:         async (opts?: QueryOptions) => dexieQuery<any>((await getDexieDB()).stocks, opts),
+
+        getProduitsCount: async () => {
+            const db = await getDexieDB()
+            const count = await db.produits.filter(p => !p.deleted_at).count()
+            return { count }
+        },
+
+        getValeurStock: async () => {
+            const db = await getDexieDB()
+            const stocks = await db.stocks.filter(s => !s.deleted_at).toArray()
+            const valeur_stock = stocks.reduce((sum, s) => sum + (s.quantite || 0) * (s.prix_achat || 0), 0)
+            return { valeur_stock }
+        },
+
+        getJournalSumByType: async () => {
+            const db = await getDexieDB()
+            const journals = await db.journals.filter(j => !j.deleted_at).toArray()
+            const entree = journals.filter(j => j.type === 'entree').reduce((s, j) => s + Number(j.montant || 0), 0)
+            const sortie = journals.filter(j => j.type === 'sortie').reduce((s, j) => s + Number(j.montant || 0), 0)
+            return { entree, sortie }
+        },
+
         getFacturesTotaux:     async () => ({} as Record<string, number>),
-        getJournalSumByType:   async () => ({} as Record<string, number>),
         getMouvementsSumByType:async () => ({} as Record<string, number>),
         getClientsCount:       async () => ({} as Record<string, number>),
         getEmployesCount:      async () => ({} as Record<string, number>),

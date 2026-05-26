@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'   // ⟵ on utilise router ici (pas Inertia du package core)
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
@@ -24,9 +24,10 @@ function handleSearch() {
 // Modal + form
 const modalOpen = ref(false)
 const deleteModalOpen = ref(false)
-const deleteTargetId = ref(null)
+const deleteTargetId = ref<number | null>(null)
+const deleteTargetUuid = ref<string | null>(null)
 const deletePassword = ref('')
-const empty = { id: null, nom: '', prix_achat: '', prix_vente: '', seuil_stock: 0, admin_password: '' }
+const empty = { id: null, uuid: null as string | null, nom: '', prix_achat: '', prix_vente: '', seuil_stock: 0, admin_password: '' }
 const form = useForm({ ...empty })
 const page = usePage()
 const _isSuperAdmin = computed(() => {
@@ -53,6 +54,14 @@ async function loadLocalProduits() {
 onMounted(async () => {
     if (!offlineStore.isOnline) await loadLocalProduits()
     window.addEventListener('primegest:sync-pulled', loadLocalProduits)
+    window.addEventListener('primegest:offline', loadLocalProduits)
+    window.addEventListener('primegest:local-write', loadLocalProduits)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('primegest:sync-pulled', loadLocalProduits)
+    window.removeEventListener('primegest:offline', loadLocalProduits)
+    window.removeEventListener('primegest:local-write', loadLocalProduits)
 })
 
 const displayProduits = computed<any[]>(() =>
@@ -65,8 +74,9 @@ function openModal(produit = null) {
   form.clearErrors()
   form.reset()
   if (produit) {
-    // Remplissage explicite (important pour avoir form.id !)
+    // Remplissage explicite (important pour avoir form.id et form.uuid !)
     form.id = produit.id
+    form.uuid = produit.uuid ?? null
     form.nom = produit.nom ?? ''
     form.prix_achat = produit.prix_achat ?? ''
     form.prix_vente = produit.prix_vente ?? ''
@@ -80,8 +90,9 @@ function openModal(produit = null) {
 
 async function submitForm() {
   if (!offlineStore.isOnline) {
-    const recordId = form.id ? String(form.id) : crypto.randomUUID()
-    const operation = form.id ? 'update' : 'create'
+    const isUpdate = !!form.id
+    const recordId = isUpdate ? (form.uuid ?? crypto.randomUUID()) : crypto.randomUUID()
+    const operation: 'create' | 'update' = isUpdate ? 'update' : 'create'
     await queueOperation('produits', recordId, operation, {
       nom: form.nom,
       prix_achat: form.prix_achat,
@@ -108,8 +119,9 @@ async function submitForm() {
   }
 }
 
-function deleteProduit(id) {
+function deleteProduit(id: number, uuid?: string) {
   deleteTargetId.value = id
+  deleteTargetUuid.value = uuid ?? null
   deletePassword.value = ''
   deleteModalOpen.value = true
 }
@@ -117,7 +129,8 @@ function deleteProduit(id) {
 async function confirmDelete() {
   if (!deleteTargetId.value) return
   if (!offlineStore.isOnline) {
-    await queueOperation('produits', String(deleteTargetId.value), 'delete', {})
+    const recordId = deleteTargetUuid.value ?? crypto.randomUUID()
+    await queueOperation('produits', recordId, 'delete', {})
     deleteModalOpen.value = false
     alert('Hors ligne — suppression sauvegardée, synchronisation dès reconnexion.')
     return
@@ -192,7 +205,7 @@ function goDashboard() {
             <td class="px-4 py-2 text-center">
               <template v-if="offlineStore.isOnline">
                 <button type="button" @click="openModal(prod)" class="text-blue-600 hover:underline">Modifier</button>
-                <button type="button" @click="deleteProduit((prod as any).id)" class="text-red-600 hover:underline ml-3">Supprimer</button>
+                <button type="button" @click="deleteProduit((prod as any).id, (prod as any).uuid)" class="text-red-600 hover:underline ml-3">Supprimer</button>
               </template>
               <span v-else class="text-gray-400 text-xs">hors-ligne</span>
             </td>

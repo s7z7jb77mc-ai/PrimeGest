@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { router, usePage, useForm } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
@@ -20,6 +20,14 @@ async function loadLocalCaisses() {
 onMounted(async () => {
     if (!offlineStore.isOnline) await loadLocalCaisses()
     window.addEventListener('primegest:sync-pulled', loadLocalCaisses)
+    window.addEventListener('primegest:offline', loadLocalCaisses)
+    window.addEventListener('primegest:local-write', loadLocalCaisses)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('primegest:sync-pulled', loadLocalCaisses)
+    window.removeEventListener('primegest:offline', loadLocalCaisses)
+    window.removeEventListener('primegest:local-write', loadLocalCaisses)
 })
 
 interface CaisseItem {

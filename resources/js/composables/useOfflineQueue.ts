@@ -25,6 +25,7 @@ function getDexieTable(tableName: string): any | null {
         caisses:          db.caisses,
         transferts:       db.transferts,
         succursales:      db.succursales,
+        stocks:           db.stocks,
     }
     return tableMap[tableName] ?? null
 }

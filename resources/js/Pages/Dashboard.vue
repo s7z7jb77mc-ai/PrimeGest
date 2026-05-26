@@ -775,12 +775,17 @@ onMounted(async () => {
   window.addEventListener('primegest:lang', syncLang)
   if (!offlineStore.isOnline) await loadLocalKPIs()
   window.addEventListener('primegest:sync-pulled', loadLocalKPIs)
+  window.addEventListener('primegest:offline', loadLocalKPIs)
+  window.addEventListener('primegest:local-write', loadLocalKPIs)
 })
 
 onBeforeUnmount(() => {
   salesChart?.destroy()
   pieChart?.destroy()
   window.removeEventListener('primegest:lang', syncLang)
+  window.removeEventListener('primegest:sync-pulled', loadLocalKPIs)
+  window.removeEventListener('primegest:offline', loadLocalKPIs)
+  window.removeEventListener('primegest:local-write', loadLocalKPIs)
 })
 
 watch(

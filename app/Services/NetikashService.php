@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\Log;
 
 class NetikashService
 {
-    private bool $sandbox;
-
     private string $baseUrl;
 
     private string $authUrl;
@@ -20,28 +18,17 @@ class NetikashService
 
     private string $clientSecret;
 
-    private string $paymentPath;
-
     public function __construct()
     {
-        $this->sandbox      = (bool) config('services.netikash.sandbox', false);
-        $this->baseUrl      = (string) config('services.netikash.base_url', 'https://gateway.netikash.com');
-        $this->authUrl      = (string) config('services.netikash.auth_url', 'https://gateway.netikash.com/oauth/token');
+        $this->baseUrl      = (string) config('services.netikash.base_url', 'https://api.netikash.com/api/v1/trs');
+        $this->authUrl      = (string) config('services.netikash.auth_url', 'https://accounts.netikash.com/oauth2/token');
         $this->clientId     = (string) config('services.netikash.client_id', '');
         $this->clientSecret = (string) config('services.netikash.client_secret', '');
-        $this->paymentPath  = (string) config('services.netikash.payment_path', '/api/v1/payment/initiate');
-    }
-
-    public function isSandbox(): bool
-    {
-        return $this->sandbox;
     }
 
     public function getAccessToken(): string
     {
-        $cacheKey = $this->sandbox ? 'netikash_token_sandbox' : 'netikash_token_prod';
-
-        $cached = Cache::get($cacheKey);
+        $cached = Cache::get('netikash_token');
         if ($cached !== null) {
             return (string) $cached;
         }
@@ -55,7 +42,6 @@ class NetikashService
 
         if (! $response->successful()) {
             Log::error('Netikash: échec token OAuth2', [
-                'sandbox'  => $this->sandbox,
                 'auth_url' => $this->authUrl,
                 'status'   => $response->status(),
                 'body'     => $response->body(),
@@ -67,59 +53,75 @@ class NetikashService
         $expiresIn = (int) ($response->json('expires_in') ?? 3600);
         $ttl       = max(60, $expiresIn - 60);
 
-        Cache::put($cacheKey, $token, $ttl);
+        Cache::put('netikash_token', $token, $ttl);
 
         return $token;
     }
 
+    /**
+     * Crée une demande de paiement Netikash (flux cli-payments).
+     * Retourne le checkout link vers lequel rediriger l'utilisateur.
+     */
     public function initiatePayment(
-        string $phone,
         float $amount,
         string $currency,
         string $reference,
-        string $description,
+        string $label,
     ): array {
-        if ($this->sandbox) {
-            Log::info('Netikash [SANDBOX] initiation paiement', [
-                'phone'     => $this->normalizePhone($phone),
-                'amount'    => $amount,
-                'currency'  => $currency,
-                'reference' => $reference,
-            ]);
-        }
-
         $token = $this->getAccessToken();
 
         $response = Http::withToken($token)
+            ->withHeaders(['Accept' => 'application/json'])
             ->timeout(30)
-            ->post($this->baseUrl.$this->paymentPath, [
-                'phone'        => $this->normalizePhone($phone),
-                'amount'       => $amount,
-                'currency'     => $currency,
-                'reference'    => $reference,
-                'description'  => $description,
-                'callback_url' => url('/api/v1/payment/webhook'),
+            ->post($this->baseUrl.'/transactions/requests/cli-payments', [
+                'amount'      => $amount,
+                'currency'    => $currency,
+                'ref'         => $reference,
+                'referer_url' => url('/abonnement?payment=return&ref='.urlencode($reference)),
+                'label'       => $label,
             ]);
 
-        if (! $response->successful()) {
+        $body = $response->json() ?? [];
+
+        if (! $response->successful() || ($body['error'] ?? false) === true) {
             Log::error('Netikash: échec initiation paiement', [
-                'sandbox'   => $this->sandbox,
                 'reference' => $reference,
                 'status'    => $response->status(),
                 'body'      => $response->body(),
             ]);
-            throw new \RuntimeException('Netikash: échec de l\'initiation du paiement — '.$response->body());
+            throw new \RuntimeException('Netikash: échec de l\'initiation — '.($body['message'] ?? $response->body()));
+        }
+
+        Log::info('Netikash: paiement initié', [
+            'reference' => $reference,
+            'trans'     => $body['trans'] ?? null,
+            'link'      => $body['link'] ?? null,
+        ]);
+
+        return $body;
+    }
+
+    public function getPaymentStatus(string $netikashRequestId): array
+    {
+        $token = $this->getAccessToken();
+
+        $response = Http::withToken($token)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->timeout(15)
+            ->get($this->baseUrl.'/transactions/requests/'.urlencode($netikashRequestId));
+
+        if (! $response->successful()) {
+            throw new \RuntimeException('Netikash: impossible de vérifier le statut — '.$response->body());
         }
 
         return $response->json() ?? [];
     }
 
-    public function normalizePhone(string $phone): string
+    public function verifyWebhookSignature(string $rawBody, string $signature, string $timestamp, string $secret): bool
     {
-        $phone = preg_replace('/\s+/', '', trim($phone));
-        $phone = ltrim($phone, '+');
-        $phone = (string) preg_replace('/^0+(?=[1-9])/', '', $phone);
+        $payload  = $timestamp.'.'.$rawBody;
+        $expected = hash_hmac('sha256', $payload, $secret);
 
-        return $phone;
+        return hash_equals($expected, $signature);
     }
 }

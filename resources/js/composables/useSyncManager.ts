@@ -11,6 +11,7 @@ const TABLE_MAP: Record<string, any> = {
     mouvement_stocks:db.mouvement_stocks,
     transferts:      db.transferts,
     succursales:     db.succursales,
+    stocks:          db.stocks,
 }
 
 function toUnix(val: string | number | null | undefined): number {
@@ -68,7 +69,7 @@ export function useSyncManager() {
             await db.transaction('rw',
                 [db.produits, db.clients, db.fournisseurs, db.caisses,
                  db.journals, db.mouvement_stocks, db.transferts,
-                 db.succursales, db.sync_meta],
+                 db.succursales, db.stocks, db.sync_meta],
                 async () => {
                     for (const [table, rows] of Object.entries(delta)) {
                         const store = TABLE_MAP[table]
