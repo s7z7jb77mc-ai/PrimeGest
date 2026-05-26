@@ -107,7 +107,7 @@ class LegacySyncController extends Controller
         }
 
         $entrepriseId = auth()->user()->entreprise_id;
-        $since = \Carbon\Carbon::createFromTimestamp($request->integer('since'));
+        $since = \Carbon\Carbon::createFromTimestamp($request->integer('since'), config('app.timezone'));
 
         $entities = [
             'parametres' => \App\Models\Parametre::class,
@@ -254,10 +254,14 @@ class LegacySyncController extends Controller
             ? array_merge($payload, ['deleted_at' => null])
             : $payload;
 
-        // LWW : withoutGlobalScopes() pour bypasser succursaleScoped et trouver l'enregistrement par UUID seul
-        $model = $usesSoftDeletes
-            ? $modelClass::withoutGlobalScopes()->withTrashed()->updateOrCreate(['uuid' => $op['record_id']], $mergedPayload)
-            : $modelClass::withoutGlobalScopes()->updateOrCreate(['uuid' => $op['record_id']], $mergedPayload);
+        // LWW : withoutGlobalScopes() pour bypasser succursaleScoped.
+        // unguarded() nécessaire : uuid n'est volontairement pas dans $fillable des modèles
+        // (auto-généré par HasUuid) mais ici le client impose son UUID — il faut le respecter.
+        $model = \Illuminate\Database\Eloquent\Model::unguarded(function () use ($modelClass, $op, $mergedPayload, $usesSoftDeletes) {
+            return $usesSoftDeletes
+                ? $modelClass::withoutGlobalScopes()->withTrashed()->updateOrCreate(['uuid' => $op['record_id']], $mergedPayload)
+                : $modelClass::withoutGlobalScopes()->updateOrCreate(['uuid' => $op['record_id']], $mergedPayload);
+        });
 
         return [
             'status' => 'synced',
