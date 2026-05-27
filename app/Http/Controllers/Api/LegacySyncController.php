@@ -247,7 +247,10 @@ class LegacySyncController extends Controller
         $fields = $this->resolveFields($tableName ?? '');
         $payload = collect($op['payload'])->only($fields)->toArray();
         $payload['entreprise_id'] = $entrepriseId;
-        $payload['succursale_id'] = auth()->user()->succursale_id;
+        // succursale_id uniquement sur les tables qui ont cette colonne
+        if (in_array('succursale_id', $fields, true)) {
+            $payload['succursale_id'] = auth()->user()->succursale_id;
+        }
         $payload['uuid'] = $op['record_id'];
 
         $mergedPayload = $usesSoftDeletes

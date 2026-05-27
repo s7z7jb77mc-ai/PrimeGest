@@ -230,4 +230,230 @@ describe('syncPending / syncBrowserQueue', () => {
         expect(store.lastSyncError).toBeTruthy()
         expect(store.isSyncing).toBe(false)
     })
+
+    it('set Erreur serveur 500 sur réponse !ok non-401', async () => {
+        const { useOfflineStore } = await import('@/stores/useOfflineStore')
+        const store = useOfflineStore()
+        await seedPendingOp()
+
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+            new Response('Internal Server Error', { status: 500 })
+        ))
+
+        const { syncPending } = useOfflineQueue()
+        await syncPending()
+
+        expect(store.lastSyncError).toMatch(/500/)
+        expect(store.isSyncing).toBe(false)
+    })
+
+    it('reload sur réponse opaqueredirect (302)', async () => {
+        await seedPendingOp()
+
+        const reloadSpy = vi.fn()
+        vi.stubGlobal('location', { ...window.location, reload: reloadSpy })
+
+        // Response.type est read-only — on retourne un objet plain qui imite une opaqueredirect
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ type: 'opaqueredirect', status: 0, ok: false }))
+
+        const { syncPending } = useOfflineQueue()
+        await syncPending()
+
+        expect(reloadSpy).toHaveBeenCalled()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// writeThrough — opération delete
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('writeThrough delete', () => {
+    it('marque deleted_at sur le record local sans le supprimer', async () => {
+        const uuid = crypto.randomUUID()
+
+        // Pré-seed le record dans Dexie
+        await db.clients.put({ uuid, nom_client: 'À supprimer', updated_at: 0, deleted_at: null })
+
+        const { queueOperation } = useOfflineQueue()
+        await queueOperation('clients', uuid, 'delete', {})
+
+        const stored = await db.clients.get(uuid)
+        expect(stored).toBeDefined()
+        expect(stored?.deleted_at).toBeGreaterThan(0)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// writeThrough — opération update
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('writeThrough update', () => {
+    it('met à jour un record existant dans db.clients', async () => {
+        const uuid = crypto.randomUUID()
+
+        await db.clients.put({ uuid, nom_client: 'Ancien nom', updated_at: 0, deleted_at: null })
+
+        const { queueOperation } = useOfflineQueue()
+        await queueOperation('clients', uuid, 'update', { nom_client: 'Nouveau nom' })
+
+        const stored = await db.clients.get(uuid)
+        expect(stored?.nom_client).toBe('Nouveau nom')
+        expect(stored?.deleted_at).toBeNull()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// writeThrough — table produits (vérifier que la map couvre d'autres tables)
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('writeThrough produits', () => {
+    beforeEach(async () => {
+        await db.produits.clear()
+    })
+
+    it('upserte un produit dans db.produits', async () => {
+        const uuid = crypto.randomUUID()
+        const { queueOperation } = useOfflineQueue()
+
+        await queueOperation('produits', uuid, 'create', {
+            nom: 'Aspirine 500mg',
+            prix_vente: 1000,
+            prix_achat: 500,
+        })
+
+        const stored = await db.produits.get(uuid)
+        expect(stored?.uuid).toBe(uuid)
+        expect(stored?.nom).toBe('Aspirine 500mg')
+    })
+
+    it('dispatche primegest:local-write avec table produits', async () => {
+        const dispatched: string[] = []
+        window.addEventListener('primegest:local-write', (e) => {
+            dispatched.push((e as CustomEvent).detail.tableName)
+        })
+
+        const { queueOperation } = useOfflineQueue()
+        await queueOperation('produits', crypto.randomUUID(), 'create', { nom: 'Test', prix_vente: 500, prix_achat: 200 })
+
+        expect(dispatched).toContain('produits')
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// syncPending — verrou isSyncing
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('syncPending isSyncing lock', () => {
+    it('ne lance pas un deuxième fetch si déjà en cours', async () => {
+        const { useOfflineStore } = await import('@/stores/useOfflineStore')
+        const store = useOfflineStore()
+
+        store.setSyncing(true)
+
+        const fetchSpy = vi.fn()
+        vi.stubGlobal('fetch', fetchSpy)
+
+        await db.sync_queue.add({
+            table_name: 'clients', record_id: crypto.randomUUID(),
+            operation: 'create', payload: JSON.stringify({ nom_client: 'Test' }),
+            status: 'pending', client_sync_version: 0, created_at: Date.now(),
+        })
+
+        const { syncPending } = useOfflineQueue()
+        await syncPending()
+
+        expect(fetchSpy).not.toHaveBeenCalled()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// syncPending — batch multi-tables
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('syncPending batch multi-tables', () => {
+    beforeEach(async () => {
+        await db.produits.clear()
+    })
+
+    it('inclut les ops de tables différentes dans le même batch', async () => {
+        const clientId  = crypto.randomUUID()
+        const produitId = crypto.randomUUID()
+
+        await db.sync_queue.add({
+            table_name: 'clients', record_id: clientId, operation: 'create',
+            payload: JSON.stringify({ nom_client: 'Batch A', numero_telephone: '0999111111' }),
+            status: 'pending', client_sync_version: 0, created_at: Date.now(),
+        })
+        await db.sync_queue.add({
+            table_name: 'produits', record_id: produitId, operation: 'create',
+            payload: JSON.stringify({ nom: 'Batch B', prix_vente: 500, prix_achat: 200 }),
+            status: 'pending', client_sync_version: 0, created_at: Date.now(),
+        })
+
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({
+                results: [
+                    { record_id: clientId,  status: 'synced' },
+                    { record_id: produitId, status: 'synced' },
+                ],
+            }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        ))
+
+        const { syncPending } = useOfflineQueue()
+        await syncPending()
+
+        const [, opts] = (fetch as any).mock.calls[0]
+        const body     = JSON.parse(opts.body)
+
+        const tableNames = body.operations.map((o: any) => o.table_name)
+        expect(tableNames).toContain('clients')
+        expect(tableNames).toContain('produits')
+        expect(body.operations).toHaveLength(2)
+    })
+
+    it('marque les deux ops synced après un batch réussi', async () => {
+        const id1 = crypto.randomUUID()
+        const id2 = crypto.randomUUID()
+
+        await db.sync_queue.add({
+            table_name: 'clients', record_id: id1, operation: 'create',
+            payload: JSON.stringify({ nom_client: 'A', numero_telephone: '0999222222' }),
+            status: 'pending', client_sync_version: 0, created_at: Date.now(),
+        })
+        await db.sync_queue.add({
+            table_name: 'produits', record_id: id2, operation: 'create',
+            payload: JSON.stringify({ nom: 'B', prix_vente: 100 }),
+            status: 'pending', client_sync_version: 0, created_at: Date.now(),
+        })
+
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({
+                results: [
+                    { record_id: id1, status: 'synced' },
+                    { record_id: id2, status: 'synced' },
+                ],
+            }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        ))
+
+        const { syncPending } = useOfflineQueue()
+        await syncPending()
+
+        const items = await db.sync_queue.toArray()
+        expect(items.every(i => i.status === 'synced')).toBe(true)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// writeThrough — table inconnue est ignorée silencieusement
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('writeThrough table inconnue', () => {
+    it('ignore silencieusement les tables non mappées', async () => {
+        const { queueOperation } = useOfflineQueue()
+
+        // Ne doit pas throw même si la table n'existe pas dans Dexie
+        await expect(
+            queueOperation('users', crypto.randomUUID(), 'create', { email: 'hack@test.com' })
+        ).resolves.toBeUndefined()
+    })
 })
