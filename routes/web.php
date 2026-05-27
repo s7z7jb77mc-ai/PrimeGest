@@ -161,7 +161,7 @@ Route::middleware(['auth'])->group(function () {
 
 Route::resource('journals', JournalController::class)->only(['index', 'store'])->middleware('auth');
 
-Route::resource('fiches', FicheDePaieController::class)->except(['show', 'edit', 'create'])->middleware('auth');
+Route::resource('fiches', FicheDePaieController::class)->parameters(['fiches' => 'fiche'])->except(['show', 'edit', 'create'])->middleware('auth');
 Route::put('/fiches/{fiche}/confirmer', [FicheDePaieController::class, 'confirmerPaiement'])
     ->middleware('auth')
     ->name('fiches.confirmer');
@@ -261,6 +261,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Rapport
     Route::get('/rapport', [\App\Http\Controllers\RapportController::class, 'index'])->name('rapport.index');
+    Route::get('/rapport/pdf', [\App\Http\Controllers\RapportController::class, 'downloadPdf'])->name('rapport.pdf');
 });
 
 Route::get('/test-route', function () {
