@@ -12,7 +12,10 @@ class ProduitPolicy
 
     public function update(User $user, Produit $produit): bool
     {
-        return $user->isSuperAdmin() && $user->entreprise_id === $produit->entreprise_id;
+        if ($user->entreprise_id !== $produit->entreprise_id) {
+            return false;
+        }
+        return $user->isSuperAdmin() || $user->isManagerOfCurrentSuccursale();
     }
 
     public function delete(User $user, Produit $produit): bool

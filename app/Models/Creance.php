@@ -14,11 +14,13 @@ class Creance extends Model
     use HasSuccursaleScope;
 
     protected $fillable = [
+        'uuid',
         'entreprise_id',
         'succursale_id',
         'client_id',
         'montant_paye',
         'caisse_id',
+        'sync_version',
     ];
 
     public function client()

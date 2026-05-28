@@ -20,7 +20,7 @@ class SuccursaleController extends Controller
 
         $managers = User::with('employe')
             ->where('entreprise_id', $entrepriseId)
-            ->whereNotNull('employe_id')
+            ->where('id', '!=', $user->id)
             ->get()
             ->map(function ($u) {
                 return [

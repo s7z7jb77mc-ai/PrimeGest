@@ -15,6 +15,7 @@ class FicheDePaie extends Model
     protected $table = 'fiches_de_paie';
 
     protected $fillable = [
+        'uuid',
         'entreprise_id',
         'employe_id',
         'mois',
@@ -29,6 +30,7 @@ class FicheDePaie extends Model
         'statut_paiement',
         'date_paiement',
         'date_paie',
+        'sync_version',
     ];
 
     protected $casts = [

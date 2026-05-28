@@ -41,29 +41,7 @@ class HandleInertiaRequests extends Middleware
                 }
             });
 
-            // ── Succursales : cache 2 min par entreprise ──────────────────
-            $hasSuccursales = Cache::remember("inertia.has_succursales.{$eid}", 120, function () use ($eid) {
-                try {
-                    return Succursale::where('entreprise_id', $eid)->exists();
-                } catch (\Throwable) {
-                    return false;
-                }
-            });
-
-            $succursaleId = session('succursale_id');
-
-            if ($succursaleId) {
-                $succursaleName = Cache::remember(
-                    "inertia.succursale_name.{$eid}.{$succursaleId}",
-                    120,
-                    fn () => Succursale::where('entreprise_id', $eid)
-                        ->where('id', $succursaleId)
-                        ->value('nom')
-                );
-            }
-
-            // ── Plan entreprise : utiliser la relation déjà chargée ou cache ─
-            // On réutilise l'entreprise si déjà chargée via EnsurePlanNotExpired
+            // ── Plan entreprise : résoudre en premier pour les checks suivants ─
             $entreprise = $user->relationLoaded('entreprise')
                 ? $user->entreprise
                 : Cache::remember("inertia.entreprise.{$eid}", 60, fn () => $user->entreprise()->first());
@@ -76,6 +54,38 @@ class HandleInertiaRequests extends Middleware
             }
 
             $planLimits = config('plans.'.$plan) ?? config('plans.free');
+
+            // ── Succursales : cache 2 min par entreprise ──────────────────
+            $hasSuccursales = Cache::remember("inertia.has_succursales.{$eid}", 120, function () use ($eid) {
+                try {
+                    return Succursale::where('entreprise_id', $eid)->exists();
+                } catch (\Throwable) {
+                    return false;
+                }
+            });
+
+            $succursaleId = session('succursale_id');
+
+            // Si le plan ne permet plus les succursales (rétrogradation Pro→Premium/Free),
+            // vider le contexte de session lors des navigations (GET) pour éviter qu'un
+            // utilisateur reste bloqué dans une succursale à laquelle il n'a plus accès.
+            // On ne touche pas à la session sur les POST/PUT/DELETE : le middleware plan:succursales
+            // bloque déjà les routes d'écriture, et les autres contrôleurs ne doivent pas
+            // changer de comportement en cours de requête à cause d'un effacement imprévu.
+            if ($succursaleId && !($planLimits['succursales'] ?? false) && $request->isMethod('GET')) {
+                session()->forget('succursale_id');
+                $succursaleId = null;
+            }
+
+            if ($succursaleId) {
+                $succursaleName = Cache::remember(
+                    "inertia.succursale_name.{$eid}.{$succursaleId}",
+                    120,
+                    fn () => Succursale::where('entreprise_id', $eid)
+                        ->where('id', $succursaleId)
+                        ->value('nom')
+                );
+            }
         }
 
         return [

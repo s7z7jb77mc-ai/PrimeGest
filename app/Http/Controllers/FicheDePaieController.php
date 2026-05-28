@@ -6,6 +6,7 @@ use App\Models\FicheDePaie;
 use App\Models\Employe;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class FicheDePaieController extends Controller
@@ -76,7 +77,7 @@ class FicheDePaieController extends Controller
     // Modifier une fiche de paie
     public function update(Request $request, FicheDePaie $fiche)
     {
-        $this->assertFicheBelongsToCurrentEntreprise($fiche);
+$this->assertFicheBelongsToCurrentEntreprise($fiche);
 
         $validated = $request->validate([
             'primes'        => 'nullable|numeric|min:0',
@@ -112,10 +113,15 @@ class FicheDePaieController extends Controller
     {
         $this->assertFicheBelongsToCurrentEntreprise($fiche);
 
-        $fiche->update([
-            'statut_paiement' => 'payee', // Déclenche l'observer
-            'date_paiement' => now(),
-        ]);
+        try {
+            $fiche->update([
+                'statut_paiement' => 'payee',
+                'date_paiement' => now(),
+            ]);
+        } catch (ValidationException $e) {
+            return redirect()->route('fiches.index')
+                ->withErrors(['caisse' => $e->errors()['caisse'][0] ?? 'Solde de caisse insuffisant pour effectuer ce paiement.']);
+        }
 
         return redirect()->route('fiches.index')
                         ->with('success', 'Paiement confirmé avec succès et enregistré dans la caisse.');

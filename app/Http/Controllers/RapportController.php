@@ -508,6 +508,54 @@ class RapportController extends Controller
         ];
     }
 
+    public function downloadPdf(Request $request)
+    {
+        $entrepriseId = Auth::user()->entreprise_id;
+        $succursaleId = session('succursale_id');
+        $hasMouvements = schema_has_column('mouvement_stocks', 'succursale_id');
+        $hasJournals = schema_has_column('journals', 'succursale_id');
+        $hasFactures = schema_has_column('factures', 'succursale_id');
+        $hasBons = schema_has_column('bon_entrees', 'succursale_id');
+        $hasCreances = schema_has_column('creances', 'succursale_id');
+        $hasDettes = schema_has_column('dettes', 'succursale_id');
+        $type = $request->input('type', 'journalier');
+        $date = $request->input('date', now()->toDateString());
+        $dateDebut = $request->input('date_debut');
+        $dateFin = $request->input('date_fin');
+
+        $parametres = Parametre::where('entreprise_id', $entrepriseId)->first();
+        $devise = $parametres ? $parametres->devise : 'CDF';
+
+        $rapport = match($type) {
+            'hebdomadaire' => $this->genererRapportHebdomadaire($entrepriseId, $dateDebut ?: $date, $dateFin, $devise, $succursaleId, $hasMouvements, $hasJournals, $hasFactures, $hasBons, $hasCreances, $hasDettes),
+            'mensuel' => $this->genererRapportMensuel($entrepriseId, $date, $devise, $succursaleId, $hasMouvements, $hasJournals, $hasFactures, $hasBons, $hasCreances, $hasDettes),
+            'annuel' => $this->genererRapportAnnuel($entrepriseId, $date, $devise, $succursaleId, $hasMouvements, $hasJournals, $hasFactures, $hasBons, $hasCreances, $hasDettes),
+            default => $this->genererRapportJournalier($entrepriseId, $date, $devise, $succursaleId, $hasMouvements, $hasJournals, $hasFactures, $hasBons, $hasCreances, $hasDettes),
+        };
+
+        $titres = [
+            'journalier' => 'Rapport Journalier',
+            'hebdomadaire' => 'Rapport Hebdomadaire',
+            'mensuel' => 'Rapport Mensuel',
+            'annuel' => 'Rapport Annuel',
+        ];
+
+        $pdf = app('dompdf.wrapper')->loadView('pdf.rapport', [
+            'rapport' => $rapport,
+            'devise' => $devise,
+            'parametres' => $parametres,
+            'titre' => $titres[$type] ?? 'Rapport',
+        ]);
+
+        $filename = "rapport_{$type}_{$date}.pdf";
+
+        if ($request->query('inline') === '1') {
+            return $pdf->stream($filename);
+        }
+
+        return $pdf->download($filename);
+    }
+
     public function logAction(Request $request)
     {
         $entrepriseId = Auth::user()->entreprise_id;

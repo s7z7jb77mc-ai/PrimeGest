@@ -12,6 +12,9 @@ class ParametrePolicy
 
     public function update(User $user, Parametre $parametre): bool
     {
-        return $user->isSuperAdmin() && $user->entreprise_id === $parametre->entreprise_id;
+        if ($user->entreprise_id !== $parametre->entreprise_id) {
+            return false;
+        }
+        return $user->isSuperAdmin() || $user->isManagerOfCurrentSuccursale();
     }
 }

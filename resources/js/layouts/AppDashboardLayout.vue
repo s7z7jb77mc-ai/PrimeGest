@@ -84,8 +84,9 @@ const menuItems = computed(() => {
   ]
   const role = String(authUser.value?.role || '').toLowerCase()
   const isSuper = authUser.value?.is_super_admin === true || role === 'super_admin'
+  const isManagerInSuccursale = !!authUser.value?.manager && !!pageProps.value.succursale_id
   const allowed = authUser.value?.access_pages || []
-  const filtered = isSuper ? all : all.filter(i => i.key === 'dashboard' || allowed.includes(i.key))
+  const filtered = (isSuper || isManagerInSuccursale) ? all : all.filter(i => i.key === 'dashboard' || allowed.includes(i.key))
   return filtered.map(i => ({
     ...i,
     active: currentPath === i.route || currentPath.startsWith(i.route + '/'),

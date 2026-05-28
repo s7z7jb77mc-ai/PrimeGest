@@ -76,7 +76,7 @@ class AbonnementController extends Controller
             'success'      => true,
             'reference'    => $result['subscription']->payment_reference,
             'checkout_url' => $result['checkout_url'],
-            'message'      => 'Redirection vers Netikash pour le paiement.',
+            'message'      => 'Redirection vers la page de paiement.',
         ]);
     }
 

@@ -241,7 +241,7 @@ class RapportService
         }
 
         // Générer aussi le mensuel si c'est le dernier jour du mois
-        if ($date->isLastDayOfMonth()) {
+        if ($date->isLastOfMonth()) {
             $this->generateMensuelReport($entrepriseId, $date->year, $date->month);
         }
 

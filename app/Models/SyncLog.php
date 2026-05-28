@@ -11,6 +11,8 @@ class SyncLog extends Model
 {
     use HasUuid;
 
+    public $timestamps = false;
+
     protected $table = 'sync_logs';
 
     protected $fillable = [

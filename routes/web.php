@@ -45,17 +45,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/tiers', [TiersController::class, 'index'])->name('tiers.index');
     // Route::post('/sync', [SyncController::class, 'store'])->name('sync.store'); // désactivée — table sync_inbox inexistante, utiliser /api/sync/push
 
-    // Succursales — lecture libre pour tous les rôles authentifiés
-    Route::get('/succursales', [SuccursaleController::class, 'index'])->name('succursales.index');
-    Route::get('/succursales/{succursale}', [SuccursaleController::class, 'show'])->name('succursales.show');
+    // Sortie de contexte succursale — accessible même si le plan a été rétrogradé
     Route::get('/succursales-exit', [SuccursaleController::class, 'exit'])->name('succursales.exit');
 
     // Transferts — lecture libre
     Route::get('/transferts', [TransfertController::class, 'index'])->name('transferts.index');
 });
 
-// Succursales — écriture réservée au plan Pro
+// Succursales — toutes les routes (lecture + écriture) réservées au plan Pro
 Route::middleware(['auth', 'plan:succursales'])->group(function () {
+    Route::get('/succursales', [SuccursaleController::class, 'index'])->name('succursales.index');
+    Route::get('/succursales/{succursale}', [SuccursaleController::class, 'show'])->name('succursales.show');
     Route::post('/succursales', [SuccursaleController::class, 'store'])->name('succursales.store');
     Route::put('/succursales/{succursale}', [SuccursaleController::class, 'update'])->name('succursales.update');
     Route::delete('/succursales/{succursale}', [SuccursaleController::class, 'destroy'])->name('succursales.destroy');

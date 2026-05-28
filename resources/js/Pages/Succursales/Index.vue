@@ -104,6 +104,10 @@ const save = async () => {
     const data = await response.json()
     if (!response.ok) {
       errors.value = data.errors || {}
+      if (!Object.keys(errors.value).length) {
+        const msg = data.message || data.error || 'Erreur lors de la sauvegarde.'
+        alert(msg)
+      }
       return
     }
     modalOpen.value = false

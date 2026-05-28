@@ -15,7 +15,7 @@ class NetikashServiceTest extends TestCase
     private function fakeTokenResponse(): void
     {
         Http::fake([
-            '*/oauth/token' => Http::response([
+            '*/oauth2/token' => Http::response([
                 'access_token' => 'fake-token-abc123',
                 'expires_in' => 3600,
                 'token_type' => 'Bearer',
@@ -26,7 +26,7 @@ class NetikashServiceTest extends TestCase
     public function test_get_access_token_appelle_oauth_endpoint(): void
     {
         $this->fakeTokenResponse();
-        Cache::forget('netikash_access_token');
+        Cache::forget('netikash_token');
 
         $service = new NetikashService;
         $token = $service->getAccessToken();
@@ -34,7 +34,7 @@ class NetikashServiceTest extends TestCase
         $this->assertSame('fake-token-abc123', $token);
 
         Http::assertSent(function (Request $req) {
-            return str_contains($req->url(), '/oauth/token')
+            return str_contains($req->url(), '/oauth2/token')
                 && $req->hasHeader('Authorization');
         });
     }
@@ -42,7 +42,7 @@ class NetikashServiceTest extends TestCase
     public function test_token_est_mis_en_cache(): void
     {
         $this->fakeTokenResponse();
-        Cache::forget('netikash_access_token');
+        Cache::forget('netikash_token');
 
         $service = new NetikashService;
         $service->getAccessToken();
@@ -56,51 +56,33 @@ class NetikashServiceTest extends TestCase
         Cache::forget('netikash_access_token');
 
         Http::fake([
-            '*/oauth/token' => Http::response(['access_token' => 'tok', 'expires_in' => 3600], 200),
-            '*/payment/initiate' => Http::response([
-                'transaction_id' => 'TXN-123',
-                'status' => 'pending',
-                'message' => 'USSD envoyé',
+            '*/oauth2/token' => Http::response(['access_token' => 'tok', 'expires_in' => 3600], 200),
+            '*/transactions/requests/cli-payments' => Http::response([
+                'trans'   => 'TXN-123',
+                'link'    => 'https://pay.netikash.com/checkout/TXN-123',
+                'status'  => 'pending',
+                'message' => 'En attente de paiement',
             ], 200),
         ]);
 
         $service = new NetikashService;
         $result = $service->initiatePayment(
-            phone: '243812345678',
             amount: 7.0,
             currency: 'USD',
             reference: 'PG-1-ABC12345',
-            description: 'Abonnement Premium 1 mois',
+            label: 'Abonnement Premium 1 mois',
         );
 
-        $this->assertArrayHasKey('transaction_id', $result);
-        $this->assertSame('TXN-123', $result['transaction_id']);
-    }
-
-    public function test_normalise_phone_avec_plus(): void
-    {
-        $service = new NetikashService;
-        $this->assertSame('243812345678', $service->normalizePhone('+243812345678'));
-    }
-
-    public function test_normalise_phone_avec_00(): void
-    {
-        $service = new NetikashService;
-        $this->assertSame('243812345678', $service->normalizePhone('00243812345678'));
-    }
-
-    public function test_normalise_phone_avec_espaces(): void
-    {
-        $service = new NetikashService;
-        $this->assertSame('243812345678', $service->normalizePhone(' 243 812 345 678 '));
+        $this->assertArrayHasKey('trans', $result);
+        $this->assertSame('TXN-123', $result['trans']);
     }
 
     public function test_get_access_token_leve_exception_si_echec_oauth(): void
     {
-        Cache::forget('netikash_access_token');
+        Cache::forget('netikash_token');
 
         Http::fake([
-            '*/oauth/token' => Http::response(['error' => 'invalid_client'], 401),
+            '*/oauth2/token' => Http::response(['error' => 'invalid_client'], 401),
         ]);
 
         $this->expectException(\RuntimeException::class);

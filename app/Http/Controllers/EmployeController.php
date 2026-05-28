@@ -135,14 +135,14 @@ class EmployeController extends Controller
     private function assertSuperAdmin(Request $request): void
     {
         $user = $request->user();
-        if (!$user || !$user->isSuperAdmin()) {
-            abort(403, 'Accès réservé au Super Admin.');
+        if (!$user || (!$user->isSuperAdmin() && !$user->isManagerOfCurrentSuccursale())) {
+            abort(403, 'Accès réservé au Super Admin ou au manager de la succursale.');
         }
 
         $password = (string) $request->input('admin_password', '');
         if ($password === '' || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
-                'admin_password' => 'Mot de passe Super Admin incorrect.',
+                'admin_password' => 'Mot de passe incorrect.',
             ]);
         }
     }

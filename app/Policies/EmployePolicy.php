@@ -12,7 +12,10 @@ class EmployePolicy
 
     public function update(User $user, Employe $employe): bool
     {
-        return $user->isSuperAdmin() && $user->entreprise_id === $employe->entreprise_id;
+        if ($user->entreprise_id !== $employe->entreprise_id) {
+            return false;
+        }
+        return $user->isSuperAdmin() || $user->isManagerOfCurrentSuccursale();
     }
 
     public function delete(User $user, Employe $employe): bool

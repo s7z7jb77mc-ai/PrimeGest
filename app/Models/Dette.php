@@ -14,11 +14,13 @@ class Dette extends Model
     use HasSuccursaleScope;
 
     protected $fillable = [
+        'uuid',
         'entreprise_id',
         'succursale_id',
         'fournisseur_id',
         'montant_paye',
         'caisse_id',
+        'sync_version',
     ];
 
     public function fournisseur()

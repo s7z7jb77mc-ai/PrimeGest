@@ -39,7 +39,7 @@ onMounted(() => {
     if (planParam === 'premium' || planParam === 'pro') {
         form.value.plan = planParam
     }
-    // Retour depuis Netikash checkout — vérifier le statut avant d'afficher succès
+    // Retour depuis le checkout — vérifier le statut avant d'afficher succès
     if (params.get('payment') === 'return') {
         const ref = params.get('ref')
         if (ref) {
@@ -66,7 +66,7 @@ const erreurMsg  = ref('')
 const reference  = ref('')
 let   pollingId: ReturnType<typeof setInterval> | null = null
 let   tentatives = 0
-const attenteMsg = ref({ titre: 'Redirection en cours…', corps: 'Vous allez être redirigé vers la page de paiement Netikash.\nChoisissez votre opérateur mobile money et confirmez.' })
+const attenteMsg = ref({ titre: 'Redirection en cours…', corps: 'Vous allez être redirigé vers la page de paiement.\nChoisissez votre opérateur mobile money et confirmez.' })
 
 // ── Calcul du montant ────────────────────────────────────────────────────────
 
@@ -128,7 +128,6 @@ async function payer(): Promise<void> {
             devise: form.value.devise,
         })
         reference.value = data.reference
-        // Redirect vers Netikash checkout
         if (data.checkout_url) {
             window.location.href = data.checkout_url
         } else {
@@ -277,7 +276,7 @@ onUnmounted(arreterPolling)
                     </div>
 
                     <button type="submit" class="pg-btn-primary">
-                        Payer {{ montantAffiche }} avec Netikash →
+                        Payer votre abonnement — {{ montantAffiche }} →
                     </button>
 
                 </form>

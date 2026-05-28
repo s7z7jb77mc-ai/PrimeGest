@@ -29,6 +29,9 @@
         <p class="pg-subtitle">
           Choisissez la durée qui vous convient. Payez une fois, profitez longtemps.
         </p>
+        <p class="pg-trial-notice">
+          ✦ 7 jours d'essai gratuit inclus à l'inscription — aucune carte requise
+        </p>
 
         <!-- Toggle durée -->
         <div class="pg-billing-toggle">
@@ -352,6 +355,20 @@ function allerAbonnement(targetPlan: string): void {
   border-radius: 999px;
   background: var(--accent);
   box-shadow: 0 0 0 0.35rem var(--accent-soft);
+}
+
+/* ── Notice essai gratuit ── */
+.pg-trial-notice {
+  display: inline-block;
+  margin: 0 auto 1.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
 }
 
 /* ── Toggle billing — style pg-lang-toggle ── */

@@ -32,13 +32,17 @@
             <p class="text-gray-600 text-sm" v-if="rapport">{{ rapport.periode_detaillee }}</p>
           </div>
           <div class="flex flex-wrap gap-2">
+            <button @click="retourDashboard" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded flex items-center space-x-2 print-hide">
+              <Icon name="arrow_back" />
+              <span>Retour</span>
+            </button>
             <button @click="imprimerRapport" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center space-x-2">
               <Icon name="print" />
               <span>Imprimer</span>
             </button>
             <button @click="telechargerRapport" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center space-x-2">
               <Icon name="download" />
-              <span>Télécharger</span>
+              <span>Télécharger PDF</span>
             </button>
           </div>
         </div>
@@ -492,17 +496,21 @@ export default {
       
       router.get('/rapport', dataToSend, { preserveState: true });
     },
+    retourDashboard() {
+      router.get('/dashboard');
+    },
     telechargerRapport() {
       this.logReportAction('download');
-      const nomFichier = `rapport_${this.selectedType}_${this.selectedDate}.json`;
-      const donnees = JSON.stringify(this.rapport, null, 2);
-      const element = document.createElement('a');
-      element.setAttribute('href', 'data:text/json;charset=utf-8,' + encodeURIComponent(donnees));
-      element.setAttribute('download', nomFichier);
-      element.style.display = 'none';
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
+      const params = new URLSearchParams({ type: this.selectedType });
+      if (this.selectedType === 'mensuel') {
+        params.set('date', this.selectedMonth);
+      } else if (this.selectedType === 'hebdomadaire') {
+        params.set('date_debut', this.selectedDateDebut);
+        params.set('date_fin', this.selectedDateFin);
+      } else {
+        params.set('date', this.selectedDate);
+      }
+      window.open(`/rapport/pdf?${params.toString()}`, '_blank');
     },
     imprimerRapport() {
       this.logReportAction('print');

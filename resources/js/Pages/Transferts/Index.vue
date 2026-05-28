@@ -96,6 +96,30 @@ const formStock = ref({
 const errorMsg = ref('')
 const successMsg = ref('')
 
+// Modal mot de passe pour validation/rejet transfert
+const passwordModal = ref<{ open: boolean; password: string; action: 'approve' | 'reject'; transfert: Transfert | null; reason: string }>({
+  open: false,
+  password: '',
+  action: 'approve',
+  transfert: null,
+  reason: '',
+})
+
+function openPasswordModal(action: 'approve' | 'reject', t: Transfert) {
+  passwordModal.value = { open: true, password: '', action, transfert: t, reason: '' }
+}
+
+async function confirmPasswordModal() {
+  const { action, transfert, password, reason } = passwordModal.value
+  if (!transfert) return
+  passwordModal.value.open = false
+  if (action === 'approve') {
+    await router.post(`/transferts/${transfert.id}/approve`, { admin_password: password }, { preserveScroll: true })
+  } else {
+    await router.post(`/transferts/${transfert.id}/reject`, { admin_password: password, reason }, { preserveScroll: true })
+  }
+}
+
 const hasSuccursales = computed(() => (props.succursales || []).length > 0)
 const canTransfer = computed(() => hasSuccursales.value)
 
@@ -204,17 +228,12 @@ function canValidate(t: Transfert): boolean {
   return !!managerId && Number(currentUser.value?.id) === Number(managerId)
 }
 
-async function approveTransfer(t: Transfert) {
-  const password = prompt('Mot de passe Super Admin/Manager')
-  if (!password) return
-  await router.post(`/transferts/${t.id}/approve`, { admin_password: password }, { preserveScroll: true })
+function approveTransfer(t: Transfert) {
+  openPasswordModal('approve', t)
 }
 
-async function rejectTransfer(t: Transfert) {
-  const reason = prompt('Motif du rejet (optionnel)') || ''
-  const password = prompt('Mot de passe Super Admin/Manager')
-  if (!password) return
-  await router.post(`/transferts/${t.id}/reject`, { admin_password: password, reason }, { preserveScroll: true })
+function rejectTransfer(t: Transfert) {
+  openPasswordModal('reject', t)
 }
 </script>
 
@@ -356,6 +375,37 @@ async function rejectTransfer(t: Transfert) {
         </tbody>
       </table>
     </div>
+    </div>
+
+    <!-- Modal confirmation mot de passe transfert -->
+    <div v-if="passwordModal.open" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl">
+        <h2 class="text-lg font-bold mb-4">
+          {{ passwordModal.action === 'approve' ? 'Valider le transfert' : 'Rejeter le transfert' }}
+        </h2>
+        <div v-if="passwordModal.action === 'reject'" class="mb-3">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Motif du rejet (optionnel)</label>
+          <input v-model="passwordModal.reason" type="text" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Motif..." />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe Super Admin / Manager</label>
+          <input v-model="passwordModal.password" type="password" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="••••••••" autofocus />
+        </div>
+        <div class="flex justify-end gap-3">
+          <button type="button" @click="passwordModal.open = false" class="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+            Annuler
+          </button>
+          <button
+            type="button"
+            @click="confirmPasswordModal"
+            :disabled="!passwordModal.password"
+            :class="passwordModal.action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'"
+            class="px-4 py-2 text-sm text-white rounded disabled:opacity-50"
+          >
+            {{ passwordModal.action === 'approve' ? 'Valider' : 'Rejeter' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

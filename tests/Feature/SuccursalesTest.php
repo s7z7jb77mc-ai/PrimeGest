@@ -302,4 +302,67 @@ class SuccursalesTest extends TestCase
 
         $this->assertNull(session('succursale_id'));
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Restriction après rétrogradation Pro → Premium
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_plan_premium_bloque_index_succursales(): void
+    {
+        $entreprisePremium = Entreprise::factory()->create(['plan' => 'premium']);
+        $userPremium = User::factory()->create([
+            'role'          => 'super_admin',
+            'entreprise_id' => $entreprisePremium->id,
+        ]);
+        $entreprisePremium->update(['user_id' => $userPremium->id]);
+        \Illuminate\Support\Facades\Cache::forget("inertia.entreprise.{$entreprisePremium->id}");
+
+        $response = $this->actingAs($userPremium)->get('/succursales');
+
+        // Le middleware plan:succursales doit bloquer — ni 200 ni 302 vers dashboard
+        $this->assertNotSame(200, $response->status());
+    }
+
+    public function test_plan_premium_bloque_show_succursale(): void
+    {
+        // Succursale appartenant à une entreprise pro tierce — on veut juste tester le gate
+        $autreEntreprisePro = Entreprise::factory()->create(['plan' => 'pro']);
+        $succursale = \Illuminate\Database\Eloquent\Model::unguarded(fn () => Succursale::create([
+            'uuid'            => (string) \Illuminate\Support\Str::uuid(),
+            'entreprise_id'   => $autreEntreprisePro->id,
+            'nom'             => 'Succursale Pro',
+            'adresse'         => 'Goma',
+            'manager_user_id' => User::factory()->create(['entreprise_id' => $autreEntreprisePro->id])->id,
+        ]));
+
+        $entreprisePremium = Entreprise::factory()->create(['plan' => 'premium']);
+        $userPremium = User::factory()->create([
+            'role'          => 'super_admin',
+            'entreprise_id' => $entreprisePremium->id,
+        ]);
+        $entreprisePremium->update(['user_id' => $userPremium->id]);
+        \Illuminate\Support\Facades\Cache::forget("inertia.entreprise.{$entreprisePremium->id}");
+
+        $response = $this->actingAs($userPremium)->get("/succursales/{$succursale->id}");
+
+        $this->assertNotSame(302, $response->status());
+    }
+
+    public function test_exit_succursale_reste_accessible_apres_retrograde(): void
+    {
+        // Un utilisateur dont le plan est passé à premium doit pouvoir sortir du contexte succursale
+        $entreprisePremium = Entreprise::factory()->create(['plan' => 'premium']);
+        $userPremium = User::factory()->create([
+            'role'          => 'super_admin',
+            'entreprise_id' => $entreprisePremium->id,
+        ]);
+        $entreprisePremium->update(['user_id' => $userPremium->id]);
+        \Illuminate\Support\Facades\Cache::forget("inertia.entreprise.{$entreprisePremium->id}");
+
+        session(['succursale_id' => 42]);
+
+        $this->actingAs($userPremium)
+            ->get('/succursales-exit')
+            ->assertRedirect('/dashboard');
+    }
 }

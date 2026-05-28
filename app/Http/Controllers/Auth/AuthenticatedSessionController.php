@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use App\Http\Requests\Auth\LoginRequest;
 use Inertia\Inertia;
 use App\Models\User;
@@ -51,7 +52,9 @@ class AuthenticatedSessionController extends Controller
             'password'     => 'required|string',
         ]);
 
-        $entreprise = Entreprise::where('name', $credentials['company_name'])->first();
+        $entreprise = Entreprise::where('name', $companyName)
+            ->orWhere('slug', Str::slug($companyName))
+            ->first();
         if (!$entreprise) {
             return back()->withErrors([
                 'company_name' => 'Cette entreprise n\'existe pas.',
@@ -91,21 +94,29 @@ class AuthenticatedSessionController extends Controller
             return redirect()->intended('/dashboard');
         }
 
-        // Charger l'employé lié à l'utilisateur
+        // Chercher la succursale via l'employé lié
         $employe = $user->employe;
-
         if ($employe && !empty($employe->succursale_id)) {
-            // Vérifier que la succursale appartient bien à l'entreprise
             $succursale = Succursale::where('id', $employe->succursale_id)
                 ->where('entreprise_id', $user->entreprise_id)
                 ->where('active', true)
                 ->first();
 
             if ($succursale) {
-                // ✅ Stocker la succursale en session → même logique que SuccursaleController::show()
                 session(['succursale_id' => $succursale->id]);
                 return redirect('/dashboard');
             }
+        }
+
+        // Chercher la succursale dont cet utilisateur est manager
+        $succursaleManager = Succursale::where('manager_user_id', $user->id)
+            ->where('entreprise_id', $user->entreprise_id)
+            ->where('active', true)
+            ->first();
+
+        if ($succursaleManager) {
+            session(['succursale_id' => $succursaleManager->id]);
+            return redirect('/dashboard');
         }
 
         // Pas de succursale → dashboard normal

@@ -12,7 +12,10 @@ class ClientPolicy
 
     public function update(User $user, Client $client): bool
     {
-        return $user->isSuperAdmin() && $user->entreprise_id === $client->entreprise_id;
+        if ($user->entreprise_id !== $client->entreprise_id) {
+            return false;
+        }
+        return $user->isSuperAdmin() || $user->isManagerOfCurrentSuccursale();
     }
 
     public function delete(User $user, Client $client): bool
