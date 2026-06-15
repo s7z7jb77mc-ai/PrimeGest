@@ -95,6 +95,11 @@ Route::delete('/produits', function (Request $request, ProductController $contro
 
     return $controller->destroy($produit);
 })->middleware(['auth', 'can:super_admin-only'])->name('produits.destroy.fallback');
+// Batch création — doit être avant Route::resource pour éviter la capture comme show
+Route::post('/produits/batch', [ProductController::class, 'storeBatch'])
+    ->middleware(['auth', 'plan:produits'])
+    ->name('produits.batch');
+
 // APRÈS — plan:produits uniquement sur store (création)
 Route::resource('produits', ProductController::class)
     ->except(['show', 'update', 'destroy'])
@@ -287,6 +292,7 @@ Route::prefix('owner')->name('owner.')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\Admin\PlanController::class, 'index'])->name('dashboard');
         Route::post('/plans/{entreprise}/activate', [\App\Http\Controllers\Admin\PlanController::class, 'activate'])->name('plans.activate');
         Route::post('/plans/{entreprise}/downgrade', [\App\Http\Controllers\Admin\PlanController::class, 'downgrade'])->name('plans.downgrade');
+        Route::delete('/entreprises/{entreprise}', [\App\Http\Controllers\Admin\PlanController::class, 'destroyEntreprise'])->name('entreprises.destroy');
     });
 });
 

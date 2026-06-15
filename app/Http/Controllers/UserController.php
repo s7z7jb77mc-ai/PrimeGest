@@ -184,6 +184,11 @@ class UserController extends Controller
 
         if ($user->entreprise_id !== $currentUser->entreprise_id) abort(403);
 
+        // Empêcher l'auto-suppression
+        if ($user->id === $currentUser->id) {
+            abort(403, 'Vous ne pouvez pas supprimer votre propre compte.');
+        }
+
         if (!$currentUser->isSuperAdmin() && $succursaleId) {
             $employe = $user->employe;
             if (!$employe || (int) $employe->succursale_id !== (int) $succursaleId) {

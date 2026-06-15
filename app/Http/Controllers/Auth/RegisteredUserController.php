@@ -43,7 +43,7 @@ class RegisteredUserController extends Controller
             'phone'           => $validated['entreprise_phone'] ?? null,
             'address'         => $validated['entreprise_address'] ?? null,
             'plan'            => 'pro',
-            'plan_expires_at' => now()->addDays(7),
+            'plan_expires_at' => now()->addDays(30),
             'sync_version'    => 1,
         ]);
 
@@ -67,7 +67,7 @@ class RegisteredUserController extends Controller
             'devise'        => 'USD',
             'status'        => 'trial',
             'starts_at'     => now(),
-            'expires_at'    => now()->addDays(7),
+            'expires_at'    => now()->addDays(30),
         ]);
 
         event(new Registered($user));

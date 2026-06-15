@@ -21,12 +21,14 @@ class TiersController extends Controller
             ->where('entreprise_id', $entrepriseId)
             ->when($clientSearch !== '', fn($q) => $q->where('numero_telephone', 'like', "%{$clientSearch}%"))
             ->orderBy('nom_client')
+            ->select(['id', 'uuid', 'nom_client', 'numero_telephone', 'adresse'])
             ->get();
 
         $fournisseurs = Fournisseur::withoutGlobalScopes()
             ->where('entreprise_id', $entrepriseId)
             ->when($fournisseurSearch !== '', fn($q) => $q->where('nom_entreprise_fournisseur', 'like', "%{$fournisseurSearch}%"))
             ->orderBy('nom_entreprise_fournisseur')
+            ->select(['id', 'uuid', 'nom_entreprise_fournisseur', 'adresse'])
             ->get();
 
         return Inertia::render('Tiers/Index', [

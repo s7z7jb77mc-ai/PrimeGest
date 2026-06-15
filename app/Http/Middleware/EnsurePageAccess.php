@@ -91,10 +91,6 @@ class EnsurePageAccess
 
         // ✅ Manager de la succursale active — accès complet à sa succursale
         $succursaleId = session('succursale_id');
-        \Illuminate\Support\Facades\Log::info('EnsurePageAccess', [
-            'user' => $user->id, 'path' => $path,
-            'succursale_id' => $succursaleId, 'manager' => $user->manager,
-        ]);
         if ($succursaleId) {
             try {
                 $succursale = Cache::remember(
@@ -107,13 +103,6 @@ class EnsurePageAccess
             } catch (\Throwable) {
                 $succursale = null;
             }
-
-            \Illuminate\Support\Facades\Log::info('EnsurePageAccess manager check', [
-                'succursale_found' => $succursale ? $succursale->id : null,
-                'manager_user_id' => $succursale?->manager_user_id,
-                'user_id' => $user->id,
-                'match' => $succursale ? ((int)$succursale->manager_user_id === (int)$user->id) : false,
-            ]);
 
             if ($succursale && (int) $succursale->manager_user_id === (int) $user->id) {
                 return $next($request);

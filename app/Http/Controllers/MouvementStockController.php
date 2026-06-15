@@ -48,7 +48,7 @@ class MouvementStockController extends Controller
         // ✅ Dashboard succursale : on filtre sur la succursale active uniquement.
         if (!$succursaleId && $hasStocks) {
             // Central : regrouper par produit_id, sommer les quantités
-            $stocksRaw = Stock::with('produit')
+            $stocksRaw = Stock::with('produit:id,nom,uuid')
                 ->where('stocks.entreprise_id', $entrepriseId)
                 ->join('produits', 'stocks.produit_id', '=', 'produits.id')
                 ->orderBy('produits.nom')
@@ -85,7 +85,7 @@ class MouvementStockController extends Controller
             $stocks = $stocksRaw;
         } else {
             // Succursale active : vue filtrée
-            $stocks = Stock::with('produit')
+            $stocks = Stock::with('produit:id,nom,uuid')
                 ->where('stocks.entreprise_id', $entrepriseId)
                 ->when($succursaleId && $hasStocks, fn($q) => $q->where('stocks.succursale_id', $succursaleId))
                 ->join('produits', 'stocks.produit_id', '=', 'produits.id')
@@ -94,7 +94,7 @@ class MouvementStockController extends Controller
                 ->get();
 
             // Alertes stock filtrées sur la succursale
-            $alertesStock = Stock::with('produit')
+            $alertesStock = Stock::with('produit:id,nom')
                 ->where('stocks.entreprise_id', $entrepriseId)
                 ->when($succursaleId && $hasStocks, fn($q) => $q->where('stocks.succursale_id', $succursaleId))
                 ->where('seuil_stock', '>', 0)
@@ -110,22 +110,33 @@ class MouvementStockController extends Controller
         }
 
         $today = now()->toDateString();
-        $mouvements = MouvementStock::with('produit', 'user')
+        $mouvements = MouvementStock::with([
+                'produit:id,nom',
+                'user:id,name',
+            ])
             ->where('entreprise_id', $entrepriseId)
             ->when($succursaleId && $hasMouvements, fn($q) => $q->where('succursale_id', $succursaleId))
             ->whereDate('created_at', $today)
             ->latest()
+            ->limit(200)
             ->get();
 
-        $produits = Produit::where('entreprise_id', $entrepriseId)->orderBy('nom')->get();
+        $produits = Produit::where('entreprise_id', $entrepriseId)
+            ->orderBy('nom')
+            ->select(['id', 'uuid', 'nom', 'prix_achat', 'prix_vente'])
+            ->get();
 
         $clients = Client::where('entreprise_id', $entrepriseId)
             ->when($succursaleId && $hasClients, fn($q) => $q->where('succursale_id', $succursaleId))
-            ->orderBy('nom_client')->get();
+            ->orderBy('nom_client')
+            ->select(['id', 'uuid', 'nom_client', 'numero_telephone', 'reduction_accordee'])
+            ->get();
 
         $fournisseurs = Fournisseur::where('entreprise_id', $entrepriseId)
             ->when($succursaleId && $hasFournisseurs, fn($q) => $q->where('succursale_id', $succursaleId))
-            ->orderBy('nom_entreprise_fournisseur')->get();
+            ->orderBy('nom_entreprise_fournisseur')
+            ->select(['id', 'uuid', 'nom_entreprise_fournisseur', 'reduction_obtenue'])
+            ->get();
 
         $parametres = Parametre::where('entreprise_id', $entrepriseId)->first();
 

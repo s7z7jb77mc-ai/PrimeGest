@@ -6,6 +6,8 @@ use App\Models\Produit;
 use App\Models\Stock;
 use App\Models\Succursale;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -61,20 +63,19 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nom'         => 'required|string|max:255',
-            'prix_achat'  => 'required|numeric|min:0',
-            'prix_vente'  => 'required|numeric|min:0',
-            'seuil_stock' => 'nullable|integer|min:0',
+            'nom'           => 'required|string|max:255',
+            'prix_achat'    => 'required|numeric|min:0',
+            'prix_vente'    => 'required|numeric|min:0',
+            'seuil_stock'   => 'nullable|integer|min:0',
+            'stock_initial' => 'nullable|integer|min:0',
         ]);
 
-        $entrepriseId             = auth()->user()->entreprise_id;
+        $entrepriseId               = auth()->user()->entreprise_id;
         $validated['entreprise_id'] = $entrepriseId;
-        $succursaleId             = session('succursale_id');
+        $succursaleId               = session('succursale_id');
 
         $produit = Produit::create($validated);
 
-        // Créer l'état de stock initial pour la succursale active
-        // (ou au niveau central si pas de succursale)
         Stock::firstOrCreate(
             [
                 'entreprise_id' => $entrepriseId,
@@ -82,7 +83,7 @@ class ProductController extends Controller
                 'produit_id'    => $produit->id,
             ],
             [
-                'quantite'    => 0,
+                'quantite'    => (int) ($validated['stock_initial'] ?? 0),
                 'prix_achat'  => $produit->prix_achat,
                 'prix_vente'  => $produit->prix_vente,
                 'total_achat' => 0,
@@ -92,6 +93,66 @@ class ProductController extends Controller
         );
 
         return redirect()->route('produits.index')->with('success', 'Produit ajouté avec succès.');
+    }
+
+    // ----------------------------------------------------------------
+    // Créer plusieurs produits en une seule confirmation (batch)
+    // ----------------------------------------------------------------
+
+    public function storeBatch(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'admin_password'             => ['required', 'string'],
+            'produits'                   => ['required', 'array', 'min:1'],
+            'produits.*.nom'             => ['required', 'string', 'max:255'],
+            'produits.*.prix_achat'      => ['required', 'numeric', 'min:0'],
+            'produits.*.prix_vente'      => ['required', 'numeric', 'min:0'],
+            'produits.*.seuil_stock'     => ['nullable', 'integer', 'min:0'],
+            'produits.*.stock_initial'   => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        if (!Hash::check($validated['admin_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'admin_password' => 'Mot de passe incorrect.',
+            ]);
+        }
+
+        $entrepriseId = $user->entreprise_id;
+        $succursaleId = session('succursale_id');
+
+        DB::transaction(function () use ($validated, $entrepriseId, $succursaleId) {
+            foreach ($validated['produits'] as $item) {
+                $produit = Produit::create([
+                    'entreprise_id' => $entrepriseId,
+                    'nom'           => $item['nom'],
+                    'prix_achat'    => $item['prix_achat'],
+                    'prix_vente'    => $item['prix_vente'],
+                ]);
+
+                Stock::firstOrCreate(
+                    [
+                        'entreprise_id' => $entrepriseId,
+                        'succursale_id' => $succursaleId,
+                        'produit_id'    => $produit->id,
+                    ],
+                    [
+                        'quantite'    => (int) ($item['stock_initial'] ?? 0),
+                        'prix_achat'  => $produit->prix_achat,
+                        'prix_vente'  => $produit->prix_vente,
+                        'total_achat' => 0,
+                        'total_vente' => 0,
+                        'seuil_stock' => (int) ($item['seuil_stock'] ?? 0),
+                    ]
+                );
+            }
+        });
+
+        $count = count($validated['produits']);
+
+        return redirect()->route('produits.index')
+            ->with('success', "{$count} produit(s) créé(s) avec succès.");
     }
 
     // ----------------------------------------------------------------

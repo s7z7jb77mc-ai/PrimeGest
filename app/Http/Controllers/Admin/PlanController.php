@@ -10,6 +10,7 @@ use App\Http\Requests\Subscription\ActivateSubscriptionRequest;
 use App\Models\Entreprise;
 use App\Models\Subscription;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -98,5 +99,16 @@ class PlanController extends Controller
         ]);
 
         return back()->with('success', "Retour au plan Free pour {$entreprise->name}");
+    }
+
+    public function destroyEntreprise(Entreprise $entreprise): RedirectResponse
+    {
+        $name = $entreprise->name;
+
+        DB::transaction(function () use ($entreprise): void {
+            $entreprise->delete();
+        });
+
+        return back()->with('success', "Entreprise « {$name} » supprimée.");
     }
 }

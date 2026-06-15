@@ -61,6 +61,19 @@ function downgrade(e) {
     })
 }
 
+function deleteEntreprise(e) {
+    const saisie = prompt(`Suppression définitive de « ${e.name} ».\n\nTapez le nom exact de l'entreprise pour confirmer :`)
+    if (saisie === null) return
+    if (saisie.trim() !== e.name.trim()) {
+        alert('Nom incorrect — suppression annulée.')
+        return
+    }
+    useForm({}).delete(`/owner/entreprises/${e.id}`, {
+        onSuccess: () => router.reload(),
+        onError:   (err) => alert('Erreur: ' + JSON.stringify(err)),
+    })
+}
+
 function logout() {
     useForm({}).post('/owner/logout')
 }
@@ -268,7 +281,7 @@ const totalRevenu = computed(() =>
                       class="bg-gray-800 border border-gray-700 text-white rounded-lg px-2 py-1.5 text-xs w-14 focus:ring-1 focus:ring-yellow-400 outline-none" />
                   </td>
                   <td class="px-4 py-3">
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
                       <button @click="activate(e)"
                         class="bg-yellow-500 hover:bg-yellow-400 text-black text-xs px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap">
                         Activer
@@ -276,6 +289,10 @@ const totalRevenu = computed(() =>
                       <button @click="downgrade(e)"
                         class="border border-gray-700 hover:bg-gray-800 text-gray-400 hover:text-white text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                         → Free
+                      </button>
+                      <button @click="deleteEntreprise(e)"
+                        class="bg-red-900/60 hover:bg-red-700 border border-red-800 text-red-300 hover:text-white text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                        Supprimer
                       </button>
                     </div>
                   </td>

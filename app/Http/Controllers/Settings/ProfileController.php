@@ -51,6 +51,14 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        // Un super_admin ne peut pas supprimer son propre compte directement :
+        // il faudrait d'abord supprimer l'entreprise via le panel owner.
+        if ($user->isSuperAdmin()) {
+            return back()->withErrors([
+                'password' => 'Le compte Super Admin ne peut pas être supprimé depuis cette page. Contactez le propriétaire de la plateforme.',
+            ]);
+        }
+
         Auth::logout();
 
         $user->delete();
