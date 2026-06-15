@@ -49,7 +49,7 @@ class FicheDePaieController extends Controller
             'annee'         => 'required|integer',
             'primes'        => 'nullable|numeric|min:0',
             'retenues'      => 'nullable|numeric|min:0',
-            'statut'        => 'required|in:en_attente,payé',
+            'statut'        => 'required|in:en_attente,paye',
             'date_paiement' => 'nullable|date',
         ]);
 
@@ -82,7 +82,7 @@ $this->assertFicheBelongsToCurrentEntreprise($fiche);
         $validated = $request->validate([
             'primes'        => 'nullable|numeric|min:0',
             'retenues'      => 'nullable|numeric|min:0',
-            'statut'        => 'required|in:en_attente,payé',
+            'statut'        => 'required|in:en_attente,paye',
             'date_paiement' => 'nullable|date',
         ]);
 

@@ -266,7 +266,7 @@ class EmployesFichesDePaieTest extends TestCase
             ->put("/fiches/{$fiche->id}", [
                 'primes'   => 200,
                 'retenues' => 100,
-                'statut'   => 'payé',
+                'statut'   => 'paye',
             ])
             ->assertRedirect();
 
@@ -274,6 +274,7 @@ class EmployesFichesDePaieTest extends TestCase
             'id'          => $fiche->id,
             'primes'      => 200,
             'net_a_payer' => 600.00, // 500 + 200 - 100
+            'statut'      => 'paye',
         ]);
     }
 

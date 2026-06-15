@@ -258,7 +258,7 @@ function formatDateTime(dateStr) {
             <label class="block mb-1 font-semibold">Statut</label>
             <select v-model="form.statut" class="w-full border p-2 rounded">
               <option value="en_attente">En attente</option>
-              <option value="payé">Payé</option>
+              <option value="paye">Payé</option>
             </select>
           </div>
 
