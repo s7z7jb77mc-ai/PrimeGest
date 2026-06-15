@@ -92,7 +92,8 @@ return new class extends Migration
 
     private function hasIndex(string $table, string $name): bool
     {
-        return collect(\DB::select("SHOW INDEX FROM `{$table}`"))
-            ->contains(fn ($row) => $row->Key_name === $name);
+        // Portable MySQL/SQLite (SHOW INDEX est spécifique MySQL).
+        return collect(Schema::getIndexes($table))
+            ->contains(fn ($i) => ($i['name'] ?? '') === $name);
     }
 };

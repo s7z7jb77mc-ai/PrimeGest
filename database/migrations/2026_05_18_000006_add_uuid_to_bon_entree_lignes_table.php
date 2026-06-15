@@ -1,9 +1,9 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Database\Schema\Blueprint as SchemaBP;
 
 return new class extends Migration
@@ -16,10 +16,12 @@ return new class extends Migration
             });
         }
 
-        DB::table('bon_entree_lignes')->whereNull('uuid')->orWhere('uuid', '')->update(['uuid' => DB::raw('UUID()')]);
+        foreach (DB::table('bon_entree_lignes')->whereNull('uuid')->orWhere('uuid', '')->orderBy('id')->pluck('id') as $id) {
+            DB::table('bon_entree_lignes')->where('id', $id)->update(['uuid' => (string) Str::uuid()]);
+        }
 
-        $hasUnique = collect(DB::select("SHOW INDEX FROM `bon_entree_lignes`"))
-            ->contains(fn ($row) => $row->Key_name === 'bon_entree_lignes_uuid_unique');
+        $hasUnique = collect(Schema::getIndexes('bon_entree_lignes'))
+            ->contains(fn ($i) => ($i['unique'] ?? false) && in_array('uuid', $i['columns'] ?? [], true));
 
         if (! $hasUnique) {
             Schema::table('bon_entree_lignes', function (SchemaBP $table) {

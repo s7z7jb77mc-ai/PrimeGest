@@ -14,10 +14,12 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     
-    # AJOUTE CES LIGNES ICI
+    # SQLite sur fichier (pas :memory:) : le schéma créé par l'étape
+    # « Run Migrations » doit persister jusqu'à phpunit, sinon les tests
+    # DatabaseTransactions n'ont aucune table (process séparés).
     env:
       DB_CONNECTION: sqlite
-      DB_DATABASE: ":memory:"
+      DB_DATABASE: database/database.sqlite
 
     steps:
       - name: Checkout
@@ -52,7 +54,10 @@ jobs:
       - name: Publish Ziggy Configuration
         run: php artisan ziggy:generate
 
-       - name: Run Migrations
+      - name: Create SQLite database
+        run: touch database/database.sqlite
+
+      - name: Run Migrations
         run: php artisan migrate --force
 
       - name: Build Assets

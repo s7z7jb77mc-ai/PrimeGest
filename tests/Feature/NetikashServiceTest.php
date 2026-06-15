@@ -15,7 +15,8 @@ class NetikashServiceTest extends TestCase
     private function fakeTokenResponse(): void
     {
         Http::fake([
-            '*/oauth2/token' => Http::response([
+            // Le service appelle services.netikash.auth_url (…/oauth/token).
+            '*/oauth/token' => Http::response([
                 'access_token' => 'fake-token-abc123',
                 'expires_in' => 3600,
                 'token_type' => 'Bearer',
@@ -34,7 +35,7 @@ class NetikashServiceTest extends TestCase
         $this->assertSame('fake-token-abc123', $token);
 
         Http::assertSent(function (Request $req) {
-            return str_contains($req->url(), '/oauth2/token')
+            return str_contains($req->url(), '/oauth/token')
                 && $req->hasHeader('Authorization');
         });
     }
@@ -56,7 +57,7 @@ class NetikashServiceTest extends TestCase
         Cache::forget('netikash_access_token');
 
         Http::fake([
-            '*/oauth2/token' => Http::response(['access_token' => 'tok', 'expires_in' => 3600], 200),
+            '*/oauth/token' => Http::response(['access_token' => 'tok', 'expires_in' => 3600], 200),
             '*/transactions/requests/cli-payments' => Http::response([
                 'trans'   => 'TXN-123',
                 'link'    => 'https://pay.netikash.com/checkout/TXN-123',
@@ -82,7 +83,7 @@ class NetikashServiceTest extends TestCase
         Cache::forget('netikash_token');
 
         Http::fake([
-            '*/oauth2/token' => Http::response(['error' => 'invalid_client'], 401),
+            '*/oauth/token' => Http::response(['error' => 'invalid_client'], 401),
         ]);
 
         $this->expectException(\RuntimeException::class);
