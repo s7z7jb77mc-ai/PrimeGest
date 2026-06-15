@@ -161,10 +161,10 @@ const content = {
       downloadBtn: 'Télécharger',
       openBtn: "Ouvrir l'app",
       apps: [
+        { name: 'Linux Desktop', desc: 'Linux x64', url: '/downloads/PrimeGest-Linux-x64.tar.gz', available: true, type: 'download', icon: 'linux' },
         { name: 'Windows', desc: 'Windows 10 / 11', url: '/downloads/PrimeGest-Setup.exe', available: true, type: 'download', icon: 'windows' },
-        { name: 'Android', desc: 'Android 8.0 et plus', url: '/downloads/PrimeGest.apk', available: true, type: 'download', icon: 'android' },
         { name: 'Application Web', desc: 'Chrome, Firefox, Safari', url: '/register-entreprise', available: true, type: 'open', icon: 'web' },
-        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.AppImage', available: false, type: 'download', icon: 'mac' },
+        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.dmg', available: false, type: 'download', icon: 'mac' },
       ],
     },
     cta: {
@@ -298,10 +298,10 @@ const content = {
       downloadBtn: 'Download',
       openBtn: 'Open app',
       apps: [
+        { name: 'Linux Desktop', desc: 'Linux x64', url: '/downloads/PrimeGest-Linux-x64.tar.gz', available: true, type: 'download', icon: 'linux' },
         { name: 'Windows', desc: 'Windows 10 / 11', url: '/downloads/PrimeGest-Setup.exe', available: true, type: 'download', icon: 'windows' },
-        { name: 'Android', desc: 'Android 8.0 and above', url: '/downloads/PrimeGest.apk', available: true, type: 'download', icon: 'android' },
         { name: 'Web App', desc: 'Chrome, Firefox, Safari', url: '/register-entreprise', available: true, type: 'open', icon: 'web' },
-        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.AppImage', available: false, type: 'download', icon: 'mac' },
+        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.dmg', available: false, type: 'download', icon: 'mac' },
       ],
     },
     cta: {
@@ -507,6 +507,10 @@ const content = {
             <div class="pg-download-card__icon">
               <svg v-if="app.icon === 'windows'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M3 5.557l7.357-1.002.003 7.096-7.354.042L3 5.557zm7.354 6.913l.004 7.103-7.354-1.013v-6.14l7.35.05zm.892-8.046L21.001 3v8.562l-9.755.077-.001-7.215zm9.758 8.316l-.001 8.408-9.755-1.375-.013-7.059 9.769.026z"/>
+              </svg>
+              <svg v-else-if="app.icon === 'linux'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="11" rx="2"/>
+                <path d="M8 20h8M10 16l-.5 4M14 16l.5 4"/>
               </svg>
               <svg v-else-if="app.icon === 'android'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M17.523 15.341c-.551 0-.999-.449-.999-1s.448-.999.999-.999.999.448.999.999-.448 1-.999 1zm-11.046 0c-.551 0-.999-.449-.999-1s.448-.999.999-.999.999.448.999.999-.448 1-.999 1zm11.404-6.025l2-3.462-1.3-.75-2.064 3.573A11.533 11.533 0 0012 7.547c-1.781 0-3.462.426-4.992 1.129L4.948 5.104l-1.301.75 2 3.462A11.493 11.493 0 001 18.698h22c0-3.884-1.935-7.31-4.517-9.382z"/>
