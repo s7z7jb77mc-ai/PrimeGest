@@ -5,10 +5,13 @@ import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
 import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useOfflineQueue } from '@/composables/useOfflineQueue'
 import { useLocalDB } from '@/composables/useLocalDB'
+import { db } from '@/db/primegest'
 defineOptions({ layout: AppDashboardLayout })
 
 const offlineStore = useOfflineStore()
+const { queueOperation } = useOfflineQueue()
 const localDB = useLocalDB()
 
 const props = defineProps({
@@ -71,25 +74,83 @@ function rowKey(entity: any): string {
   return String(entity.uuid ?? entity.id)
 }
 
-// Le paiement et le détail exigent le serveur (id numérique + écriture
-// caisse). Désactivés hors-ligne pour éviter une action qui échouerait.
-function payerCreance(client: any) {
-  if (isOffline.value) return
-  const montant = Number(montantClient.value[rowKey(client)] || 0)
+// Applique le décrément optimiste dans la liste locale en mémoire :
+// met à jour le solde restant, ou retire la ligne si elle est soldée.
+function applyLocalPaiement(list: typeof localClients, uuid: string, champ: 'creance' | 'dette', reste: number): void {
+  const idx = list.value.findIndex((x: any) => x.uuid === uuid)
+  if (idx === -1) return
+  if (reste > 0) {
+    list.value[idx] = { ...list.value[idx], [champ]: reste }
+  } else {
+    list.value.splice(idx, 1)
+  }
+}
+
+// Paiement créance. Hors-ligne : mis en file comme opération métier
+// (rejouée serveur à la sync) + décrément optimiste du solde local.
+// Le détail reste online-only (résumé mensuel calculé serveur).
+async function payerCreance(client: any) {
+  const key = rowKey(client)
+  const montant = Number(montantClient.value[key] || 0)
   if (montant <= 0) {
     alert('Montant invalide.')
     return
   }
+  const solde = Number(client.creance || 0)
+  if (montant > solde) {
+    alert('Le montant dépasse la créance du client.')
+    return
+  }
+
+  if (isOffline.value) {
+    await queueOperation('creances', crypto.randomUUID(), 'create', {
+      client_uuid: client.uuid,
+      montant_paye: montant,
+    })
+    // Persiste le solde décrémenté (navigateur/Dexie ; no-op silencieux sur desktop)
+    await db.clients.update(client.uuid, {
+      creance: solde - montant,
+      updated_at: Math.floor(Date.now() / 1000),
+    }).catch(() => {})
+    // MAJ optimiste en mémoire — fonctionne navigateur ET desktop (SQLite),
+    // réconciliée par le pull serveur après synchronisation.
+    applyLocalPaiement(localClients, client.uuid, 'creance', solde - montant)
+    montantClient.value[key] = 0
+    alert('Hors ligne — paiement enregistré, synchronisation à la reconnexion.')
+    return
+  }
+
   router.post(`/creances-dettes/clients/${client.id}/paiement`, { montant }, { preserveScroll: true })
 }
 
-function payerDette(fournisseur: any) {
-  if (isOffline.value) return
-  const montant = Number(montantFournisseur.value[rowKey(fournisseur)] || 0)
+async function payerDette(fournisseur: any) {
+  const key = rowKey(fournisseur)
+  const montant = Number(montantFournisseur.value[key] || 0)
   if (montant <= 0) {
     alert('Montant invalide.')
     return
   }
+  const solde = Number(fournisseur.dette || 0)
+  if (montant > solde) {
+    alert('Le montant dépasse la dette du fournisseur.')
+    return
+  }
+
+  if (isOffline.value) {
+    await queueOperation('dettes', crypto.randomUUID(), 'create', {
+      fournisseur_uuid: fournisseur.uuid,
+      montant_paye: montant,
+    })
+    await db.fournisseurs.update(fournisseur.uuid, {
+      dette: solde - montant,
+      updated_at: Math.floor(Date.now() / 1000),
+    }).catch(() => {})
+    applyLocalPaiement(localFournisseurs, fournisseur.uuid, 'dette', solde - montant)
+    montantFournisseur.value[key] = 0
+    alert('Hors ligne — paiement enregistré, synchronisation à la reconnexion.')
+    return
+  }
+
   router.post(`/creances-dettes/fournisseurs/${fournisseur.id}/paiement`, { montant }, { preserveScroll: true })
 }
 
@@ -108,7 +169,7 @@ function goDashboard() {
     </div>
 
     <div v-if="isOffline" class="bg-amber-50 border border-amber-200 text-amber-800 rounded p-3 text-sm">
-      Mode hors-ligne — montants à la dernière synchronisation. Les paiements seront disponibles au retour de la connexion.
+      Mode hors-ligne — les paiements sont enregistrés localement et synchronisés au retour de la connexion. Le détail reste disponible en ligne.
     </div>
 
     <div class="bg-white shadow rounded p-4">
@@ -131,12 +192,12 @@ function goDashboard() {
               <td class="px-4 py-2">{{ c.numero_telephone }}</td>
               <td class="px-4 py-2 text-right">{{ Number(c.creance || 0).toFixed(2) }} {{ devise }}</td>
               <td class="px-4 py-2 text-right">
-                <input v-model.number="montantClient[rowKey(c)]" type="number" step="0.01" :disabled="isOffline" class="w-32 border p-1 rounded disabled:bg-gray-100" />
+                <input v-model.number="montantClient[rowKey(c)]" type="number" step="0.01" class="w-32 border p-1 rounded" />
               </td>
               <td class="px-4 py-2 text-center">
                 <div class="flex items-center justify-center gap-2">
-                  <button type="button" @click="payerCreance(c)" :disabled="isOffline" class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Payer</button>
-                  <button type="button" @click="router.get(`/creances-dettes/clients/${c.id}`)" :disabled="isOffline" class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Détail</button>
+                  <button type="button" @click="payerCreance(c)" class="px-3 py-1 bg-green-600 text-white rounded">Payer</button>
+                  <button type="button" @click="router.get(`/creances-dettes/clients/${c.id}`)" :disabled="isOffline" :title="isOffline ? 'Détail disponible en ligne' : ''" class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Détail</button>
                 </div>
               </td>
             </tr>
@@ -169,12 +230,12 @@ function goDashboard() {
               <td class="px-4 py-2">{{ f.nom_entreprise_fournisseur }}</td>
               <td class="px-4 py-2 text-right">{{ Number(f.dette || 0).toFixed(2) }} {{ devise }}</td>
               <td class="px-4 py-2 text-right">
-                <input v-model.number="montantFournisseur[rowKey(f)]" type="number" step="0.01" :disabled="isOffline" class="w-32 border p-1 rounded disabled:bg-gray-100" />
+                <input v-model.number="montantFournisseur[rowKey(f)]" type="number" step="0.01" class="w-32 border p-1 rounded" />
               </td>
               <td class="px-4 py-2 text-center">
                 <div class="flex items-center justify-center gap-2">
-                  <button type="button" @click="payerDette(f)" :disabled="isOffline" class="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Payer</button>
-                  <button type="button" @click="router.get(`/creances-dettes/fournisseurs/${f.id}`)" :disabled="isOffline" class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Détail</button>
+                  <button type="button" @click="payerDette(f)" class="px-3 py-1 bg-red-600 text-white rounded">Payer</button>
+                  <button type="button" @click="router.get(`/creances-dettes/fournisseurs/${f.id}`)" :disabled="isOffline" :title="isOffline ? 'Détail disponible en ligne' : ''" class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Détail</button>
                 </div>
               </td>
             </tr>

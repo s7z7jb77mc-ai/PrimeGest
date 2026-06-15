@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Caisse;
+use App\Models\Client;
+use App\Models\Creance;
+use App\Models\Dette;
 use App\Models\Employe;
 use App\Models\Entreprise;
 use App\Models\Fournisseur;
@@ -580,5 +583,129 @@ class SyncOfflineReadWriteTest extends TestCase
         $this->assertArrayNotHasKey('id',            $item['payload']);
         $this->assertArrayNotHasKey('uuid',          $item['payload']);
         $this->assertArrayNotHasKey('entreprise_id', $item['payload']);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PUSH — paiements créance/dette (rejeu d'opération métier)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_push_paiement_creance_offline_rejoue_caisse_ledger_et_solde(): void
+    {
+        $client = Model::unguarded(fn () => Client::create([
+            'uuid'             => (string) Str::uuid(),
+            'entreprise_id'    => $this->entreprise->id,
+            'nom_client'       => 'Client Crédit',
+            'numero_telephone' => '0990000000',
+            'creance'          => 100,
+        ]));
+
+        $paiementUuid = (string) Str::uuid();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/sync/push', [
+                'device_id'  => $this->deviceId,
+                'operations' => [[
+                    'table_name'          => 'creances',
+                    'record_id'           => $paiementUuid,
+                    'operation'           => 'create',
+                    'payload'             => [
+                        'client_uuid'  => $client->uuid,
+                        'montant_paye' => 40,
+                    ],
+                    'client_sync_version' => 0,
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('results.0.status', 'synced');
+
+        // Solde décrémenté, ledger créé, entrée de caisse créée
+        $this->assertDatabaseHas('clients', ['uuid' => $client->uuid, 'creance' => 60]);
+        $this->assertDatabaseHas('creances', [
+            'uuid'         => $paiementUuid,
+            'client_id'    => $client->id,
+            'montant_paye' => 40,
+        ]);
+        $this->assertDatabaseHas('caisses', [
+            'entreprise_id' => $this->entreprise->id,
+            'entree'        => 40,
+            'type_operation'=> 'creance',
+        ]);
+    }
+
+    public function test_push_paiement_creance_est_idempotent(): void
+    {
+        $client = Model::unguarded(fn () => Client::create([
+            'uuid'             => (string) Str::uuid(),
+            'entreprise_id'    => $this->entreprise->id,
+            'nom_client'       => 'Client Doublon',
+            'numero_telephone' => '0991111111',
+            'creance'          => 100,
+        ]));
+
+        $paiementUuid = (string) Str::uuid();
+        $operation = [[
+            'table_name'          => 'creances',
+            'record_id'           => $paiementUuid,
+            'operation'           => 'create',
+            'payload'             => ['client_uuid' => $client->uuid, 'montant_paye' => 30],
+            'client_sync_version' => 0,
+        ]];
+
+        // Deux push successifs du MÊME paiement (rejeu réseau)
+        $this->actingAs($this->user, 'sanctum')->postJson('/api/sync/push', ['device_id' => $this->deviceId, 'operations' => $operation])->assertOk();
+        $this->actingAs($this->user, 'sanctum')->postJson('/api/sync/push', ['device_id' => $this->deviceId, 'operations' => $operation])->assertOk();
+
+        // Décrémenté une seule fois, un seul ledger
+        $this->assertDatabaseHas('clients', ['uuid' => $client->uuid, 'creance' => 70]);
+        $this->assertSame(1, Creance::where('uuid', $paiementUuid)->count());
+    }
+
+    public function test_push_paiement_dette_offline_rejoue_sortie_caisse_et_solde(): void
+    {
+        // Caisse approvisionnée pour autoriser la sortie (sinon solde négatif)
+        Model::unguarded(fn () => Caisse::create([
+            'uuid'           => (string) Str::uuid(),
+            'entreprise_id'  => $this->entreprise->id,
+            'description'    => 'Fonds initial',
+            'date_operation' => now(),
+            'entree'         => 200,
+            'sortie'         => 0,
+            'solde'          => 200,
+        ]));
+
+        $fournisseur = Model::unguarded(fn () => Fournisseur::create([
+            'uuid'                       => (string) Str::uuid(),
+            'entreprise_id'              => $this->entreprise->id,
+            'nom_entreprise_fournisseur' => 'Fournisseur Dette',
+            'dette'                      => 80,
+        ]));
+
+        $paiementUuid = (string) Str::uuid();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/sync/push', [
+                'device_id'  => $this->deviceId,
+                'operations' => [[
+                    'table_name'          => 'dettes',
+                    'record_id'           => $paiementUuid,
+                    'operation'           => 'create',
+                    'payload'             => ['fournisseur_uuid' => $fournisseur->uuid, 'montant_paye' => 50],
+                    'client_sync_version' => 0,
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('results.0.status', 'synced');
+
+        $this->assertDatabaseHas('fournisseurs', ['uuid' => $fournisseur->uuid, 'dette' => 30]);
+        $this->assertDatabaseHas('dettes', [
+            'uuid'           => $paiementUuid,
+            'fournisseur_id' => $fournisseur->id,
+            'montant_paye'   => 50,
+        ]);
+        $this->assertDatabaseHas('caisses', [
+            'entreprise_id'  => $this->entreprise->id,
+            'sortie'         => 50,
+            'type_operation' => 'dette',
+        ]);
     }
 }

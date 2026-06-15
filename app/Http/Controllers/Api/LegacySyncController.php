@@ -3,12 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Caisse;
+use App\Models\Client;
+use App\Models\Creance;
+use App\Models\Dette;
 use App\Models\Entreprise;
+use App\Models\Fournisseur;
 use App\Models\SyncLog;
+use App\Services\CaisseService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class LegacySyncController extends Controller
 {
@@ -233,6 +241,17 @@ class LegacySyncController extends Controller
     private function upsert(array $op, int $entrepriseId): array
     {
         $tableName = $op['table_name'] ?? null;
+
+        // Paiements créance/dette : opérations métier rejouées côté serveur
+        // (caisse + ledger + décrément du solde), pas un simple upsert de ligne.
+        // Les FK numériques (client_id/caisse_id) sont résolues ici depuis l'uuid.
+        if ($tableName === 'creances') {
+            return $this->replayPaiementCreance($op, $entrepriseId);
+        }
+        if ($tableName === 'dettes') {
+            return $this->replayPaiementDette($op, $entrepriseId);
+        }
+
         $modelClass = $this->resolveModel($tableName ?? '');
 
         if (! $modelClass) {
@@ -270,6 +289,164 @@ class LegacySyncController extends Controller
             'status' => 'synced',
             'sync_version' => $model->fresh()?->sync_version ?? 0,
         ];
+    }
+
+    /**
+     * Rejoue un paiement de créance créé hors-ligne : reproduit fidèlement
+     * la logique de CreancesDettesController::payerCreance (caisse + Creance
+     * + décrément du solde client). Idempotent par uuid de paiement.
+     */
+    private function replayPaiementCreance(array $op, int $entrepriseId): array
+    {
+        $paiementUuid = $op['record_id'];
+        $payload = $op['payload'] ?? [];
+        $clientUuid = $payload['client_uuid'] ?? null;
+        $montant = (float) ($payload['montant_paye'] ?? 0);
+
+        if (! $clientUuid || $montant <= 0) {
+            return ['status' => 'ignored', 'reason' => 'payload_invalide'];
+        }
+
+        // Idempotence : le paiement a déjà été appliqué lors d'un push précédent.
+        $existing = Creance::withoutGlobalScopes()
+            ->where('uuid', $paiementUuid)
+            ->where('entreprise_id', $entrepriseId)
+            ->first();
+        if ($existing) {
+            return ['status' => 'synced', 'sync_version' => $existing->sync_version ?? 0];
+        }
+
+        $client = Client::withoutGlobalScopes()
+            ->where('uuid', $clientUuid)
+            ->where('entreprise_id', $entrepriseId)
+            ->first();
+        if (! $client) {
+            return ['status' => 'ignored', 'reason' => 'client_introuvable'];
+        }
+
+        // Plafonne au solde réel côté serveur (le montant offline peut être périmé).
+        $montant = min($montant, (float) $client->creance);
+        if ($montant <= 0) {
+            return ['status' => 'synced', 'reason' => 'deja_solde'];
+        }
+
+        $hasSuccursale = schema_has_column('creances', 'succursale_id');
+
+        try {
+            $caissePayload = [
+                'entreprise_id' => $entrepriseId,
+                'description' => 'Paiement créance: ' . $client->nom_client,
+                'date_operation' => now(),
+                'entree' => $montant,
+                'sortie' => 0,
+            ];
+            if (schema_has_column('caisses', 'type_operation')) {
+                $caissePayload['type_operation'] = 'creance';
+            }
+            if (schema_has_column('caisses', 'succursale_id')) {
+                $caissePayload['succursale_id'] = $client->succursale_id;
+            }
+            $caisse = CaisseService::createOperation($caissePayload);
+
+            Model::unguarded(function () use ($paiementUuid, $entrepriseId, $client, $montant, $caisse, $hasSuccursale) {
+                $data = [
+                    'uuid' => $paiementUuid,
+                    'entreprise_id' => $entrepriseId,
+                    'client_id' => $client->id,
+                    'montant_paye' => $montant,
+                    'caisse_id' => $caisse->id,
+                ];
+                if ($hasSuccursale) {
+                    $data['succursale_id'] = $client->succursale_id;
+                }
+                Creance::withoutGlobalScopes()->create($data);
+            });
+
+            $client->creance = (float) $client->creance - $montant;
+            $client->save();
+        } catch (ValidationException $e) {
+            // Solde de caisse insuffisant côté serveur — paiement non appliqué.
+            return ['status' => 'conflict', 'reason' => 'caisse_insuffisante'];
+        }
+
+        return ['status' => 'synced'];
+    }
+
+    /**
+     * Rejoue un paiement de dette créé hors-ligne (symétrique des créances :
+     * sortie de caisse + Dette + décrément du solde fournisseur).
+     */
+    private function replayPaiementDette(array $op, int $entrepriseId): array
+    {
+        $paiementUuid = $op['record_id'];
+        $payload = $op['payload'] ?? [];
+        $fournisseurUuid = $payload['fournisseur_uuid'] ?? null;
+        $montant = (float) ($payload['montant_paye'] ?? 0);
+
+        if (! $fournisseurUuid || $montant <= 0) {
+            return ['status' => 'ignored', 'reason' => 'payload_invalide'];
+        }
+
+        $existing = Dette::withoutGlobalScopes()
+            ->where('uuid', $paiementUuid)
+            ->where('entreprise_id', $entrepriseId)
+            ->first();
+        if ($existing) {
+            return ['status' => 'synced', 'sync_version' => $existing->sync_version ?? 0];
+        }
+
+        $fournisseur = Fournisseur::withoutGlobalScopes()
+            ->where('uuid', $fournisseurUuid)
+            ->where('entreprise_id', $entrepriseId)
+            ->first();
+        if (! $fournisseur) {
+            return ['status' => 'ignored', 'reason' => 'fournisseur_introuvable'];
+        }
+
+        $montant = min($montant, (float) $fournisseur->dette);
+        if ($montant <= 0) {
+            return ['status' => 'synced', 'reason' => 'deja_solde'];
+        }
+
+        $hasSuccursale = schema_has_column('dettes', 'succursale_id');
+
+        try {
+            $caissePayload = [
+                'entreprise_id' => $entrepriseId,
+                'description' => 'Paiement dette: ' . $fournisseur->nom_entreprise_fournisseur,
+                'date_operation' => now(),
+                'entree' => 0,
+                'sortie' => $montant,
+            ];
+            if (schema_has_column('caisses', 'type_operation')) {
+                $caissePayload['type_operation'] = 'dette';
+            }
+            if (schema_has_column('caisses', 'succursale_id')) {
+                $caissePayload['succursale_id'] = $fournisseur->succursale_id;
+            }
+            $caisse = CaisseService::createOperation($caissePayload);
+
+            Model::unguarded(function () use ($paiementUuid, $entrepriseId, $fournisseur, $montant, $caisse, $hasSuccursale) {
+                $data = [
+                    'uuid' => $paiementUuid,
+                    'entreprise_id' => $entrepriseId,
+                    'fournisseur_id' => $fournisseur->id,
+                    'montant_paye' => $montant,
+                    'caisse_id' => $caisse->id,
+                ];
+                if ($hasSuccursale) {
+                    $data['succursale_id'] = $fournisseur->succursale_id;
+                }
+                Dette::withoutGlobalScopes()->create($data);
+            });
+
+            $fournisseur->dette = (float) $fournisseur->dette - $montant;
+            $fournisseur->save();
+        } catch (ValidationException $e) {
+            return ['status' => 'conflict', 'reason' => 'caisse_insuffisante'];
+        }
+
+        return ['status' => 'synced'];
     }
 
     private function softDelete(array $op, int $entrepriseId): array
