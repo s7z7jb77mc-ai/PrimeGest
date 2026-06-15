@@ -26,9 +26,11 @@ const OFFLINE_ROUTES = [
   { re: /^\/caisse/,                  component: 'Caisse/Index',          props: { caisses: [], devise: 'USD', hasInitial: false } },
   { re: /^\/journals/,                component: 'Journal/Index',         props: { journals: [] } },
   { re: /^\/tiers/,                   component: 'Tiers/Index',           props: { clients: [], fournisseurs: [] } },
-  { re: /^\/creances-dettes\/[^/]+/,  component: 'CreancesDettes/Detail', props: { creance: null } },
-  { re: /^\/creances-dettes/,         component: 'CreancesDettes/Index',  props: { clients: [], fournisseurs: [], devise: 'CDF' } },
-  { re: /^\/transferts/,              component: 'Transferts/Index',      props: { transferts: [], succursales: [] } },
+  // /creances-dettes/:id (Detail) = online-only : résumé mensuel calculé
+  // côté serveur (factures, paiements, réductions) → non disponible hors-ligne.
+  // Regex ancré sur la fin pour ne pas capturer les URLs de détail.
+  { re: /^\/creances-dettes\/?$/,     component: 'CreancesDettes/Index',  props: { clients: [], fournisseurs: [], devise: 'CDF' } },
+  { re: /^\/transferts/,              component: 'Transferts/Index',      props: { transferts: [], succursales: [], produits: [] } },
   { re: /^\/succursales\/[^/]+/,      component: 'Succursales/Show',      props: { succursale: {} } },
   { re: /^\/succursales/,             component: 'Succursales/Index',     props: { succursales: [] } },
 ]
