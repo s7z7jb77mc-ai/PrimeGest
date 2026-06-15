@@ -305,10 +305,12 @@ class BusinessWorkflowTest extends TestCase
     private function createSuperAdmin(): User
     {
         $entreprise = Entreprise::create([
-            'name' => 'PrimeGest Test',
-            'email' => 'entreprise@example.com',
-            'phone' => '0990000000',
-            'address' => 'Lubumbashi',
+            'name'            => 'PrimeGest Test',
+            'email'           => 'entreprise@example.com',
+            'phone'           => '0990000000',
+            'address'         => 'Lubumbashi',
+            'plan'            => 'pro',
+            'plan_expires_at' => now()->addDays(30),
         ]);
 
         $user = User::factory()->create([
