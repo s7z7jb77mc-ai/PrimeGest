@@ -20,9 +20,15 @@ set -euo pipefail
 # Répertoire du projet = parent du dossier scripts/
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKFLOW="build-desktop.yml"
-ARTIFACT_NAME="PrimeGest-Windows-Setup"
-DEST="$PROJECT_DIR/public/downloads/PrimeGest-Setup.exe"
-TMP_DIR="$(mktemp -d /tmp/pg-win.XXXXXX)"
+DOWNLOADS_DIR="$PROJECT_DIR/public/downloads"
+TMP_DIR="$(mktemp -d /tmp/pg-desktop.XXXXXX)"
+
+# Plateformes publiées : "artefact|motif-fichier|destination|libellé"
+# L'artefact est celui produit par .github/workflows/build-desktop.yml.
+PLATFORMS=(
+    "PrimeGest-Windows-Setup|*.exe|PrimeGest-Setup.exe|Windows"
+    "PrimeGest-macOS-DMG|*.dmg|PrimeGest.dmg|macOS"
+)
 
 cd "$PROJECT_DIR"
 
@@ -71,28 +77,34 @@ else
     [[ -n "$RUN_ID" ]] || die "Aucun build réussi trouvé. Relancer sans --no-build."
 fi
 
-# ── Étape 2 — Télécharger l'artefact ───────────────────────────────
-log "Téléchargement de l'artefact (run #$RUN_ID)"
-if ! gh run download "$RUN_ID" -n "$ARTIFACT_NAME" -D "$TMP_DIR" 2>/dev/null; then
-    die "Artefact '$ARTIFACT_NAME' indisponible (expiré après 30 j ?). Relancer un build sans --no-build."
-fi
+# ── Étapes 2 & 3 — Télécharger et installer chaque plateforme ──────
+mkdir -p "$DOWNLOADS_DIR"
+PUBLISHED=0
 
-EXE="$(find "$TMP_DIR" -name '*.exe' -print -quit)"
-[[ -n "$EXE" ]] || die "Aucun .exe dans l'artefact téléchargé."
+for entry in "${PLATFORMS[@]}"; do
+    IFS='|' read -r artifact pattern dest_name label <<< "$entry"
+    dest="$DOWNLOADS_DIR/$dest_name"
+    sub="$TMP_DIR/$artifact"
 
-# ── Étape 3 — Installer dans public/downloads/ ─────────────────────
-log "Installation dans public/downloads/"
-mkdir -p "$(dirname "$DEST")"
-cp "$EXE" "$DEST"
+    log "$label — téléchargement de l'artefact '$artifact'"
+    if ! gh run download "$RUN_ID" -n "$artifact" -D "$sub" 2>/dev/null; then
+        warn "$label : artefact '$artifact' absent de ce run (job non exécuté ou expiré). Ignoré."
+        continue
+    fi
 
-# Vérifie que c'est bien un exécutable Windows
-if ! file "$DEST" | grep -qi 'MS Windows'; then
-    warn "Le fichier copié ne semble pas être un installateur Windows :"
-    file "$DEST"
-fi
+    file_src="$(find "$sub" -name "$pattern" -print -quit)"
+    if [[ -z "$file_src" ]]; then
+        warn "$label : aucun fichier '$pattern' dans l'artefact. Ignoré."
+        continue
+    fi
 
-SIZE="$(du -h "$DEST" | cut -f1)"
-ok "Installateur publié : $DEST ($SIZE)"
+    cp "$file_src" "$dest"
+    SIZE="$(du -h "$dest" | cut -f1)"
+    ok "$label publié : $dest ($SIZE)"
+    PUBLISHED=$((PUBLISHED + 1))
+done
+
+[[ "$PUBLISHED" -gt 0 ]] || die "Aucune plateforme publiée — vérifier le run #$RUN_ID."
 
 # ── Étape 4 — Recompiler le frontend (idempotent) ──────────────────
 # Nécessaire uniquement si Home.vue a changé, mais sans risque sinon.

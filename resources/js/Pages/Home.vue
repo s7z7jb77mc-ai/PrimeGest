@@ -164,7 +164,7 @@ const content = {
         { name: 'Linux Desktop', desc: 'Linux x64', url: '/downloads/PrimeGest-Linux-x64.tar.gz', available: true, type: 'download', icon: 'linux' },
         { name: 'Windows', desc: 'Windows 10 / 11', url: '/downloads/PrimeGest-Setup.exe', available: true, type: 'download', icon: 'windows' },
         { name: 'Application Web', desc: 'Chrome, Firefox, Safari', url: '/register-entreprise', available: true, type: 'open', icon: 'web' },
-        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.dmg', available: false, type: 'download', icon: 'mac' },
+        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.dmg', available: true, type: 'download', icon: 'mac' },
       ],
     },
     cta: {
@@ -301,7 +301,7 @@ const content = {
         { name: 'Linux Desktop', desc: 'Linux x64', url: '/downloads/PrimeGest-Linux-x64.tar.gz', available: true, type: 'download', icon: 'linux' },
         { name: 'Windows', desc: 'Windows 10 / 11', url: '/downloads/PrimeGest-Setup.exe', available: true, type: 'download', icon: 'windows' },
         { name: 'Web App', desc: 'Chrome, Firefox, Safari', url: '/register-entreprise', available: true, type: 'open', icon: 'web' },
-        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.dmg', available: false, type: 'download', icon: 'mac' },
+        { name: 'macOS', desc: 'MacBook & iMac', url: '/downloads/PrimeGest.dmg', available: true, type: 'download', icon: 'mac' },
       ],
     },
     cta: {
