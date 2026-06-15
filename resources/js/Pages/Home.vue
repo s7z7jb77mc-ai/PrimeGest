@@ -114,7 +114,7 @@ const content = {
         {
           number: '02',
           title: 'Travaillez même hors ligne',
-          description: 'La version desktop continue de fonctionner sans internet. Vos données se synchronisent dès le retour de la connexion.',
+          description: 'Après la première connexion, vos pages de gestion quotidienne restent accessibles hors-ligne. Vos données se synchronisent dès le retour de la connexion.',
         },
         {
           number: '03',
@@ -156,7 +156,7 @@ const content = {
     },
     download: {
       title: 'Téléchargez PrimeGest',
-      subtitle: 'Disponible sur tous vos appareils. La version desktop fonctionne même sans connexion internet.',
+      subtitle: 'Disponible sur tous vos appareils. Après une première connexion, la version desktop continue de fonctionner hors-ligne.',
       soon: 'Bientôt disponible',
       downloadBtn: 'Télécharger',
       openBtn: "Ouvrir l'app",
@@ -251,7 +251,7 @@ const content = {
         {
           number: '02',
           title: 'Keep working offline',
-          description: 'The desktop version runs without internet. Your data syncs automatically when the connection returns.',
+          description: 'After the first sign-in, your everyday management pages stay available offline. Your data syncs automatically when the connection returns.',
         },
         {
           number: '03',
@@ -293,7 +293,7 @@ const content = {
     },
     download: {
       title: 'Download PrimeGest',
-      subtitle: 'Available on all your devices. The desktop version works even without an internet connection.',
+      subtitle: 'Available on all your devices. After an initial sign-in, the desktop version keeps working offline.',
       soon: 'Coming soon',
       downloadBtn: 'Download',
       openBtn: 'Open app',
