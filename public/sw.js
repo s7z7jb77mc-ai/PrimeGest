@@ -27,7 +27,7 @@ const OFFLINE_ROUTES = [
   { re: /^\/journals/,                component: 'Journal/Index',         props: { journals: [] } },
   { re: /^\/tiers/,                   component: 'Tiers/Index',           props: { clients: [], fournisseurs: [] } },
   { re: /^\/creances-dettes\/[^/]+/,  component: 'CreancesDettes/Detail', props: { creance: null } },
-  { re: /^\/creances-dettes/,         component: 'CreancesDettes/Index',  props: { creances: [], dettes: [] } },
+  { re: /^\/creances-dettes/,         component: 'CreancesDettes/Index',  props: { clients: [], fournisseurs: [], devise: 'CDF' } },
   { re: /^\/transferts/,              component: 'Transferts/Index',      props: { transferts: [], succursales: [] } },
   { re: /^\/succursales\/[^/]+/,      component: 'Succursales/Show',      props: { succursale: {} } },
   { re: /^\/succursales/,             component: 'Succursales/Index',     props: { succursales: [] } },

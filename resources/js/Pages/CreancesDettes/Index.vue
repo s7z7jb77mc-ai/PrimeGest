@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { t as _t } from '@/lang'
 import { useLang } from '@/composables/useLang'
 import AppDashboardLayout from '@/layouts/AppDashboardLayout.vue'
+import { useOfflineStore } from '@/stores/useOfflineStore'
+import { useLocalDB } from '@/composables/useLocalDB'
 defineOptions({ layout: AppDashboardLayout })
+
+const offlineStore = useOfflineStore()
+const localDB = useLocalDB()
 
 const props = defineProps({
   clients: { type: Array, default: () => [] },
@@ -19,22 +24,73 @@ const lang = useLang()
 const montantClient = ref({})
 const montantFournisseur = ref({})
 
-function payerCreance(clientId) {
-  const montant = Number(montantClient.value[clientId] || 0)
-  if (montant <= 0) {
-    alert('Montant invalide.')
-    return
-  }
-  router.post(`/creances-dettes/clients/${clientId}/paiement`, { montant }, { preserveScroll: true })
+// ── Données hors-ligne (Dexie) ────────────────────────────────────
+// creance/dette sont de vraies colonnes synchronisées : on filtre
+// localement comme le fait le contrôleur (creance > 0 / dette > 0).
+const localClients = ref<any[]>([])
+const localFournisseurs = ref<any[]>([])
+
+async function loadLocalCreancesDettes() {
+  if (!localDB.isAvailable) return
+  const [clients, fournisseurs] = await Promise.all([
+    localDB.getClients(),
+    localDB.getFournisseurs(),
+  ])
+  localClients.value = clients.filter((c: any) => Number(c.creance || 0) > 0)
+  localFournisseurs.value = fournisseurs.filter((f: any) => Number(f.dette || 0) > 0)
 }
 
-function payerDette(fournisseurId) {
-  const montant = Number(montantFournisseur.value[fournisseurId] || 0)
+onMounted(async () => {
+  if (!offlineStore.isOnline) await loadLocalCreancesDettes()
+  window.addEventListener('primegest:sync-pulled', loadLocalCreancesDettes)
+  window.addEventListener('primegest:offline', loadLocalCreancesDettes)
+  window.addEventListener('primegest:local-write', loadLocalCreancesDettes)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('primegest:sync-pulled', loadLocalCreancesDettes)
+  window.removeEventListener('primegest:offline', loadLocalCreancesDettes)
+  window.removeEventListener('primegest:local-write', loadLocalCreancesDettes)
+})
+
+const isOffline = computed(() => !offlineStore.isOnline)
+
+const displayClients = computed<any[]>(() =>
+  offlineStore.isOnline
+    ? (props.clients as any[])
+    : (localClients.value.length > 0 ? localClients.value : (props.clients as any[]))
+)
+const displayFournisseurs = computed<any[]>(() =>
+  offlineStore.isOnline
+    ? (props.fournisseurs as any[])
+    : (localFournisseurs.value.length > 0 ? localFournisseurs.value : (props.fournisseurs as any[]))
+)
+
+// Clé stable : l'id numérique est absent hors-ligne (uniquement uuid)
+function rowKey(entity: any): string {
+  return String(entity.uuid ?? entity.id)
+}
+
+// Le paiement et le détail exigent le serveur (id numérique + écriture
+// caisse). Désactivés hors-ligne pour éviter une action qui échouerait.
+function payerCreance(client: any) {
+  if (isOffline.value) return
+  const montant = Number(montantClient.value[rowKey(client)] || 0)
   if (montant <= 0) {
     alert('Montant invalide.')
     return
   }
-  router.post(`/creances-dettes/fournisseurs/${fournisseurId}/paiement`, { montant }, { preserveScroll: true })
+  router.post(`/creances-dettes/clients/${client.id}/paiement`, { montant }, { preserveScroll: true })
+}
+
+function payerDette(fournisseur: any) {
+  if (isOffline.value) return
+  const montant = Number(montantFournisseur.value[rowKey(fournisseur)] || 0)
+  if (montant <= 0) {
+    alert('Montant invalide.')
+    return
+  }
+  router.post(`/creances-dettes/fournisseurs/${fournisseur.id}/paiement`, { montant }, { preserveScroll: true })
 }
 
 function goDashboard() {
@@ -51,6 +107,10 @@ function goDashboard() {
       </button>
     </div>
 
+    <div v-if="isOffline" class="bg-amber-50 border border-amber-200 text-amber-800 rounded p-3 text-sm">
+      Mode hors-ligne — montants à la dernière synchronisation. Les paiements seront disponibles au retour de la connexion.
+    </div>
+
     <div class="bg-white shadow rounded p-4">
       <h2 class="text-lg font-semibold mb-2">Créances clients</h2>
       <div class="overflow-x-auto">
@@ -65,18 +125,18 @@ function goDashboard() {
               <th class="px-4 py-2 text-center">Action</th>
             </tr>
           </thead>
-          <tbody v-if="props.clients.length">
-            <tr v-for="c in props.clients" :key="c.id" class="border-t">
+          <tbody v-if="displayClients.length">
+            <tr v-for="c in displayClients" :key="rowKey(c)" class="border-t">
               <td class="px-4 py-2">{{ c.nom_client }}</td>
               <td class="px-4 py-2">{{ c.numero_telephone }}</td>
               <td class="px-4 py-2 text-right">{{ Number(c.creance || 0).toFixed(2) }} {{ devise }}</td>
               <td class="px-4 py-2 text-right">
-                <input v-model.number="montantClient[c.id]" type="number" step="0.01" class="w-32 border p-1 rounded" />
+                <input v-model.number="montantClient[rowKey(c)]" type="number" step="0.01" :disabled="isOffline" class="w-32 border p-1 rounded disabled:bg-gray-100" />
               </td>
               <td class="px-4 py-2 text-center">
                 <div class="flex items-center justify-center gap-2">
-                  <button type="button" @click="payerCreance(c.id)" class="px-3 py-1 bg-green-600 text-white rounded">Payer</button>
-                  <button type="button" @click="router.get(`/creances-dettes/clients/${c.id}`)" class="px-3 py-1 bg-blue-600 text-white rounded">Détail</button>
+                  <button type="button" @click="payerCreance(c)" :disabled="isOffline" class="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Payer</button>
+                  <button type="button" @click="router.get(`/creances-dettes/clients/${c.id}`)" :disabled="isOffline" class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Détail</button>
                 </div>
               </td>
             </tr>
@@ -104,17 +164,17 @@ function goDashboard() {
               <th class="px-4 py-2 text-center">Action</th>
             </tr>
           </thead>
-          <tbody v-if="props.fournisseurs.length">
-            <tr v-for="f in props.fournisseurs" :key="f.id" class="border-t">
+          <tbody v-if="displayFournisseurs.length">
+            <tr v-for="f in displayFournisseurs" :key="rowKey(f)" class="border-t">
               <td class="px-4 py-2">{{ f.nom_entreprise_fournisseur }}</td>
               <td class="px-4 py-2 text-right">{{ Number(f.dette || 0).toFixed(2) }} {{ devise }}</td>
               <td class="px-4 py-2 text-right">
-                <input v-model.number="montantFournisseur[f.id]" type="number" step="0.01" class="w-32 border p-1 rounded" />
+                <input v-model.number="montantFournisseur[rowKey(f)]" type="number" step="0.01" :disabled="isOffline" class="w-32 border p-1 rounded disabled:bg-gray-100" />
               </td>
               <td class="px-4 py-2 text-center">
                 <div class="flex items-center justify-center gap-2">
-                  <button type="button" @click="payerDette(f.id)" class="px-3 py-1 bg-red-600 text-white rounded">Payer</button>
-                  <button type="button" @click="router.get(`/creances-dettes/fournisseurs/${f.id}`)" class="px-3 py-1 bg-blue-600 text-white rounded">Détail</button>
+                  <button type="button" @click="payerDette(f)" :disabled="isOffline" class="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Payer</button>
+                  <button type="button" @click="router.get(`/creances-dettes/fournisseurs/${f.id}`)" :disabled="isOffline" class="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-40 disabled:cursor-not-allowed">Détail</button>
                 </div>
               </td>
             </tr>
